@@ -14,8 +14,8 @@ jobs:
         with:
           ghc-version: '9.8.2'
           cabal-version: '3.10.3.0'
-      - name: Build tests and enable coverage
-        run: cabal test all --enable-coverage
+      - name: Run test suite
+        run: cabal test all --test-show-details=direct
       - name: Build mucheck
         run: cabal build all --write-ghc-environment-files=always
       - name: Run mutation tests with MSI quality gate
