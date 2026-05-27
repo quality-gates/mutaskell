@@ -19,9 +19,9 @@
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
 - [ ] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
 - [ ] Add `--no-diffs` flag: suppress the per-mutant unified diff output
-- [ ] Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
-- [ ] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
-- [ ] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
+- [x] Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
+- [x] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
+- [x] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
 - [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
 - [ ] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
 - [ ] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
@@ -37,7 +37,7 @@
 - [ ] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
 - [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
-- [ ] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
+- [x] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
 - [ ] Ensure all mutator variant names used in `--disable`/`--enable` and config use consistent separators (no mix of underscores and hyphens)
 - [ ] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
 - [ ] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
@@ -51,7 +51,7 @@
 - [ ] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
 - [ ] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
 - [ ] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
-- [ ] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
+- [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
 - [ ] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
 - [ ] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats

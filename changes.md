@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2] (Jonathan Baldie)
+  * Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
+  * Add `--min-msi PCT` flag: exit with code 5 if MSI falls below the given percentage threshold
+  * Add `--noop` flag: run tests on unmodified source before mutation begins; exit with code 3 if they fail
+  * Define and document exit codes: 0=pass, 2=bad arguments, 3=noop failure, 4=escaped mutants, 5=MSI below threshold; unknown flags now exit 2 instead of crashing
+  * Print per-mutator breakdown table (killed / alive / errors per MuVar variant) after every run summary
+
 ## [0.4.1] (Jonathan Baldie)
   * Update `.cabal` metadata: homepage, maintainer, and source-repository stanzas to point to the jonbaldie/mucheck fork
   * Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary

@@ -10,3 +10,4 @@ dist-newstyle/*
 cabal.sandbox.config
 tags
 .ghc.environment.*
+.mucheck-noop.log

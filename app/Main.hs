@@ -1,30 +1,134 @@
 module Main where
-import Data.List (group, sort, sortBy)
+
+import Control.Monad (unless, when)
+import Data.List (group, nub, sort, sortBy)
 import Data.Ord (comparing, Down(..))
 import System.Environment (getArgs)
+import System.Exit (ExitCode(..), exitWith)
 
 import Test.MuCheck (mucheck)
+import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
-import Test.MuCheck.Mutation (genMutantsForSrc)
-import Test.MuCheck.TestAdapter (Mutant(..), TRun(..))
+import Test.MuCheck.Interpreter (MutantSummary(..), evalTest)
+import Test.MuCheck.Mutation (genMutantsForSrc, getAllTests)
+import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Utils.Print
 
+data Opts = Opts
+  { optFile         :: FilePath
+  , optTix          :: FilePath
+  , optDryRun       :: Bool
+  , optNoop         :: Bool
+  , optFailOnEscape :: Bool
+  , optMinMsi       :: Maybe Int
+  }
+
+defaultOpts :: Opts
+defaultOpts = Opts
+  { optFile         = ""
+  , optTix          = ""
+  , optDryRun       = False
+  , optNoop         = False
+  , optFailOnEscape = False
+  , optMinMsi       = Nothing
+  }
+
+parseOpts :: [String] -> Either String Opts
+parseOpts = go defaultOpts
+  where
+    go opts ("--dry-run"         : rest) = go opts { optDryRun       = True } rest
+    go opts ("--noop"            : rest) = go opts { optNoop         = True } rest
+    go opts ("--fail-on-escaped" : rest) = go opts { optFailOnEscape = True } rest
+    go _    ("--min-msi"         : [])   = Left "--min-msi requires an integer argument"
+    go opts ("--min-msi" : n     : rest) =
+      case reads n of
+        [(i, "")] -> go opts { optMinMsi = Just i } rest
+        _         -> Left $ "--min-msi requires an integer argument, got: " ++ n
+    go _    ("-tix"              : [])   = Left "-tix requires a file path argument"
+    go opts ("-tix" : tix        : rest) = go opts { optTix = tix } rest
+    go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
+    go opts (file                : _)    = Right opts { optFile = file }
+    go _    []                           = Left "Need a file argument"
+
 main :: IO ()
 main = do
-  val <- getArgs
-  case val of
-    ("-h" : _ ) -> help
-    ("--dry-run" : "-tix" : tix : file : _) -> dryRun file (Just tix)
-    ("--dry-run" : file : _)                 -> dryRun file Nothing
-    ("-tix" : tix: file: _ ) -> do (msum, _tsum) <- mucheck (toRun file :: AssertCheckRun) tix
-                                   print msum
-    (file : _args) -> do (msum, _tsum) <- mucheck (toRun file :: AssertCheckRun) []
-                         print msum
-    _ -> error "Need function file [args]\n\tUse -h to get help"
+  args <- getArgs
+  case args of
+    ("-h" : _) -> help
+    _          -> case parseOpts args of
+      Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
+      Right opts -> runOpts opts
 
-dryRun :: FilePath -> Maybe FilePath -> IO ()
-dryRun file _tix = do
+runOpts :: Opts -> IO ()
+runOpts opts
+  | optDryRun opts = dryRun (optFile opts)
+  | otherwise      = do
+      when (optNoop opts) $ noopCheck (optFile opts)
+      (msum, tsum) <- mucheck (toRun (optFile opts) :: AssertCheckRun) (optTix opts)
+      print msum
+      printMutatorBreakdown tsum
+      applyExitPolicy opts msum
+
+noopCheck :: FilePath -> IO ()
+noopCheck file = do
+  tests <- getAllTests file
+  unless (null tests) $ do
+    let testStrs = map (genTest (toRun file :: AssertCheckRun)) tests
+        logF     = ".mucheck-noop.log"
+        runTest :: String -> IO (InterpreterOutput AssertCheckSummary)
+        runTest  = evalTest file logF
+    results <- mapM runTest testStrs
+    let pass = all (\r -> case _io r of { Right out -> isSuccess out; Left _ -> False }) results
+    unless pass $ do
+      putStrLn "Pre-flight check failed: test suite does not pass on unmodified source"
+      exitWith (ExitFailure 3)
+
+applyExitPolicy :: Opts -> MAnalysisSummary -> IO ()
+applyExitPolicy opts msum = do
+  let noerrors = max (max (_maOriginalNumMutants msum) (_maCoveredNumMutants msum))
+                     (_maNumMutants msum) - _maErrors msum
+      msi | noerrors > 0 = _maKilled msum * 100 `div` noerrors
+          | otherwise    = 0
+  case optMinMsi opts of
+    Just threshold | msi < threshold -> do
+      putStrLn $ "MSI " ++ show msi ++ "% is below threshold " ++ show threshold ++ "%"
+      exitWith (ExitFailure 5)
+    _ -> return ()
+  when (optFailOnEscape opts && _maAlive msum > 0) $ do
+    putStrLn $ show (_maAlive msum) ++ " mutant(s) survived; exiting with failure"
+    exitWith (ExitFailure 4)
+
+printMutatorBreakdown :: [MutantSummary] -> IO ()
+printMutatorBreakdown [] = return ()
+printMutatorBreakdown sums = do
+  let mutOf (MSumError m _ _) = m
+      mutOf (MSumAlive m _)   = m
+      mutOf (MSumKilled m _)  = m
+      mutOf (MSumOther m _)   = m
+      isKilled (MSumKilled _ _)  = True; isKilled _ = False
+      isAlive  (MSumAlive  _ _)  = True; isAlive  _ = False
+      isErr    (MSumError _ _ _) = True; isErr    _ = False
+      mutype   = showMuVar . _mtype . mutOf
+      types    = sort . nub $ map mutype sums
+      row t    = let ts = filter ((== t) . mutype) sums
+                     k  = length $ filter isKilled ts
+                     a  = length $ filter isAlive  ts
+                     e  = length $ filter isErr    ts
+                 in (t, k, a, e)
+      rows     = map row types
+      colW     = max 8 $ maximum $ map (\(t,_,_,_) -> length t) rows
+      pad s    = s ++ replicate (colW - length s + 2) ' '
+      sep      = replicate (colW + 32) '-'
+      fmtN n   = replicate (max 0 (6 - length (show n))) ' ' ++ show n
+  putStrLn ""
+  putStrLn $ "  " ++ pad "Mutator" ++ "  Killed   Alive  Errors"
+  putStrLn sep
+  mapM_ (\(t,k,a,e) -> putStrLn $ "  " ++ pad t ++ "  " ++ fmtN k ++ "  " ++ fmtN a ++ "  " ++ fmtN e) rows
+  putStrLn sep
+
+dryRun :: FilePath -> IO ()
+dryRun file = do
   src <- readFile file
   let mutants = genMutantsForSrc defaultConfig src
       byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
@@ -50,5 +154,24 @@ showMuVar MutateNegateGuards = "negate-guards"
 showMuVar (MutateOther s)    = if null s then "other" else "other:" ++ s
 
 help :: IO ()
-help = putStrLn $ "mucheck function file [args]\n" ++ showAS ["E.g:",
-       " mucheck [--dry-run] [-tix <file.tix>] Examples/AssertCheckTest.hs",""]
+help = putStrLn $ showAS
+  [ "Usage: mucheck [FLAGS] FILE"
+  , ""
+  , "FLAGS:"
+  , "  -h                   Print this help"
+  , "  --dry-run            Show mutation counts by type without evaluating"
+  , "  --noop               Verify tests pass on unmodified source first (exit 3 on failure)"
+  , "  --fail-on-escaped    Exit with code 4 if any mutant survives"
+  , "  --min-msi PCT        Exit with code 5 if MSI is below PCT percent"
+  , "  -tix FILE            HPC coverage file for coverage-guided mutation"
+  , ""
+  , "EXIT CODES:"
+  , "  0  Tests ran; no quality gate triggered"
+  , "  2  Bad arguments"
+  , "  3  Pre-flight failure (--noop: tests fail on original source)"
+  , "  4  Escaped mutants (--fail-on-escaped)"
+  , "  5  MSI below threshold (--min-msi)"
+  , ""
+  , "E.g.:"
+  , "  mucheck [--dry-run] [-tix file.tix] Examples/AssertCheckTest.hs"
+  ]

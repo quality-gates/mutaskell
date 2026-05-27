@@ -15,7 +15,7 @@ All 22 tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) works locally;
 
 | Module | What it does |
 | :--- | :--- |
-| `app/Main.hs` | Binary entrypoint; argument parsing (`-h`, `-tix`, file) |
+| `app/Main.hs` | Binary entrypoint; `parseOpts` flag parsing (`-h`, `--dry-run`, `--noop`, `--fail-on-escaped`, `--min-msi`, `-tix`, file) |
 | `src/Test/MuCheck.hs` | Top-level orchestration: generate → sample → evaluate → summarise |
 | `src/Test/MuCheck/Mutation.hs` | All mutant generation: literal ops, bool ops, if/else, guards, function/operator substitution, pattern match permutation |
 | `src/Test/MuCheck/MuOp.hs` | `MuOp` type and `Mutable` class; AST type aliases |
@@ -37,15 +37,23 @@ cabal run mucheck -- Examples/AssertCheckTest.hs
 Expected output (numbers are stable for the unmodified example):
 
 ```
-Total mutants: 19 (basis for %)
+Mutation score (MSI): 70%
+Total mutants: 18 (basis for %)
 	Covered: not provided
-	Sampled: 19
+	Sampled: 18
 	Errors: 1  (5%)
-	Alive: 6/18
-	Killed: 12/18 (66%)
+	Alive: 5/17
+	Killed: 12/17 (70%)
+
+  Mutator           Killed   Alive  Errors
+----------------------------------------------
+  functions             10       2       1
+  literal-values         0       2       0
+  pattern-match          2       1       0
+----------------------------------------------
 ```
 
-One error is expected — the `/` operator mutation on `uncoveredDummy` produces `0 / a :: Int`, which does not typecheck. Six escaped mutants are expected — the example tests are not exhaustive. If the killed count drops significantly, a test or mutator has regressed.
+One error is expected — the `/` operator mutation on `uncoveredDummy` produces `0 / a :: Int`, which does not typecheck. Five escaped mutants are expected — the example tests are not exhaustive. If the killed count drops significantly, a test or mutator has regressed.
 
 ## Shipping workflow
 
