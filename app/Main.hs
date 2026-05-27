@@ -1,11 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
+import Control.Exception (IOException, try)
 import Control.Monad (unless, when, forM_)
 import Data.List (group, isPrefixOf, nub, sort, sortBy)
 import Data.Ord (comparing, Down(..))
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
+import System.IO (hPutStrLn, stderr)
 
 import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
@@ -36,6 +38,9 @@ data Opts = Opts
   , optIgnoreMsiNoMutations :: Bool
   , optOutputStatuses :: Maybe String
   , optTimeout      :: Maybe Int
+  , optLoggerJson   :: Maybe FilePath
+  , optBaseline     :: Maybe FilePath
+  , optUpdateBaseline :: Maybe FilePath
   }
 
 defaultOpts :: Opts
@@ -57,6 +62,9 @@ defaultOpts = Opts
   , optIgnoreMsiNoMutations = False
   , optOutputStatuses = Nothing
   , optTimeout      = Nothing
+  , optLoggerJson   = Nothing
+  , optBaseline     = Nothing
+  , optUpdateBaseline = Nothing
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -97,6 +105,12 @@ parseOpts = go defaultOpts
       case reads n of
         [(i, "")] -> go opts { optTimeout = Just i } rest
         _         -> Left $ "--timeout requires an integer argument, got: " ++ n
+    go _    ("--logger-json"     : [])   = Left "--logger-json requires a file path argument"
+    go opts ("--logger-json" : f : rest) = go opts { optLoggerJson = Just f } rest
+    go _    ("--baseline"        : [])   = Left "--baseline requires a file path argument"
+    go opts ("--baseline" : f    : rest) = go opts { optBaseline = Just f } rest
+    go _    ("--update-baseline" : [])   = Left "--update-baseline requires a file path argument"
+    go opts ("--update-baseline" : f : rest) = go opts { optUpdateBaseline = Just f } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -133,8 +147,9 @@ runOpts opts
       let modFile = toRun (optFile opts) :: AssertCheckRun
       (len, mutants) <- genMutants (getName modFile) (optTix opts)
       smutants        <- sampler defaultConfig mutants
-      let finalMutants = applyDisableEnable (optDisable opts) (optEnable opts) smutants
-          tests        = map (genTest modFile)
+      let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
+      finalMutants <- applyBaseline (optBaseline opts) filtered0
+      let tests     = map (genTest modFile)
       testNames <- getAllTests (getName modFile)
       let timeoutUs = fmap (* 1000000) (optTimeout opts)
       (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
@@ -144,7 +159,63 @@ runOpts opts
       printMutantDetails opts tsum
       print msum
       printMutatorBreakdown opts tsum
+      writeJsonLogger opts msum
+      writeUpdateBaseline opts tsum
       applyExitPolicy opts msum
+
+-- | Load a baseline file and filter out mutants whose hash appears in it.
+applyBaseline :: Maybe FilePath -> [Mutant] -> IO [Mutant]
+applyBaseline Nothing ms = return ms
+applyBaseline (Just path) ms = do
+  result <- try (readFile path) :: IO (Either IOException String)
+  case result of
+    Left e -> do
+      hPutStrLn stderr $ "Warning: could not read baseline file: " ++ show e
+      return ms
+    Right contents -> do
+      let baselineIds = lines contents
+      return $ filter (\m -> hash (_mutant m) `notElem` baselineIds) ms
+
+-- | Write surviving mutant IDs to the update-baseline file.
+writeUpdateBaseline :: Opts -> [MutantSummary] -> IO ()
+writeUpdateBaseline opts tsum = case optUpdateBaseline opts of
+  Nothing   -> return ()
+  Just path -> do
+    let aliveIds = [hash (_mutant m) | MSumAlive m _ <- tsum]
+    writeFile path (unlines aliveIds)
+
+-- | Write a compact JSON summary to the logger-json file.
+writeJsonLogger :: Opts -> MAnalysisSummary -> IO ()
+writeJsonLogger opts msum = case optLoggerJson opts of
+  Nothing   -> return ()
+  Just path -> do
+    let MAnalysisSummary{..} = msum
+        noerrors = _maNumMutants - _maErrors
+        msiVal :: Double
+        msiVal = if noerrors > 0
+                 then fromIntegral _maKilled / fromIntegral noerrors
+                 else 0.0
+        covNoerrors = if _maCoveredNumMutants > 0
+                      then _maCoveredNumMutants - _maErrors
+                      else noerrors
+        covMsiVal :: Double
+        covMsiVal = if covNoerrors > 0
+                    then fromIntegral _maKilled / fromIntegral covNoerrors
+                    else 0.0
+        covMsiField = if _maCoveredNumMutants > 0
+                      then show covMsiVal
+                      else "null"
+        json = unlines
+          [ "{"
+          , "  \"total\": " ++ show _maNumMutants ++ ","
+          , "  \"killed\": " ++ show _maKilled ++ ","
+          , "  \"alive\": " ++ show _maAlive ++ ","
+          , "  \"errors\": " ++ show _maErrors ++ ","
+          , "  \"msi\": " ++ show msiVal ++ ","
+          , "  \"covered_code_msi\": " ++ covMsiField
+          , "}"
+          ]
+    writeFile path json
 
 noopCheck :: FilePath -> IO ()
 noopCheck file = do
@@ -296,23 +367,26 @@ help = putStrLn $ showAS
   [ "Usage: mucheck [FLAGS] FILE"
   , ""
   , "FLAGS:"
-  , "  -h                   Print this help"
-  , "  --dry-run            Show mutation counts by type without evaluating"
-  , "  --noop               Verify tests pass on unmodified source first (exit 3 on failure)"
-  , "  --fail-on-escaped    Exit with code 4 if any mutant survives"
-  , "  --min-msi PCT        Exit with code 5 if MSI is below PCT percent"
-  , "  --disable NAME       Skip mutants of the named type (repeatable)"
-  , "  --enable  NAME       Run only mutants of the named type (repeatable)"
-  , "  -tix FILE            HPC coverage file for coverage-guided mutation"
+  , "  -h                        Print this help"
+  , "  --dry-run                 Show mutation counts by type without evaluating"
+  , "  --noop                    Verify tests pass on unmodified source first (exit 3 on failure)"
+  , "  --fail-on-escaped         Exit with code 4 if any mutant survives"
+  , "  --min-msi PCT             Exit with code 5 if MSI is below PCT percent"
+  , "  --disable NAME            Skip mutants of the named type (repeatable)"
+  , "  --enable  NAME            Run only mutants of the named type (repeatable)"
+  , "  -tix FILE                 HPC coverage file for coverage-guided mutation"
+  , "  --logger-json FILE        Write a compact JSON run summary to FILE"
+  , "  --baseline FILE           Skip mutants whose ID appears in FILE from a previous run"
+  , "  --update-baseline FILE    Write surviving mutant IDs to FILE after the run"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
-  , "  pattern-match        Function pattern-match permutation and removal"
-  , "  literal-values       Integer, float, char, string, and boolean literals"
-  , "  functions            Operator and function substitution"
-  , "  negate-if-else       Swap if-then and if-else branches"
-  , "  negate-guards        Wrap guard conditions in 'not'"
-  , "  remove-not           Strip 'not' from negated sub-expressions"
-  , "  remove-negation      Strip 'negate' and prefix '-' from expressions"
+  , "  pattern-match             Function pattern-match permutation and removal"
+  , "  literal-values            Integer, float, char, string, and boolean literals"
+  , "  functions                 Operator and function substitution"
+  , "  negate-if-else            Swap if-then and if-else branches"
+  , "  negate-guards             Wrap guard conditions in 'not'"
+  , "  remove-not                Strip 'not' from negated sub-expressions"
+  , "  remove-negation           Strip 'negate' and prefix '-' from expressions"
   , "  Trailing '*' is a prefix wildcard, e.g. 'other:*'"
   , ""
   , "EXIT CODES:"

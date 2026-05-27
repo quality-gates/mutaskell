@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.10]
+  * Add `--logger-json <file>` flag: write a compact JSON summary (total, killed, alive, errors, MSI) to a file after each run
+  * Include `covered_code_msi` in `--logger-json` output when a `-tix` file is provided
+  * Add `--baseline <file>` flag: skip mutants whose stable ID appears in a file from a previous run
+  * Add `--update-baseline <file>` flag: write the IDs of surviving mutants to a file after the run
+  * Add `.worktrees` to `.gitignore`; fix escaped-newline formatting bug in `.gitignore`
+
 ## [0.4.9]
   * Fix bug in `PrimChar` mutation where it incorrectly used the `Char` constructor
   * Refine `replace-mutable-arg` mutator to avoid matching common single-letter variables like `r`, `m`, and `t`
