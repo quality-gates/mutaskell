@@ -14,8 +14,9 @@
 #
 name: Haskell-CI
 on:
-  - push
-  - pull_request
+  push:
+    branches: ["master"]
+  pull_request:
 jobs:
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
@@ -50,15 +51,27 @@ jobs:
             allow-failure: false
       fail-fast: false
     steps:
+      - name: Cache GHC
+        id: ghcup-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ghcup
+          key: ghcup-${{ matrix.compilerVersion }}-cabal-3.12.1.0
       - name: apt
         run: |
           apt-get update
           apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
           mkdir -p "$HOME/.ghcup/bin"
-          curl -sL https://downloads.haskell.org/ghcup/0.1.30.0/x86_64-linux-ghcup-0.1.30.0 > "$HOME/.ghcup/bin/ghcup"
-          chmod a+x "$HOME/.ghcup/bin/ghcup"
-          "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
-          "$HOME/.ghcup/bin/ghcup" install cabal 3.12.1.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
+          if [ ! -x "$HOME/.ghcup/bin/ghcup" ]; then
+            curl -sL https://downloads.haskell.org/ghcup/0.1.30.0/x86_64-linux-ghcup-0.1.30.0 > "$HOME/.ghcup/bin/ghcup"
+            chmod a+x "$HOME/.ghcup/bin/ghcup"
+          fi
+          if ! "$HOME/.ghcup/bin/ghcup" whereis ghc "$HCVER" > /dev/null 2>&1; then
+            "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
+          fi
+          if ! "$HOME/.ghcup/bin/ghcup" whereis cabal "3.12.1.0" > /dev/null 2>&1; then
+            "$HOME/.ghcup/bin/ghcup" install cabal 3.12.1.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
+          fi
         env:
           HCKIND: ${{ matrix.compilerKind }}
           HCNAME: ${{ matrix.compiler }}

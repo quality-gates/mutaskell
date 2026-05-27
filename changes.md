@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.8]
+  * Add Dependabot configuration for GitHub Actions and Cabal dependencies
+  * Add an OSV-Scanner vulnerability scanning workflow to CI
+  * Add a code formatting gate using Fourmolu to CI (uses pre-built binary; runs in seconds)
+  * Build and deploy a Haddock documentation site to GitHub Pages
+  * Add an MSI quality gate to CI that fails the build if the project's own mutation score drops below 50%
+  * Audit and remove dead fields (`_maOriginalNumMutants`) in `MAnalysisSummary`
+  * Add generated report artifacts to `.gitignore`
+  * Add a link to the deployed documentation site in the `README`
+
 ## [0.4.7] (Jonathan Baldie)
   * Add `Data.Bits` operators (`.&.`, `.|.`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
   * Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants

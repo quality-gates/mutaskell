@@ -1,157 +1,178 @@
 {-# LANGUAGE QuasiQuotes #-}
+
 module Test.MuCheck.MutationSpec where
 
+import Control.Monad (MonadPlus, mplus, mzero)
+import Data.Generics (Data, GenericQ, Typeable, listify, mkMp, mkQ)
+import Here
+import Language.Haskell.Exts
+import System.Random
+import Test.Hspec
+import Test.MuCheck.Config (defaultConfig, muOp)
+import Test.MuCheck.MuOp (MuOp, mkMpMuOp, (==>))
+import Test.MuCheck.Mutation
 import qualified Test.MuCheck.MutationSpec.Helpers as H
 import qualified Test.MuCheck.Utils.Helpers
-import Test.Hspec
-import System.Random
-import Test.MuCheck.Mutation
-import Control.Monad (MonadPlus, mplus, mzero)
-import Test.MuCheck.MuOp (mkMpMuOp, MuOp, (==>))
-import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
-import Language.Haskell.Exts
-import Here
-import Test.MuCheck.Config (defaultConfig, muOp)
 
 main :: IO ()
 main = hspec spec
 
 spec :: Spec
 spec = do
-  describe "selectLitOps" $ do
-    it "returns binarylit muops" $ do
-      let text = [e|
+    describe "selectLitOps" $ do
+        it "returns binarylit muops" $ do
+            let text =
+                    [e|
 module Prop where
 import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-          res =  [[e|
+                res =
+                    [ [e|
 {
 1
 } ==> {
 2
 }
-|],[e|
+|]
+                    , [e|
 {
 1
 } ==> {
 0
 }
-|],[e|
+|]
+                    , [e|
 {
 1
 } ==> {
 1
 }
-|] ]
+|]
+                    ]
 
-      map show (selectLitOps (getASTFromStr text)) `shouldBe` res
+            map show (selectLitOps (getASTFromStr text)) `shouldBe` res
 
-  describe "selectBLitOps" $ do
-    it "returns binarylit muops" $ do
-      let text = [e|
+    describe "selectBLitOps" $ do
+        it "returns binarylit muops" $ do
+            let text =
+                    [e|
 module Prop where
 import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-          res =  [[e|
+                res =
+                    [ [e|
 {
 True
 } ==> {
 False
 }
-|],[e|
+|]
+                    , [e|
 {
 False
 } ==> {
 True
 }
-|] ]
-      map show (selectBLitOps (getASTFromStr text)) `shouldBe` res
+|]
+                    ]
+            map show (selectBLitOps (getASTFromStr text)) `shouldBe` res
 
-
-  describe "selectIfElseBoolNegOps" $ do
-    it "returns ifelse muops" $ do
-      let text = [e|
+    describe "selectIfElseBoolNegOps" $ do
+        it "returns ifelse muops" $ do
+            let text =
+                    [e|
 module Prop where
 import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-          res =  [[e|
+                res =
+                    [ [e|
 {
 if x == 1 then True else False
 } ==> {
 if x == 1 then False else True
 }
-|]]
-      map show (selectIfElseBoolNegOps (getASTFromStr text)) `shouldBe` res
+|]
+                    ]
+            map show (selectIfElseBoolNegOps (getASTFromStr text)) `shouldBe` res
 
-  describe "selectGuardedBoolNegOps" $ do
-    it "returns guardedboolean muops" $ do
-      let text = [e|
+    describe "selectGuardedBoolNegOps" $ do
+        it "returns guardedboolean muops" $ do
+            let text =
+                    [e|
 module Prop where
 import Test.QuickCheck
 
 myFn x | x == 1 = True
 myFn   | otherwise = False
 |]
-          res =  [[e|
+                res =
+                    [ [e|
 {
 | x == 1 = True
 } ==> {
 | not (x == 1) = True
 }
-|]]
-      map show (selectGuardedBoolNegOps (getASTFromStr text)) `shouldBe` res
+|]
+                    ]
+            map show (selectGuardedBoolNegOps (getASTFromStr text)) `shouldBe` res
 
-  describe "selectRemoveNotOps" $ do
-    it "returns remove-not muops" $ do
-      let text = [e|
+    describe "selectRemoveNotOps" $ do
+        it "returns remove-not muops" $ do
+            let text =
+                    [e|
 module Prop where
 myFn x = not x
 |]
-      selectRemoveNotOps (getASTFromStr text) `shouldSatisfy` (not . null)
+            selectRemoveNotOps (getASTFromStr text) `shouldSatisfy` (not . null)
 
-  describe "selectRemoveNegationOps" $ do
-    it "returns remove-negation muops" $ do
-      let text = [e|
+    describe "selectRemoveNegationOps" $ do
+        it "returns remove-negation muops" $ do
+            let text =
+                    [e|
 module Prop where
 myFn x = negate x
 |]
-      selectRemoveNegationOps (getASTFromStr text) `shouldSatisfy` (not . null)
+            selectRemoveNegationOps (getASTFromStr text) `shouldSatisfy` (not . null)
 
-  describe "selectFnMatches" $ do
-    it "returns fn muops" $ do
-      let text = [e|
+    describe "selectFnMatches" $ do
+        it "returns fn muops" $ do
+            let text =
+                    [e|
 module Prop where
 import Test.QuickCheck
 
 myFn [] = 0
 myFn (x:xs) = 1 + myFn xs
 |]
-          res =  [[e|
+                res =
+                    [ [e|
 {
 myFn [] = 0
 myFn (x : xs) = 1 + myFn xs
 } ==> {
 myFn (x : xs) = 1 + myFn xs
 myFn [] = 0
-}|],[e|{
+}|]
+                    , [e|{
 myFn [] = 0
 myFn (x : xs) = 1 + myFn xs
 } ==> {
 myFn [] = 0
-}|],[e|{
+}|]
+                    , [e|{
 myFn [] = 0
 myFn (x : xs) = 1 + myFn xs
 } ==> {
 myFn (x : xs) = 1 + myFn xs
-}|]]
-      map show (selectFnMatches (getASTFromStr text)) `shouldBe` res
- 
+}|]
+                    ]
+            map show (selectFnMatches (getASTFromStr text)) `shouldBe` res
 
 {-
   describe "selectGuardedBoolNegOps" $ do
@@ -173,7 +194,6 @@ myFn (x : xs) = 1 + myFn xs
                    [Qualifier (Var (UnQual (Ident "otherwise")))]
                    (Con (UnQual (Ident "False")))
         ]
-
 
   describe "selectIfElseBoolNegOps" $ do
     it "returns relevant ifElse mutators" $ do

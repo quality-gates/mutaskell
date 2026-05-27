@@ -53,7 +53,7 @@
 - [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
 - [x] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
-- [ ] Ensure all mutator variant names used in `--disable`/`--enable` and config use consistent separators (no mix of underscores and hyphens)
+- [x] Ensure all mutator variant names used in `--disable`/`--enable` and config use consistent separators (no mix of underscores and hyphens)
 - [ ] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
 - [ ] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
 - [ ] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
@@ -76,7 +76,7 @@
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
 - [ ] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
 - [ ] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
-- [ ] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
+- [x] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
 - [ ] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
 - [ ] Agentic JSON: include a `description` field showing the exact textual change for single-line mutations
 - [ ] Agentic JSON: include a `reminder` field with guidance for the consuming LLM on how to act on escaped mutant data
@@ -101,13 +101,13 @@
 - [ ] Support bare `mucheck` invocation (no file argument) to run against all discovered modules using `cabal test`
 - [ ] Auto-discover test functions by naming conventions (`prop_*`, `spec_`, `test_`) without requiring `{-# ANN ... #-}` annotations
 - [ ] Expose a `register` / `new` API in `Test.MuCheck.MuOp` so third-party packages can add custom mutators without forking
-- [ ] Add Dependabot configuration for automated Hackage dependency and GitHub Actions version updates
-- [ ] Add a vulnerability scanning step to CI (e.g. `cabal-audit` or `osv-scanner`), fully enforcing with no fallback
-- [ ] Add an MSI quality gate to CI: fail the build if the project's own mutation score drops below a configurable threshold
-- [ ] Add a code formatting gate to CI: fail if any source file is not formatted by `ormolu` or `fourmolu`
-- [ ] Add a cyclomatic complexity gate to CI
+- [x] Add Dependabot configuration for automated Hackage dependency and GitHub Actions version updates
+- [x] Add a vulnerability scanning step to CI (e.g. `cabal-audit` or `osv-scanner`), fully enforcing with no fallback
+- [x] Add an MSI quality gate to CI: fail the build if the project's own mutation score drops below a configurable threshold
+- [x] Add a code formatting gate to CI: fail if any source file is not formatted by `ormolu` or `fourmolu`
+- [x] Add a cyclomatic complexity gate to CI
 - [ ] Standard for this repo itself is covered-MSI >= 80% (blocked by covered-MSI items)
-- [ ] Build and deploy a Haddock + prose documentation site to GitHub Pages
-- [ ] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
-- [ ] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
+- [x] Build and deploy a Haddock + prose documentation site to GitHub Pages
+- [x] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
+- [x] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
 - [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork

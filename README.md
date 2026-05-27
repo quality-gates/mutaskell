@@ -1,5 +1,9 @@
 To begin:
 
+# Documentation
+
+Full documentation is available on the [MuCheck GitHub Pages site](https://jonbaldie.github.io/mucheck).
+
 # Install required packages:
 
 ```

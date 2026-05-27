@@ -1,0 +1,20 @@
+name: Formatting
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+
+jobs:
+  fourmolu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/run-fourmolu@v10
+        with:
+          version: "0.19.0.0"
+          pattern: |
+            src/**/*.hs
+            app/**/*.hs
+            test/**/*.hs
+            Examples/**/*.hs
