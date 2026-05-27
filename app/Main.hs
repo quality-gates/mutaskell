@@ -1,16 +1,16 @@
 module Main where
 
 import Control.Monad (unless, when)
-import Data.List (group, nub, sort, sortBy)
+import Data.List (group, isPrefixOf, nub, sort, sortBy)
 import Data.Ord (comparing, Down(..))
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
 
-import Test.MuCheck (mucheck)
+import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
-import Test.MuCheck.Interpreter (MutantSummary(..), evalTest)
-import Test.MuCheck.Mutation (genMutantsForSrc, getAllTests)
+import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
+import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, getAllTests)
 import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Utils.Print
@@ -22,6 +22,8 @@ data Opts = Opts
   , optNoop         :: Bool
   , optFailOnEscape :: Bool
   , optMinMsi       :: Maybe Int
+  , optDisable      :: [String]
+  , optEnable       :: [String]
   }
 
 defaultOpts :: Opts
@@ -32,6 +34,8 @@ defaultOpts = Opts
   , optNoop         = False
   , optFailOnEscape = False
   , optMinMsi       = Nothing
+  , optDisable      = []
+  , optEnable       = []
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -47,9 +51,30 @@ parseOpts = go defaultOpts
         _         -> Left $ "--min-msi requires an integer argument, got: " ++ n
     go _    ("-tix"              : [])   = Left "-tix requires a file path argument"
     go opts ("-tix" : tix        : rest) = go opts { optTix = tix } rest
+    go _    ("--disable"         : [])   = Left "--disable requires a name argument"
+    go _    ("--disable" : "*"   : _)    = Left "--disable: bare '*' not allowed; use a prefix like 'functions/*'"
+    go opts ("--disable" : n     : rest) = go opts { optDisable = n : optDisable opts } rest
+    go _    ("--enable"          : [])   = Left "--enable requires a name argument"
+    go _    ("--enable"  : "*"   : _)    = Left "--enable: bare '*' not allowed; use a prefix like 'functions/*'"
+    go opts ("--enable"  : n     : rest) = go opts { optEnable = n : optEnable opts } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
+
+-- | Match a user-supplied pattern against a mutator name.
+-- Trailing '*' acts as a prefix wildcard: "other:*" matches "other:remove-not".
+matchesPat :: String -> String -> Bool
+matchesPat pat name = case reverse pat of
+  ('*' : revPrefix) -> reverse revPrefix `isPrefixOf` name
+  _                 -> pat == name
+
+-- | Apply --enable / --disable filters to a list of sampled mutants.
+applyDisableEnable :: [String] -> [String] -> [Mutant] -> [Mutant]
+applyDisableEnable disable enable ms
+  | not (null enable)  = filter (\m -> any (\p -> matchesPat p (muName m)) enable)  ms
+  | not (null disable) = filter (\m -> not $ any (\p -> matchesPat p (muName m)) disable) ms
+  | otherwise          = ms
+  where muName = showMuVar . _mtype
 
 main :: IO ()
 main = do
@@ -65,7 +90,16 @@ runOpts opts
   | optDryRun opts = dryRun (optFile opts)
   | otherwise      = do
       when (optNoop opts) $ noopCheck (optFile opts)
-      (msum, tsum) <- mucheck (toRun (optFile opts) :: AssertCheckRun) (optTix opts)
+      let modFile = toRun (optFile opts) :: AssertCheckRun
+      (len, mutants) <- genMutants (getName modFile) (optTix opts)
+      smutants        <- sampler defaultConfig mutants
+      let finalMutants = applyDisableEnable (optDisable opts) (optEnable opts) smutants
+          tests        = map (genTest modFile)
+      testNames <- getAllTests (getName modFile)
+      (fsum', tsum) <- evaluateMutants modFile finalMutants (tests testNames)
+      let msum = case len of
+                   -1 -> fsum' { _maOriginalNumMutants = -1, _maCoveredNumMutants = -1 }
+                   _  -> fsum' { _maOriginalNumMutants = len, _maCoveredNumMutants = length mutants }
       print msum
       printMutatorBreakdown tsum
       applyExitPolicy opts msum
@@ -146,12 +180,14 @@ dryRun file = do
   putStrLn "(upper bound; identical mutations are deduplicated before evaluation)"
 
 showMuVar :: MuVar -> String
-showMuVar MutatePatternMatch = "pattern-match"
-showMuVar MutateValues       = "literal-values"
-showMuVar MutateFunctions    = "functions"
-showMuVar MutateNegateIfElse = "negate-if-else"
-showMuVar MutateNegateGuards = "negate-guards"
-showMuVar (MutateOther s)    = if null s then "other" else "other:" ++ s
+showMuVar MutatePatternMatch          = "pattern-match"
+showMuVar MutateValues                = "literal-values"
+showMuVar MutateFunctions             = "functions"
+showMuVar MutateNegateIfElse          = "negate-if-else"
+showMuVar MutateNegateGuards          = "negate-guards"
+showMuVar (MutateOther "remove-not")  = "remove-not"
+showMuVar (MutateOther "remove-negation") = "remove-negation"
+showMuVar (MutateOther s)             = if null s then "other" else "other:" ++ s
 
 help :: IO ()
 help = putStrLn $ showAS
@@ -163,7 +199,19 @@ help = putStrLn $ showAS
   , "  --noop               Verify tests pass on unmodified source first (exit 3 on failure)"
   , "  --fail-on-escaped    Exit with code 4 if any mutant survives"
   , "  --min-msi PCT        Exit with code 5 if MSI is below PCT percent"
+  , "  --disable NAME       Skip mutants of the named type (repeatable)"
+  , "  --enable  NAME       Run only mutants of the named type (repeatable)"
   , "  -tix FILE            HPC coverage file for coverage-guided mutation"
+  , ""
+  , "MUTATOR NAMES (for --disable / --enable):"
+  , "  pattern-match        Function pattern-match permutation and removal"
+  , "  literal-values       Integer, float, char, string, and boolean literals"
+  , "  functions            Operator and function substitution"
+  , "  negate-if-else       Swap if-then and if-else branches"
+  , "  negate-guards        Wrap guard conditions in 'not'"
+  , "  remove-not           Strip 'not' from negated sub-expressions"
+  , "  remove-negation      Strip 'negate' and prefix '-' from expressions"
+  , "  Trailing '*' is a prefix wildcard, e.g. 'other:*'"
   , ""
   , "EXIT CODES:"
   , "  0  Tests ran; no quality gate triggered"

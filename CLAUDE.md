@@ -9,7 +9,7 @@ cabal build all
 cabal test all --test-show-details=direct
 ```
 
-All 22 tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) works locally; CI tests 9.2.8, 9.4.8, 9.6.3, and 9.8.2.
+All 24 tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) works locally; CI tests 9.2.8, 9.4.8, 9.6.3, and 9.8.2.
 
 ## Key modules
 

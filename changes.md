@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3] (Jonathan Baldie)
+  * Add `remove-not` mutator: strip `not` from negated sub-expressions
+  * Add `remove-negation` mutator: strip `negate` and prefix `-` from expressions
+  * Deduplicate identical mutants (same prettyPrint output) before evaluation to avoid redundant test runs
+  * Add `--disable NAME` and `--enable NAME` flags for selective mutation; trailing `*` wildcard supported
+  * Add hspec tests for `selectRemoveNotOps` and `selectRemoveNegationOps`
+
 ## [0.4.2] (Jonathan Baldie)
   * Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
   * Add `--min-msi PCT` flag: exit with code 5 if MSI falls below the given percentage threshold

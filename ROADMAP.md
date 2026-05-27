@@ -1,11 +1,11 @@
-- [ ] Add a `remove-not` mutator: strip `not` from negated sub-expressions in `if` conditions, guards, and `&&`/`||` operands
+- [x] Add a `remove-not` mutator: strip `not` from negated sub-expressions in `if` conditions, guards, and `&&`/`||` operands
 - [ ] Add a `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
 - [ ] Add a `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` expressions and guarded definitions
 - [ ] Add a `remove-stmt` mutator: remove one statement at a time from `do`-blocks, skipping result-binding statements where removal would produce invalid syntax
 - [ ] Add a `remove-let-binding` mutator: remove individual bindings from `let...in` expressions and do-block `let` groups
 - [ ] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
 - [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
-- [ ] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
+- [x] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
 - [ ] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
 - [ ] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
 - [ ] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
@@ -23,8 +23,8 @@
 - [x] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
 - [x] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
 - [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
-- [ ] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
-- [ ] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
+- [x] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
+- [x] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
 - [ ] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
 - [ ] Add `--timeout N` flag: kill mutant evaluation after N seconds
 - [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
@@ -63,7 +63,7 @@
 - [ ] Ensure `msi` is reported on the same 0–1 scale in both `--logger-json` and `--logger-agentic-json` outputs
 - [x] Count file-write errors during mutant creation in `_maErrors`; never silently discard a mutant that could not be written to disk
 - [ ] Implement subprocess-based parallel evaluation for `--workers N`; synchronize all output including diffs through a single writer to prevent interleaved lines
-- [ ] Deduplicate structurally identical mutations (same `MuOp` at the same span) before evaluation to avoid running redundant tests
+- [x] Deduplicate structurally identical mutations (same `MuOp` at the same span) before evaluation to avoid running redundant tests
 - [ ] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
 - [ ] For `--per-test`: build the per-test HPC coverage map before mutation begins; print the module name and test count as a startup message
 - [ ] Catch and display subprocess and hint errors per mutant cleanly (mutant file path + concise error summary) without letting raw exception traces reach stdout

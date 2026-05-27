@@ -11,6 +11,7 @@ import Test.MuCheck.MuOp (mkMpMuOp, MuOp, (==>))
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
 import Language.Haskell.Exts
 import Here
+import Test.MuCheck.Config (defaultConfig, muOp)
 
 main :: IO ()
 main = hspec spec
@@ -105,6 +106,22 @@ myFn   | otherwise = False
 }
 |]]
       map show (selectGuardedBoolNegOps (getASTFromStr text)) `shouldBe` res
+
+  describe "selectRemoveNotOps" $ do
+    it "returns remove-not muops" $ do
+      let text = [e|
+module Prop where
+myFn x = not x
+|]
+      selectRemoveNotOps (getASTFromStr text) `shouldSatisfy` (not . null)
+
+  describe "selectRemoveNegationOps" $ do
+    it "returns remove-negation muops" $ do
+      let text = [e|
+module Prop where
+myFn x = negate x
+|]
+      selectRemoveNegationOps (getASTFromStr text) `shouldSatisfy` (not . null)
 
   describe "selectFnMatches" $ do
     it "returns fn muops" $ do

@@ -3,7 +3,7 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
-        Exp(App, Var, If, Lit), QName(UnQual),
+        Exp(App, Var, If, Lit, NegApp), QName(UnQual),
         Match(Match), Pat(PVar),
         Stmt(Qualifier), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
@@ -11,7 +11,7 @@ import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar,
         prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..),
         ModuleHead(..), ModuleName(..))
 import Data.Generics (Typeable, mkMp, listify)
-import Data.List(nub, (\\), permutations, partition)
+import Data.List(nub, nubBy, (\\), permutations, partition)
 
 import Test.MuCheck.Tix
 import Test.MuCheck.MuOp
@@ -71,7 +71,8 @@ genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
   -> [Mutant] -- ^ Returns the mutants
-genMutantsForSrc config src = filter (\m -> _mutant m /= origStr) $
+genMutantsForSrc config src = nubBy (\a b -> _mutant a == _mutant b) $
+  filter (\m -> _mutant m /= origStr) $
   map (toMutant . apTh (prettyPrint . withAnn)) $ programMutants config ast
   where origAst = getASTFromStr src
         (onlyAnn, noAnn) = splitAnnotations origAst
@@ -98,7 +99,9 @@ applicableOps config ast = relevantOps ast opsList
             (MutateValues, selectLiteralOps ast),
             (MutateFunctions, selectFunctionOps (muOp config) ast),
             (MutateNegateIfElse, selectIfElseBoolNegOps ast),
-            (MutateNegateGuards, selectGuardedBoolNegOps ast)]
+            (MutateNegateGuards, selectGuardedBoolNegOps ast),
+            (MutateOther "remove-not", selectRemoveNotOps ast),
+            (MutateOther "remove-negation", selectRemoveNegationOps ast)]
 
 -- | Split declarations of the module to annotated and non annotated.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
@@ -343,3 +346,23 @@ selectFunctionOps fo f = concatMap (selectIdentFnOps f) idents ++ concatMap (sel
 -- (App l (App l (Var l (UnQual l (Ident l "head"))) (Var l (UnQual l (Ident l "a")))) (Var l (UnQual l (Ident l "b")))))
 -- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Symbol l ">"))) (Var l (UnQual l (Ident l "b"))))
 -- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Ident l "x"))) (Var l (UnQual l (Ident l "b"))))
+
+-- | Remove 'not' application: replace @not expr@ with @expr@
+selectRemoveNotOps :: Module_ -> [MuOp]
+selectRemoveNotOps m = selectValOps isNotApp removeNot m
+  where isNotApp :: Exp_ -> Bool
+        isNotApp (App _ (Var _ (UnQual _ (Ident _ "not"))) _) = True
+        isNotApp _ = False
+        removeNot (App _ _ expr) = [expr]
+        removeNot _ = []
+
+-- | Remove negation: replace @negate expr@ or @-expr@ with @expr@
+selectRemoveNegationOps :: Module_ -> [MuOp]
+selectRemoveNegationOps m = selectValOps isNeg removeNeg m
+  where isNeg :: Exp_ -> Bool
+        isNeg (NegApp _ _) = True
+        isNeg (App _ (Var _ (UnQual _ (Ident _ "negate"))) _) = True
+        isNeg _ = False
+        removeNeg (NegApp _ expr) = [expr]
+        removeNeg (App _ _ expr)  = [expr]
+        removeNeg _ = []
