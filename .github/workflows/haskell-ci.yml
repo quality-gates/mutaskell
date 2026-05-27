@@ -20,6 +20,9 @@ on:
 jobs:
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
+    # Temporarily disabled: matrix builds are blocked in GitHub pipelines.
+    # Remove this line to re-enable.
+    if: false
     runs-on: ubuntu-20.04
     timeout-minutes:
       60
