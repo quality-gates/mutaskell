@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.6] (Jonathan Baldie)
+  * Add `flip-either` mutator: flip between `Right x` and `Left x`
+  * Add `remove-forkIO` mutator: strip `forkIO`, `async`, and `withAsync` concurrency wrappers
+  * Add `bracket-degenerate` mutator: replace `bracket` with `acquire >>= action`, removing cleanup
+  * Add `error-guard` mutator: replace exception handlers (`catch`, `handle`, `try`) with no-ops
+  * Add `replace-mutable-arg` mutator: replace mutable variables (`ref`, `mvar`, `tvar`) with `undefined`
+  * Enable several GHC language extensions by default in `getASTFromStr` (e.g. `ScopedTypeVariables`, `GADTs`, `TypeFamilies`)
+
 ## [0.4.5] (Jonathan Baldie)
   * Add `remove-self-assign` mutator: remove `let x = x` and `x <- return x` self-assignments
   * Add `negate-literal` mutator: replace positive numeric literals with their negation

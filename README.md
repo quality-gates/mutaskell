@@ -88,5 +88,22 @@ MuCheck currently supports:
 15. String literal replacement in comparisons with `""` (`string-literal`)
 16. Boolean operand replacement in `&&` and `||` with `True`/`False` (`bool-operand`)
 17. `Maybe` value flipping: `Just x` ↔ `Nothing` (`flip-maybe`)
+18. `Either` value flipping: `Right x` ↔ `Left x` (`flip-either`)
+19. Concurrency wrapper removal: `forkIO`, `async`, `withAsync` (`remove-forkIO`)
+20. Resource bracket degeneration: `bracket acquire release action` → `acquire >>= action` (`bracket-degenerate`)
+21. Exception handler removal: `catch`, `handle`, `try` replaced with no-ops (`error-guard`)
+22. Mutable argument replacement: `IORef`/`MVar`/`TVar` replaced with `undefined` (`replace-mutable-arg`)
+
+### Language Extensions
+
+MuCheck enables several language extensions by default to ensure it can parse modern Haskell code:
+
+*   `ScopedTypeVariables`
+*   `MultiParamTypeClasses`
+*   `FunctionalDependencies`
+*   `FlexibleInstances`
+*   `FlexibleContexts`
+*   `TypeFamilies`
+*   `GADTs`
 
 

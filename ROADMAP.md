@@ -10,12 +10,12 @@
 - [x] Add a `negate-literal` mutator: replace positive numeric literals with their negation (`42 → negate 42`, `3.14 → negate 3.14`); tests sign-handling that `remove-negation` cannot reach because the original source has no existing negation; Haskell analogue of go-mutesting's `numbers/float-negate`
 - [x] Add a `string-literal` mutator: replace non-empty string literals in `==` and `/=` comparisons and guard positions with `""`; finds code that compares against a specific string that tests never flip; Haskell analogue of go-mutesting's `expression/string-literal`
 - [x] Add a `bool-operand` mutator: in `&&` and `||` expressions, replace each operand with `True` or `False` to make one arm irrelevant; tests whether both operands are independently exercised by the suite; Haskell analogue of go-mutesting's `expression/remove`
-- [ ] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
-- [ ] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
+- [x] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
+- [x] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
 - [x] Add a `flip-maybe` mutator: replace `Just x` with `Nothing` and `Nothing` with `Just undefined` in return positions
-- [ ] Add a `flip-either` mutator: replace `Right x` with `Left x` and `Left x` with `Right x` in return and guard positions
-- [ ] Add an `error-guard` mutator: in functions that use `catch`, `try`, `handle`, or `throwIO`, replace the error-handling branch with a no-op that returns a zero/default value, testing whether exception-handling paths matter; Haskell analogue of `expression/error-guard`
-- [ ] Add a `replace-mutable-arg` mutator: replace explicit `IORef`/`MVar`/`TVar` arguments at call sites with `undefined`, testing whether mutable state propagation matters; Haskell analogue of `expression/context-nil`
+- [x] Add a `flip-either` mutator: replace `Right x` with `Left x` and `Left x` with `Right x` in return and guard positions
+- [x] Add an `error-guard` mutator: in functions that use `catch`, `try`, `handle`, or `throwIO`, replace the error-handling branch with a no-op that returns a zero/default value, testing whether exception-handling paths matter; Haskell analogue of `expression/error-guard`
+- [x] Add a `replace-mutable-arg` mutator: replace explicit `IORef`/`MVar`/`TVar` arguments at call sites with `undefined`, testing whether mutable state propagation matters; Haskell analogue of `expression/context-nil`
 - [ ] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
 - [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
 - [ ] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
@@ -106,6 +106,7 @@
 - [ ] Add an MSI quality gate to CI: fail the build if the project's own mutation score drops below a configurable threshold
 - [ ] Add a code formatting gate to CI: fail if any source file is not formatted by `ormolu` or `fourmolu`
 - [ ] Add a cyclomatic complexity gate to CI
+- [ ] Standard for this repo itself is covered-MSI >= 80% (blocked by covered-MSI items)
 - [ ] Build and deploy a Haddock + prose documentation site to GitHub Pages
 - [ ] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
 - [ ] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site

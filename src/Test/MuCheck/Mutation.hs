@@ -3,14 +3,17 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
-        Exp(App, Var, If, Lit, NegApp, Case, Do, Let, InfixApp, Con), QName(UnQual),
+        Exp(App, Var, If, Lit, NegApp, Case, Do, Let, InfixApp, Con, Lambda), QName(UnQual),
         Match(Match), Pat(PVar, PWildCard),
         Stmt(Qualifier, LetStmt, Generator), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
         GuardedRhs(GuardedRhs), Rhs(..), Alt(Alt), Binds(BDecls),
         QOp(QVarOp),
         Annotation(Ann), Name(Symbol, Ident),
-        prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..),
+        prettyPrint, fromParseResult, parseModuleWithMode,
+        ParseMode(..), defaultParseMode,
+        Extension(..), KnownExtension(..),
+        SrcSpanInfo(..), SrcSpan(..),
         ModuleHead(..), ModuleName(..))
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, nubBy, (\\), permutations, partition)
@@ -113,7 +116,12 @@ applicableOps config ast = relevantOps ast opsList
             (MutateOther "negate-literal", selectNegateLiteralOps ast),
             (MutateOther "string-literal", selectStringLiteralOps ast),
             (MutateOther "bool-operand", selectBoolOperandOps ast),
-            (MutateOther "flip-maybe", selectFlipMaybeOps ast)]
+            (MutateOther "flip-maybe", selectFlipMaybeOps ast),
+            (MutateOther "flip-either", selectFlipEitherOps ast),
+            (MutateOther "remove-forkIO", selectRemoveForkIOOps ast),
+            (MutateOther "bracket-degenerate", selectBracketDegenerateOps ast),
+            (MutateOther "error-guard", selectErrorGuardOps ast),
+            (MutateOther "replace-mutable-arg", selectReplaceMutableArgOps ast)]
 
 -- | Split declarations of the module to annotated and non annotated.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
@@ -164,7 +172,15 @@ removeOneElem l = choose l (length l - 1)
 
 -- | Returns the AST from the file
 getASTFromStr :: String -> Module_
-getASTFromStr fname = fromParseResult $ parseModule fname
+getASTFromStr fname = fromParseResult $ parseModuleWithMode mode fname
+  where mode = defaultParseMode { extensions = exts }
+        exts = [EnableExtension ScopedTypeVariables, 
+                EnableExtension MultiParamTypeClasses, 
+                EnableExtension FunctionalDependencies,
+                EnableExtension FlexibleInstances,
+                EnableExtension FlexibleContexts,
+                EnableExtension TypeFamilies,
+                EnableExtension GADTs]
 
 -- | get all annotated functions
 getAnn :: Module_ -> String -> [String]
@@ -564,4 +580,70 @@ selectFlipMaybeOps m = selectValOps isMaybe convert m
         convert :: Exp_ -> [Exp_]
         convert (App l (Con _ (UnQual _ (Ident _ "Just"))) _) = [Con l (UnQual l (Ident l "Nothing"))]
         convert (Con l (UnQual _ (Ident _ "Nothing"))) = [App l (Con l (UnQual l (Ident l "Just"))) (Var l (UnQual l (Ident l "undefined")))]
+        convert _ = []
+
+-- | Flip @Either@ values: @Right x@ <-> @Left x@
+selectFlipEitherOps :: Module_ -> [MuOp]
+selectFlipEitherOps m = selectValOps isEither convert m
+  where isEither (App _ (Con _ (UnQual _ (Ident _ "Right"))) _) = True
+        isEither (App _ (Con _ (UnQual _ (Ident _ "Left"))) _) = True
+        isEither (Con _ (UnQual _ (Ident _ "Right"))) = True
+        isEither (Con _ (UnQual _ (Ident _ "Left"))) = True
+        isEither _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (App l (Con _ (UnQual _ (Ident _ "Right"))) e) = [App l (Con l (UnQual l (Ident l "Left"))) e]
+        convert (App l (Con _ (UnQual _ (Ident _ "Left"))) e) = [App l (Con l (UnQual l (Ident l "Right"))) e]
+        convert (Con l (UnQual _ (Ident _ "Right"))) = [Con l (UnQual l (Ident l "Left"))]
+        convert (Con l (UnQual _ (Ident _ "Left"))) = [Con l (UnQual l (Ident l "Right"))]
+        convert _ = []
+
+-- | Remove @forkIO@, @async@, @withAsync@: run action inline
+selectRemoveForkIOOps :: Module_ -> [MuOp]
+selectRemoveForkIOOps m = selectValOps isFork convert m
+  where isFork (App _ (Var _ (UnQual _ (Ident _ "forkIO"))) _) = True
+        isFork (App _ (Var _ (UnQual _ (Ident _ "async"))) _) = True
+        isFork (App _ (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) _) _) = True
+        isFork _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (App _ (Var _ (UnQual _ (Ident _ "forkIO"))) e) = [e]
+        convert (App _ (Var _ (UnQual _ (Ident _ "async"))) e) = [e]
+        convert (App l (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) e1) (Lambda _ [PVar _ _] e2)) = 
+            [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>"))) e2]
+        convert (App l (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) e1) e2) = 
+            [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>"))) e2]
+        convert _ = []
+
+-- | Replace @bracket acquire release action@ with @acquire >>= action@
+selectBracketDegenerateOps :: Module_ -> [MuOp]
+selectBracketDegenerateOps m = selectValOps isBracket convert m
+  where isBracket (App _ (App _ (App _ (Var _ (UnQual _ (Ident _ "bracket"))) _) _) _) = True
+        isBracket _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (App l (App _ (App _ (Var _ (UnQual _ (Ident _ "bracket"))) e1) _) e3) = 
+            [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>="))) e3]
+        convert _ = []
+
+-- | Replace exception handlers with a no-op returning @undefined@
+selectErrorGuardOps :: Module_ -> [MuOp]
+selectErrorGuardOps m = selectValOps isErrorOp convert m
+  where isErrorOp (App _ (App _ (Var _ (UnQual _ (Ident _ "catch"))) _) _) = True
+        isErrorOp (App _ (App _ (Var _ (UnQual _ (Ident _ "handle"))) _) _) = True
+        isErrorOp (App _ (Var _ (UnQual _ (Ident _ "try"))) _) = True
+        isErrorOp _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (App l (App _ (Var _ (UnQual _ (Ident _ "catch"))) e1) _) = 
+            [App l (App l (Var l (UnQual l (Ident l "catch"))) e1) (Lambda l [PWildCard l] (App l (Var l (UnQual l (Ident l "return"))) (Var l (UnQual l (Ident l "undefined")))))]
+        convert (App l (App _ (Var _ (UnQual _ (Ident _ "handle"))) _) e2) = 
+            [App l (Lambda l [PWildCard l] (App l (Var l (UnQual l (Ident l "return"))) (Var l (UnQual l (Ident l "undefined"))))) e2]
+        convert (App l (Var _ (UnQual _ (Ident _ "try"))) e) =
+            [App l (Var l (UnQual l (Ident l "return"))) (App l (Con l (UnQual l (Ident l "Right"))) e)]
+        convert _ = []
+
+-- | Replace @IORef@/@MVar@/@TVar@ arguments with @undefined@
+selectReplaceMutableArgOps :: Module_ -> [MuOp]
+selectReplaceMutableArgOps m = selectValOps isMutableVar convert m
+  where isMutableVar (Var _ (UnQual _ (Ident _ n))) | n `elem` ["r", "m", "t", "ref", "mvar", "tvar"] = True
+        isMutableVar _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (Var l _) = [Var l (UnQual l (Ident l "undefined"))]
         convert _ = []

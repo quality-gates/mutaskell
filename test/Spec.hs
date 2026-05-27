@@ -4,6 +4,7 @@ import Test.Hspec
 import qualified Test.MuCheck.Utils.Common
 import qualified Test.MuCheck.Utils.Print
 import qualified Test.MuCheck.Mutation
+import qualified Debug046Spec
 
 
 main :: IO ()
@@ -14,3 +15,4 @@ spec = do
   describe "Common" Test.MuCheck.Utils.CommonSpec.spec
   describe "Print" Test.MuCheck.Utils.PrintSpec.spec
   describe "Mutation" Test.MuCheck.MutationSpec.spec
+  describe "Debug046" Debug046Spec.spec
