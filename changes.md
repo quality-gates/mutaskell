@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.7] (Jonathan Baldie)
+  * Add `Data.Bits` operators (`.&.`, `.|.`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
+  * Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
+  * Add `--min-covered-msi <pct>` flag: exit with code 5 if the covered-code MSI is below the threshold
+  * Add `--ignore-msi-with-no-mutations` flag: treat MSI quality gates as passed when no mutable constructs are found
+  * Add `--timeout N` flag: kill mutant evaluation after N seconds
+  * Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants
+  * Add `--verbose` flag: print per-mutant evaluation details (mutant source, test output)
+  * Add `--debug` flag: print mutant stable IDs and raw interpreter diagnostics during a run
+  * Add `--no-diffs` flag: suppress the per-mutant unified diff output
+  * Add `--output-statuses <chars>` flag: filter terminal output to specific result types (`k`, `a`, `e`, `s`)
+
 ## [0.4.6] (Jonathan Baldie)
   * Add `flip-either` mutator: flip between `Right x` and `Left x`
   * Add `remove-forkIO` mutator: strip `forkIO`, `async`, and `withAsync` concurrency wrappers

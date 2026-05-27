@@ -16,26 +16,26 @@
 - [x] Add a `flip-either` mutator: replace `Right x` with `Left x` and `Left x` with `Right x` in return and guard positions
 - [x] Add an `error-guard` mutator: in functions that use `catch`, `try`, `handle`, or `throwIO`, replace the error-handling branch with a no-op that returns a zero/default value, testing whether exception-handling paths matter; Haskell analogue of `expression/error-guard`
 - [x] Add a `replace-mutable-arg` mutator: replace explicit `IORef`/`MVar`/`TVar` arguments at call sites with `undefined`, testing whether mutable state propagation matters; Haskell analogue of `expression/context-nil`
-- [ ] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
+- [x] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
 - [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
-- [ ] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
+- [x] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
 - [ ] Support inline source comment annotations to suppress mutations: `-- mucheck: disable-func` before a function body to suppress all mutations in that function; `-- mucheck: disable-next-line [name1,name2]` to suppress specific mutators on the next line (`*` for all); `-- mucheck: disable-regexp <pattern> [*]` to suppress on all lines matching the regex; Haskell analogue of go-mutesting's `// mutator-disable-func`, `// mutator-disable-next-line`, and `// mutator-disable-regexp`
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
 - [ ] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
-- [ ] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
-- [ ] Add `--verbose` flag: print per-mutant evaluation details (mutant source, test output) during a run
-- [ ] Add `--debug` flag: print mutant stable IDs and raw interpreter diagnostics during a run
-- [ ] Add `--no-diffs` flag: suppress the per-mutant unified diff output
+- [x] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
+- [x] Add `--verbose` flag: print per-mutant evaluation details (mutant source, test output) during a run
+- [x] Add `--debug` flag: print mutant stable IDs and raw interpreter diagnostics during a run
+- [x] Add `--no-diffs` flag: suppress the per-mutant unified diff output
 - [x] Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
 - [x] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
-- [ ] Add `--min-covered-msi <pct>` flag: exit with code 5 if the covered-code MSI (mutations within HPC-covered lines only) is below `<pct>`; requires a `-tix` file
-- [ ] Add `--ignore-msi-with-no-mutations` flag: treat MSI quality gates as passed when no mutable constructs are found in the target source; prevents false failures on files that are not yet tested
+- [x] Add `--min-covered-msi <pct>` flag: exit with code 5 if the covered-code MSI (mutations within HPC-covered lines only) is below `<pct>`; requires a `-tix` file
+- [x] Add `--ignore-msi-with-no-mutations` flag: treat MSI quality gates as passed when no mutable constructs are found in the target source; prevents false failures on files that are not yet tested
 - [x] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
 - [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
 - [x] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
 - [x] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
-- [ ] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
-- [ ] Add `--timeout N` flag: kill mutant evaluation after N seconds
+- [x] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
+- [x] Add `--timeout N` flag: kill mutant evaluation after N seconds
 - [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
 - [ ] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
 - [ ] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run

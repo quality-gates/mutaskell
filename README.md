@@ -106,4 +106,22 @@ MuCheck enables several language extensions by default to ensure it can parse mo
 *   `TypeFamilies`
 *   `GADTs`
 
+### Command-Line Interface
+
+MuCheck supports several CLI flags for configuring mutation runs and output:
+
+*   `--dry-run`: Show mutation counts by type without evaluating.
+*   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
+*   `--fail-on-escaped`: Exit with code 4 if any mutant survives.
+*   `--min-msi PCT`: Exit with code 5 if overall MSI is below PCT percent.
+*   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent (requires `-tix`).
+*   `--ignore-msi-with-no-mutations`: Treat MSI quality gates as passed when no mutable constructs are found.
+*   `--disable NAME` / `--enable NAME`: Skip or run only mutants of the named type (repeatable).
+*   `--quiet`: Suppress output for killed and errored mutants; show only alive mutants.
+*   `--verbose`: Print per-mutant evaluation details (mutant source, test output).
+*   `--debug`: Print raw interpreter diagnostics and mutant type during a run.
+*   `--no-diffs`: Suppress the per-mutant unified diff output.
+*   `--output-statuses CHARS`: Filter terminal output to specific result types (`k`, `a`, `e`, `s`).
+*   `--timeout N`: Kill mutant evaluation after N seconds.
+
 

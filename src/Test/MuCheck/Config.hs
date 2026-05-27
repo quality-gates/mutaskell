@@ -38,6 +38,14 @@ comparators = ["<", ">", "<=", ">=", "/=", "=="]
 binAriths :: [String]
 binAriths = ["+", "-", "*", "/"]
 
+-- | Data.Bits symbols [".&.", ".|."]
+bitSymbols :: [String]
+bitSymbols = [".&.", ".|."]
+
+-- | Data.Bits identifiers ["xor", "shiftL", "shiftR", "complement"]
+bitIdents :: [String]
+bitIdents = ["xor", "shiftL", "shiftR", "complement"]
+
 -- | The configuration options
 -- if 1 is provided, all mutants are selected for that kind, and 0 ensures that
 -- no mutants are picked for that kind. Any fraction in between causes that
@@ -100,7 +108,8 @@ defaultConfig :: Config
 defaultConfig = Config {
     muOp = [
       FnOp {_type=FnIdent, _fns= predNums},FnOp {_type=FnIdent, _fns= arithLists},
-      FnOp {_type=FnSymbol, _fns= comparators},FnOp {_type=FnSymbol, _fns=binAriths}]
+      FnOp {_type=FnSymbol, _fns= comparators},FnOp {_type=FnSymbol, _fns=binAriths},
+      FnOp {_type=FnSymbol, _fns= bitSymbols}, FnOp {_type=FnIdent, _fns= bitIdents}]
   , doMutatePatternMatches = 1.0
   , doMutateValues = 1.0
   , doMutateFunctions = 1.0

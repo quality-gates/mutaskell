@@ -10,6 +10,7 @@ import Data.Typeable
 import Data.Either (partitionEithers)
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (withArgs)
+import System.Timeout (timeout)
 
 import Test.MuCheck.TestAdapter
 import Test.MuCheck.Utils.Common
@@ -26,12 +27,13 @@ data MutantSummary = MSumError Mutant String [Summary]         -- ^ Capture the 
 
 -- | Given the list of tests suites to check, run the test suite on mutants.
 evaluateMutants :: (Show b, Summarizable b, TRun a b) =>
-     a                                                               -- ^ The module to be evaluated
+     Maybe Int                                                       -- ^ Optional timeout in microseconds
+  -> a                                                               -- ^ The module to be evaluated
   -> [Mutant]                                                        -- ^ The mutants to be evaluated
   -> [TestStr]                                                       -- ^ The tests to be used for analysis
   -> IO (MAnalysisSummary, [MutantSummary])                          -- ^ Returns a tuple of full run summary and individual mutant summary
-evaluateMutants m mutants tests = do
-  results <- mapM (evalMutant tests) mutants -- [InterpreterOutput t]
+evaluateMutants mtimeout m mutants tests = do
+  results <- mapM (evalMutant mtimeout tests) mutants -- [InterpreterOutput t]
   let singleTestSummaries = zipWith (curry (summarizeResults m tests)) mutants results
       ma  = fullSummary m tests results
   return (ma, singleTestSummaries)
@@ -56,10 +58,11 @@ summarizeResults m tests (mutant, ioresults) = case last results of -- the last 
 
 -- | Run all tests on a mutant
 evalMutant :: (Typeable t, Summarizable t) =>
-    [TestStr]                                                     -- ^ The tests to be used
+     Maybe Int                                                    -- ^ Optional timeout
+  -> [TestStr]                                                    -- ^ The tests to be used
   -> Mutant                                                       -- ^ Mutant being tested
   -> IO [InterpreterOutput t]                                     -- ^ Returns the result of test runs
-evalMutant tests Mutant{..} = do
+evalMutant mtimeout tests Mutant{..} = do
   createDirectoryIfMissing True ".mutants"
   let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
 
@@ -70,7 +73,7 @@ evalMutant tests Mutant{..} = do
     Left err -> return [Io {_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
     Right () -> do
       let logF = mutantFile ++ ".log"
-      stopFast (evalTest mutantFile logF) tests
+      stopFast (evalTest mtimeout mutantFile logF) tests
 
 -- | Stop mutant runs at the first sign of problems (invalid mutants or test
 -- failure).
@@ -100,12 +103,19 @@ showE (I.GhcException e) = "GhcException: " ++ e
 
 -- | Run one single test on a mutant
 evalTest :: (Typeable a, Summarizable a) =>
-    String                                 -- ^ The mutant _file_ that we have to evaluate (_not_ the content)
+    Maybe Int                              -- ^ Optional timeout in microseconds
+ -> String                                 -- ^ The mutant _file_ that we have to evaluate (_not_ the content)
  -> String                                 -- ^ The file where we will write the stdout and stderr during the run. 
  -> TestStr                                -- ^ The test to be run
  -> IO (InterpreterOutput a)               -- ^ Returns the output of given test run
-evalTest mutantFile logF test = do
-  val <- withArgs [] $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+evalTest mtimeout mutantFile logF test = do
+  let runAction = withArgs [] $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+  mval <- case mtimeout of
+            Nothing -> Just <$> runAction
+            Just t  -> timeout t runAction
+  let val = case mval of
+              Nothing -> Left (I.UnknownError "Timeout occurred")
+              Just v  -> v
   return Io {_io = val, _ioLog = logF}
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.

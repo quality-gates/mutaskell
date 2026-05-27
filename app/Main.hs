@@ -1,6 +1,7 @@
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import Control.Monad (unless, when)
+import Control.Monad (unless, when, forM_)
 import Data.List (group, isPrefixOf, nub, sort, sortBy)
 import Data.Ord (comparing, Down(..))
 import System.Environment (getArgs)
@@ -11,9 +12,11 @@ import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
 import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
 import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, getAllTests)
-import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
+import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..), Summary)
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Utils.Print
+import Test.MuCheck.Utils.Common (hash)
+
 
 data Opts = Opts
   { optFile         :: FilePath
@@ -22,8 +25,17 @@ data Opts = Opts
   , optNoop         :: Bool
   , optFailOnEscape :: Bool
   , optMinMsi       :: Maybe Int
+  , optMinCoveredMsi :: Maybe Int
   , optDisable      :: [String]
   , optEnable       :: [String]
+  , optConfig       :: Maybe FilePath
+  , optQuiet        :: Bool
+  , optVerbose      :: Bool
+  , optDebug        :: Bool
+  , optNoDiffs      :: Bool
+  , optIgnoreMsiNoMutations :: Bool
+  , optOutputStatuses :: Maybe String
+  , optTimeout      :: Maybe Int
   }
 
 defaultOpts :: Opts
@@ -34,8 +46,17 @@ defaultOpts = Opts
   , optNoop         = False
   , optFailOnEscape = False
   , optMinMsi       = Nothing
+  , optMinCoveredMsi = Nothing
   , optDisable      = []
   , optEnable       = []
+  , optConfig       = Nothing
+  , optQuiet        = False
+  , optVerbose      = False
+  , optDebug        = False
+  , optNoDiffs      = False
+  , optIgnoreMsiNoMutations = False
+  , optOutputStatuses = Nothing
+  , optTimeout      = Nothing
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -49,6 +70,11 @@ parseOpts = go defaultOpts
       case reads n of
         [(i, "")] -> go opts { optMinMsi = Just i } rest
         _         -> Left $ "--min-msi requires an integer argument, got: " ++ n
+    go _    ("--min-covered-msi" : [])   = Left "--min-covered-msi requires an integer argument"
+    go opts ("--min-covered-msi" : n : rest) =
+      case reads n of
+        [(i, "")] -> go opts { optMinCoveredMsi = Just i } rest
+        _         -> Left $ "--min-covered-msi requires an integer argument, got: " ++ n
     go _    ("-tix"              : [])   = Left "-tix requires a file path argument"
     go opts ("-tix" : tix        : rest) = go opts { optTix = tix } rest
     go _    ("--disable"         : [])   = Left "--disable requires a name argument"
@@ -57,6 +83,20 @@ parseOpts = go defaultOpts
     go _    ("--enable"          : [])   = Left "--enable requires a name argument"
     go _    ("--enable"  : "*"   : _)    = Left "--enable: bare '*' not allowed; use a prefix like 'functions/*'"
     go opts ("--enable"  : n     : rest) = go opts { optEnable = n : optEnable opts } rest
+    go _    ("--config"          : [])   = Left "--config requires a file path argument"
+    go opts ("--config"  : file  : rest) = go opts { optConfig = Just file } rest
+    go opts ("--quiet"           : rest) = go opts { optQuiet = True } rest
+    go opts ("--verbose"         : rest) = go opts { optVerbose = True } rest
+    go opts ("--debug"           : rest) = go opts { optDebug = True } rest
+    go opts ("--no-diffs"        : rest) = go opts { optNoDiffs = True } rest
+    go opts ("--ignore-msi-with-no-mutations" : rest) = go opts { optIgnoreMsiNoMutations = True } rest
+    go _    ("--output-statuses" : [])   = Left "--output-statuses requires a string argument"
+    go opts ("--output-statuses" : chars : rest) = go opts { optOutputStatuses = Just chars } rest
+    go _    ("--timeout"         : [])   = Left "--timeout requires an integer argument"
+    go opts ("--timeout" : n     : rest) =
+      case reads n of
+        [(i, "")] -> go opts { optTimeout = Just i } rest
+        _         -> Left $ "--timeout requires an integer argument, got: " ++ n
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -96,12 +136,14 @@ runOpts opts
       let finalMutants = applyDisableEnable (optDisable opts) (optEnable opts) smutants
           tests        = map (genTest modFile)
       testNames <- getAllTests (getName modFile)
-      (fsum', tsum) <- evaluateMutants modFile finalMutants (tests testNames)
+      let timeoutUs = fmap (* 1000000) (optTimeout opts)
+      (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
       let msum = case len of
                    -1 -> fsum' { _maOriginalNumMutants = -1, _maCoveredNumMutants = -1 }
                    _  -> fsum' { _maOriginalNumMutants = len, _maCoveredNumMutants = length mutants }
+      printMutantDetails opts tsum
       print msum
-      printMutatorBreakdown tsum
+      printMutatorBreakdown opts tsum
       applyExitPolicy opts msum
 
 noopCheck :: FilePath -> IO ()
@@ -111,7 +153,7 @@ noopCheck file = do
     let testStrs = map (genTest (toRun file :: AssertCheckRun)) tests
         logF     = ".mucheck-noop.log"
         runTest :: String -> IO (InterpreterOutput AssertCheckSummary)
-        runTest  = evalTest file logF
+        runTest  = evalTest Nothing file logF
     results <- mapM runTest testStrs
     let pass = all (\r -> case _io r of { Right out -> isSuccess out; Left _ -> False }) results
     unless pass $ do
@@ -124,18 +166,39 @@ applyExitPolicy opts msum = do
                      (_maNumMutants msum) - _maErrors msum
       msi | noerrors > 0 = _maKilled msum * 100 `div` noerrors
           | otherwise    = 0
-  case optMinMsi opts of
-    Just threshold | msi < threshold -> do
-      putStrLn $ "MSI " ++ show msi ++ "% is below threshold " ++ show threshold ++ "%"
-      exitWith (ExitFailure 5)
-    _ -> return ()
+      
+      -- Covered MSI is calculated using the covered mutants as the baseline.
+      -- Since _maNumMutants is bounded by _maCoveredNumMutants if coverage is used,
+      -- we can use the same `noerrors` if it's based on _maCoveredNumMutants, but 
+      -- effectively the mutants tested ARE the covered ones when a tix file is provided.
+      -- If -tix is not provided, _maCoveredNumMutants is -1.
+      coveredNoerrors = if _maCoveredNumMutants msum > 0 
+                        then _maCoveredNumMutants msum - _maErrors msum
+                        else noerrors
+      coveredMsi | coveredNoerrors > 0 = _maKilled msum * 100 `div` coveredNoerrors
+                 | otherwise           = 0
+  
+  if optIgnoreMsiNoMutations opts && _maNumMutants msum == 0 then return ()
+  else do
+    case optMinMsi opts of
+      Just threshold | msi < threshold -> do
+        putStrLn $ "MSI " ++ show msi ++ "% is below threshold " ++ show threshold ++ "%"
+        exitWith (ExitFailure 5)
+      _ -> return ()
+      
+    case optMinCoveredMsi opts of
+      Just threshold | coveredMsi < threshold -> do
+        putStrLn $ "Covered-MSI " ++ show coveredMsi ++ "% is below threshold " ++ show threshold ++ "%"
+        exitWith (ExitFailure 5)
+      _ -> return ()
+  
   when (optFailOnEscape opts && _maAlive msum > 0) $ do
     putStrLn $ show (_maAlive msum) ++ " mutant(s) survived; exiting with failure"
     exitWith (ExitFailure 4)
 
-printMutatorBreakdown :: [MutantSummary] -> IO ()
-printMutatorBreakdown [] = return ()
-printMutatorBreakdown sums = do
+printMutatorBreakdown :: Opts -> [MutantSummary] -> IO ()
+printMutatorBreakdown _ [] = return ()
+printMutatorBreakdown opts sums = do
   let mutOf (MSumError m _ _) = m
       mutOf (MSumAlive m _)   = m
       mutOf (MSumKilled m _)  = m
@@ -160,6 +223,46 @@ printMutatorBreakdown sums = do
   putStrLn sep
   mapM_ (\(t,k,a,e) -> putStrLn $ "  " ++ pad t ++ "  " ++ fmtN k ++ "  " ++ fmtN a ++ "  " ++ fmtN e) rows
   putStrLn sep
+
+printMutantDetails :: Opts -> [MutantSummary] -> IO ()
+printMutantDetails opts sums = do
+  let filterStatuses s = case optOutputStatuses opts of
+                           Nothing -> True
+                           Just chars -> case s of
+                             MSumKilled _ _ -> 'k' `elem` chars
+                             MSumAlive _ _  -> 'a' `elem` chars
+                             MSumError _ _ _ -> 'e' `elem` chars
+                             MSumOther _ _  -> 'k' `elem` chars
+      
+      shouldShowQuiet s = if optQuiet opts
+                          then case s of
+                                 MSumAlive _ _ -> True
+                                 _ -> False
+                          else True
+                          
+      toShow = filter (\s -> filterStatuses s && shouldShowQuiet s) sums
+
+  forM_ toShow $ \s -> do
+    let (status, m@Mutant{..}, logS, mErr) = case s of
+                                     MSumKilled mut l -> ("KILLED", mut, l, Nothing)
+                                     MSumAlive mut l -> ("ALIVE", mut, l, Nothing)
+                                     MSumError mut e l -> ("ERROR", mut, l, Just e)
+                                     MSumOther mut l -> ("OTHER", mut, l, Nothing)
+    
+    unless (optQuiet opts && not (optVerbose opts) && not (optDebug opts) && status /= "ALIVE") $ do
+      when (optVerbose opts || optDebug opts || status == "ALIVE" || not (optQuiet opts)) $ do
+        putStrLn $ ">>> Mutant " ++ hash _mutant ++ " [" ++ status ++ "] " ++ showMuVar _mtype
+        when (optVerbose opts) $ do
+          unless (optNoDiffs opts) $ do
+            putStrLn "--- Source ---"
+            putStrLn _mutant 
+            putStrLn "--------------"
+          mapM_ print logS
+        when (optDebug opts) $ do
+          case mErr of
+            Just e -> putStrLn $ "Error: " ++ e
+            _ -> return ()
+        putStrLn ""
 
 dryRun :: FilePath -> IO ()
 dryRun file = do
