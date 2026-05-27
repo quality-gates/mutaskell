@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                MuCheck
-version:             0.4.0.1
+version:             0.4.1
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
@@ -8,24 +8,25 @@ description:         This package defines a mutation analysis library for haskel
                      with other, but similar operators and functions, and running
                      the testsuite to check whether the difference has been
                      detected.
-homepage:            https://bitbucket.com/osu-testing/mucheck
+homepage:            https://github.com/jonbaldie/mucheck
 license:             GPL-2.0-or-later
 license-file:        LICENSE
 author:              Duc Lee <ledu@onid.oregonstate.edu>,
-                     Rahul Gopinath <rahul@gopinath.org>
-maintainer:          rahul@gopinath.org
+                     Rahul Gopinath <rahul@gopinath.org>,
+                     Jonathan Baldie <baldiescotty@gmail.com>
+maintainer:          jon@jonbaldie.com
 category:            Testing
 extra-doc-files:     changes.md
 tested-with:         GHC ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.2
 
 source-repository    head
   type:              git
-  location:          https://github.com/vrthra/mucheck.git
+  location:          https://github.com/jonbaldie/mucheck.git
 
 source-repository    this
   type:              git
-  location:          https://github.com/vrthra/mucheck.git
-  tag:               0.4.0.1
+  location:          https://github.com/jonbaldie/mucheck.git
+  tag:               0.4.1
 
 common dependencies
   build-depends:    base >=4 && <5,

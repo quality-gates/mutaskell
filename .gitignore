@@ -9,3 +9,4 @@ dist-newstyle/*
 .cabal-sandbox/*
 cabal.sandbox.config
 tags
+.ghc.environment.*

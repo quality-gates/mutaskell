@@ -1,0 +1,91 @@
+- [ ] Add a `remove-not` mutator: strip `not` from negated sub-expressions in `if` conditions, guards, and `&&`/`||` operands
+- [ ] Add a `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
+- [ ] Add a `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` expressions and guarded definitions
+- [ ] Add a `remove-stmt` mutator: remove one statement at a time from `do`-blocks, skipping result-binding statements where removal would produce invalid syntax
+- [ ] Add a `remove-let-binding` mutator: remove individual bindings from `let...in` expressions and do-block `let` groups
+- [ ] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
+- [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
+- [ ] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
+- [ ] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
+- [ ] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
+- [ ] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
+- [ ] Add a `flip-maybe` mutator: replace `Just x` with `Nothing` and `Nothing` with `Just undefined` in return positions
+- [ ] Add a `flip-either` mutator: replace `Right x` with `Left x` and `Left x` with `Right x` in return and guard positions
+- [ ] Add an `error-guard` mutator: in functions that use `catch`, `try`, `handle`, or `throwIO`, replace the error-handling branch with a no-op that returns a zero/default value, testing whether exception-handling paths matter; Haskell analogue of `expression/error-guard`
+- [ ] Add a `replace-mutable-arg` mutator: replace explicit `IORef`/`MVar`/`TVar` arguments at call sites with `undefined`, testing whether mutable state propagation matters; Haskell analogue of `expression/context-nil`
+- [ ] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
+- [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
+- [ ] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
+- [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
+- [ ] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
+- [ ] Add `--no-diffs` flag: suppress the per-mutant unified diff output
+- [ ] Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
+- [ ] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
+- [ ] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
+- [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
+- [ ] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
+- [ ] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
+- [ ] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
+- [ ] Add `--timeout N` flag: kill mutant evaluation after N seconds
+- [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
+- [ ] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
+- [ ] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
+- [ ] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
+- [ ] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
+- [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
+- [ ] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
+- [ ] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
+- [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
+- [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
+- [ ] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
+- [ ] Ensure all mutator variant names used in `--disable`/`--enable` and config use consistent separators (no mix of underscores and hyphens)
+- [ ] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
+- [ ] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
+- [ ] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
+- [ ] Add `ignore_source_lines` config key: list of regexes; mutations on source lines matching any regex are suppressed
+- [ ] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
+- [ ] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
+- [ ] Add `workers` and `timeout` config keys, overridden by their respective CLI flags
+- [ ] Reject unknown keys in the config file with a clear error rather than silently ignoring them
+- [ ] Publish a JSON Schema for the config file (`schema/config-schema.json`) with editor autocomplete support
+- [ ] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
+- [ ] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
+- [ ] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
+- [ ] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
+- [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
+- [ ] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
+- [ ] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
+- [ ] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
+- [ ] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
+- [ ] Agentic JSON: include a `description` field showing the exact textual change for single-line mutations
+- [ ] Agentic JSON: include a `reminder` field with guidance for the consuming LLM on how to act on escaped mutant data
+- [ ] Agentic JSON: ensure kill hints and descriptions are populated for all `MuVar` variants, not just a subset
+- [ ] Ensure `msi` is reported on the same 0–1 scale in both `--logger-json` and `--logger-agentic-json` outputs
+- [x] Count file-write errors during mutant creation in `_maErrors`; never silently discard a mutant that could not be written to disk
+- [ ] Implement subprocess-based parallel evaluation for `--workers N`; synchronize all output including diffs through a single writer to prevent interleaved lines
+- [ ] Deduplicate structurally identical mutations (same `MuOp` at the same span) before evaluation to avoid running redundant tests
+- [ ] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
+- [ ] For `--per-test`: build the per-test HPC coverage map before mutation begins; print the module name and test count as a startup message
+- [ ] Catch and display subprocess and hint errors per mutant cleanly (mutant file path + concise error summary) without letting raw exception traces reach stdout
+- [ ] Join the progress-display thread before printing the final summary to eliminate the output ordering race
+- [ ] Consolidate the triple AST traversal per operator (generate, relevance check, apply) into a single pass
+- [ ] Write mutant files to a `System.IO.Temp` directory by default and delete them after each evaluation; add `--keep-mutants <dir>` to preserve them
+- [ ] Add a test asserting each `MuVar` constructor produces at least one mutant on a canonical input (prevent silent registration gaps)
+- [ ] Add tests for the coverage-filtering code path (`removeUncovered`, `getUnCoveredPatches`) to prevent regressions in HPC-guided mutation
+- [ ] Add an Hspec test adapter: run `hspec` programmatically and classify a non-empty failure list as a kill
+- [ ] Add a Tasty test adapter: parse ingredient output to classify pass vs fail
+- [ ] Add a QuickCheck test adapter: wrap `quickCheckResult` and treat `Failure` as kill, `GaveUp` as `MSumOther`
+- [ ] Add an HUnit test adapter: read the `Counts` record and classify `failures + errors > 0` as kill
+- [ ] Parse the `.cabal` file to discover all source modules and test suites automatically, eliminating the need to name a file on the command line
+- [ ] Support bare `mucheck` invocation (no file argument) to run against all discovered modules using `cabal test`
+- [ ] Auto-discover test functions by naming conventions (`prop_*`, `spec_`, `test_`) without requiring `{-# ANN ... #-}` annotations
+- [ ] Expose a `register` / `new` API in `Test.MuCheck.MuOp` so third-party packages can add custom mutators without forking
+- [ ] Add Dependabot configuration for automated Hackage dependency and GitHub Actions version updates
+- [ ] Add a vulnerability scanning step to CI (e.g. `cabal-audit` or `osv-scanner`), fully enforcing with no fallback
+- [ ] Add an MSI quality gate to CI: fail the build if the project's own mutation score drops below a configurable threshold
+- [ ] Add a code formatting gate to CI: fail if any source file is not formatted by `ormolu` or `fourmolu`
+- [ ] Add a cyclomatic complexity gate to CI
+- [ ] Build and deploy a Haddock + prose documentation site to GitHub Pages
+- [ ] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
+- [ ] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
+- [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork

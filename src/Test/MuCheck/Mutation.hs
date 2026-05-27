@@ -71,11 +71,13 @@ genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
   -> [Mutant] -- ^ Returns the mutants
-genMutantsForSrc config src = map (toMutant . apTh (prettyPrint . withAnn)) $ programMutants config ast
+genMutantsForSrc config src = filter (\m -> _mutant m /= origStr) $
+  map (toMutant . apTh (prettyPrint . withAnn)) $ programMutants config ast
   where origAst = getASTFromStr src
         (onlyAnn, noAnn) = splitAnnotations origAst
         ast = putDecl origAst noAnn
         withAnn mast = putDecl mast $ getDecl mast ++ onlyAnn
+        origStr = prettyPrint (withAnn ast)
 
 -- | Produce all mutants after applying all operators
 programMutants ::

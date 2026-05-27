@@ -116,7 +116,7 @@ data MuVar = MutatePatternMatch
            | MutateNegateIfElse
            | MutateNegateGuards
            | MutateOther String
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 -- | getSample returns the fraction in config corresponding to the enum passed
 -- in

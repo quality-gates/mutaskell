@@ -24,7 +24,10 @@ instance Show MAnalysisSummary where
   show (MAnalysisSummary{..}) = let noerrors = mnum - _maErrors
                                     mnum = max (max _maOriginalNumMutants _maCoveredNumMutants) _maNumMutants
                                     showx a = if a == -1 then "not provided" else show a
-    in showAS ["Total mutants: " ++ show (max _maOriginalNumMutants _maNumMutants) ++ " (basis for %)",
+                                    msi | noerrors > 0 = _maKilled * 100 `div` noerrors
+                                        | otherwise    = 0
+    in showAS ["Mutation score (MSI): " ++ show msi ++ "%",
+               "Total mutants: " ++ show (max _maOriginalNumMutants _maNumMutants) ++ " (basis for %)",
                "\tCovered: " ++  showx _maCoveredNumMutants,
                "\tSampled: " ++  show _maNumMutants,
                "\tErrors: " ++  show _maErrors ++ "  "++ _maErrors ./. mnum,

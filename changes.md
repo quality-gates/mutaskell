@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1] (Jonathan Baldie)
+  * Update `.cabal` metadata: homepage, maintainer, and source-repository stanzas to point to the jonbaldie/mucheck fork
+  * Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
+  * Count file-write errors during mutant creation in `_maErrors`; never silently discard a mutant that could not be written to disk
+  * Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
+  * Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any
+
 ## [0.4.0.1] (Rahul Gopinath)
   * Make mucheck compilable with latest Haskell libraries
 

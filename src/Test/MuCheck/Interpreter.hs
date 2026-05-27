@@ -5,6 +5,7 @@ module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTe
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans (liftIO)
+import Control.Exception (IOException, try)
 import Data.Typeable
 import Data.Either (partitionEithers)
 import System.Directory (createDirectoryIfMissing)
@@ -59,18 +60,17 @@ evalMutant :: (Typeable t, Summarizable t) =>
   -> Mutant                                                       -- ^ Mutant being tested
   -> IO [InterpreterOutput t]                                     -- ^ Returns the result of test runs
 evalMutant tests Mutant{..} = do
-  -- Hint does not provide us a way to evaluate the module without
-  -- writing it to disk first, so we go for this hack.
-  -- We write the temporary file to disk, run interpreter on it, get
-  -- the result (we dont remove the file now, but can be added)
   createDirectoryIfMissing True ".mutants"
   let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
 
   say mutantFile
 
-  writeFile mutantFile _mutant
-  let logF = mutantFile ++ ".log"
-  stopFast (evalTest mutantFile logF) tests
+  writeResult <- try (writeFile mutantFile _mutant) :: IO (Either IOException ())
+  case writeResult of
+    Left err -> return [Io {_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
+    Right () -> do
+      let logF = mutantFile ++ ".log"
+      stopFast (evalTest mutantFile logF) tests
 
 -- | Stop mutant runs at the first sign of problems (invalid mutants or test
 -- failure).
