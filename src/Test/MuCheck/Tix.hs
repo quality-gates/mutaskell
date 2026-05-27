@@ -91,8 +91,10 @@ getUnCoveredPatches file name = do
         _ -> Just $ removeRedundantSpans $ map fst uncovSpan
 
 -- | Get the span and covering information of the given module
-getNamedModule :: String -> [(String, [(Span, TCovered)])] -> [(Span, TCovered)]
-getNamedModule mname val = snd . head $ filter (\(a, _b) -> a == mname) val
+getNamedModule :: String -> [(String, [(Span,TCovered)])] -> [(Span,TCovered)]
+getNamedModule mname val = case lookup mname val of
+                             Just x  -> x
+                             Nothing -> []
 
 -- | Remove spans which are contained within others of same kind.
 removeRedundantSpans :: [Span] -> [Span]

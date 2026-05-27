@@ -28,18 +28,18 @@ mucheck ::
     -- | Returns a tuple of full summary, and individual mutant results.
     IO (MAnalysisSummary, [MutantSummary])
 mucheck moduleFile tix = do
-    -- get tix here.
-    (len, mutants) <- genMutants (getName moduleFile) tix
-    -- Should we do random sample on covering alone or on the full?
-    smutants <- sampler defaultConfig mutants
-    tests <- getAllTests (getName moduleFile)
-    (fsum', msum) <- evaluateMutants Nothing moduleFile smutants (map (genTest moduleFile) tests)
-    -- set the original size of mutants. (We report the results based on original
-    -- number of mutants, not just the covered ones.)
-    let fsum = case len of
-            -1 -> fsum'{_maCoveredNumMutants = -1}
-            _ -> fsum'{_maCoveredNumMutants = length mutants}
-    return (fsum, msum)
+  -- get tix here.
+  (len, mutants) <- genMutants (getName moduleFile) tix
+  -- Should we do random sample on covering alone or on the full?
+  smutants <- sampler defaultConfig mutants
+  tests <- getAllTests (getName moduleFile)
+  (fsum', msum) <- evaluateMutants Nothing moduleFile smutants (map (genTest moduleFile) tests)
+  -- set the original size of mutants. (We report the results based on original
+  -- number of mutants, not just the covered ones.)
+  let fsum = case len of
+       -1 -> fsum' { _maCoveredNumMutants = -1 }
+       _  -> fsum' { _maCoveredNumMutants = length mutants }
+  return (fsum, msum)
 
 {- | Wrapper around sampleF that returns correct sampling ratios according to
 configuration passed. TODO: Actually use the sampling configuration.

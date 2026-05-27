@@ -1,10 +1,18 @@
 # Changelog
 
+## [0.4.9]
+  * Fix bug in `PrimChar` mutation where it incorrectly used the `Char` constructor
+  * Refine `replace-mutable-arg` mutator to avoid matching common single-letter variables like `r`, `m`, and `t`
+  * Fix compilation warnings regarding partial functions (`head`), non-exhaustive patterns, and redundant `Typeable` deriving
+  * Refactor `stopFast` to stop on the first interpreter error, preventing redundant attempts
+  * Improve `fullSummary` and `summarizeResults` to robustly handle multiple test results without relying on `last`
+
 ## [0.4.8]
   * Add Dependabot configuration for GitHub Actions and Cabal dependencies
   * Add an OSV-Scanner vulnerability scanning workflow to CI
-  * Add a code formatting gate using Fourmolu to CI (uses pre-built binary; runs in seconds)
+  * Add a code formatting gate using Fourmolu to CI
   * Build and deploy a Haddock documentation site to GitHub Pages
+  * Add a cyclomatic complexity gate using Homplexity to CI
   * Add an MSI quality gate to CI that fails the build if the project's own mutation score drops below 50%
   * Audit and remove dead fields (`_maOriginalNumMutants`) in `MAnalysisSummary`
   * Add generated report artifacts to `.gitignore`

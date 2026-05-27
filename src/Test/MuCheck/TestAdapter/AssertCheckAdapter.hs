@@ -1,21 +1,14 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, TypeSynonymInstances, MultiParamTypeClasses #-}
 -- | Module for using quickcheck properties
 module Test.MuCheck.TestAdapter.AssertCheckAdapter where
 
 import Test.MuCheck.TestAdapter
 import Test.MuCheck.TestAdapter.AssertCheck as A
 
-import Data.Typeable
-
 -- ----------------------
 
 -- | These are the things you need to do to make a new adapter.
-deriving instance Typeable A.AssertStatus
-
 type AssertCheckSummary = A.AssertStatus
 
 -- | Summarizable instance of `AssertCheck.AssertStatus`

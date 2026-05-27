@@ -25,7 +25,7 @@ type TestStr = String
 
 -- | Summary of test run
 newtype Summary = Summary String
-    deriving (Show, Typeable)
+  deriving (Show)
 
 -- | Interface to be implemented by a test framework
 class (Typeable s) => Summarizable s where

@@ -106,8 +106,12 @@
 - [x] Add an MSI quality gate to CI: fail the build if the project's own mutation score drops below a configurable threshold
 - [x] Add a code formatting gate to CI: fail if any source file is not formatted by `ormolu` or `fourmolu`
 - [x] Add a cyclomatic complexity gate to CI
-- [ ] Standard for this repo itself is covered-MSI >= 80% (blocked by covered-MSI items)
+- [ ] Standard for this repo itself is covered-MSI >= 80%
 - [x] Build and deploy a Haddock + prose documentation site to GitHub Pages
 - [x] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
 - [x] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
 - [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork
+- [ ] Verify that the github.io docs website actually builds and works
+- [ ] Entire CI pipeline in PRs must run in less than five minutes end to end
+- [ ] README.md must be up to date with modern badges
+- [ ] Add '.worktrees' to .gitignore 

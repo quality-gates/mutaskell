@@ -1,4 +1,4 @@
-name: Formatting
+name: Cyclomatic Complexity
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  fourmolu:
+  homplexity:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,7 +14,7 @@ jobs:
         with:
           ghc-version: '9.8.2'
           cabal-version: '3.10.3.0'
-      - name: Install fourmolu
-        run: cabal install fourmolu
-      - name: Run fourmolu check
-        run: fourmolu --mode check $(find src app test Examples -name "*.hs")
+      - name: Install homplexity
+        run: cabal install homplexity
+      - name: Run homplexity check
+        run: homplexity src app test Examples

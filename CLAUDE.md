@@ -15,7 +15,7 @@ All 24 tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) works locally;
 
 | Module | What it does |
 | :--- | :--- |
-| `app/Main.hs` | Binary entrypoint; `parseOpts` flag parsing (`-h`, `--dry-run`, `--noop`, `--fail-on-escaped`, `--min-msi`, `-tix`, file) |
+| `app/Main.hs` | Binary entrypoint; `parseOpts` handles all CLI flags — see `go` cases for the full list |
 | `src/Test/MuCheck.hs` | Top-level orchestration: generate → sample → evaluate → summarise |
 | `src/Test/MuCheck/Mutation.hs` | All mutant generation: literal ops, bool ops, if/else, guards, function/operator substitution, pattern match permutation |
 | `src/Test/MuCheck/MuOp.hs` | `MuOp` type and `Mutable` class; AST type aliases |
@@ -34,32 +34,19 @@ cabal build --write-ghc-environment-files=always all
 cabal run mucheck -- Examples/AssertCheckTest.hs
 ```
 
-Expected output (numbers are stable for the unmodified example):
+The output shows a mutation score, per-mutant results, and a per-mutator breakdown table. Exact counts change as mutators are added or removed. What to check:
 
-```
-Mutation score (MSI): 70%
-Total mutants: 18 (basis for %)
-	Covered: not provided
-	Sampled: 18
-	Errors: 1  (5%)
-	Alive: 5/17
-	Killed: 12/17 (70%)
+- The run completes without a crash.
+- At least one mutant is killed (the `functions` row will always have kills).
+- The killed count has not dropped compared to the previous run.
 
-  Mutator           Killed   Alive  Errors
-----------------------------------------------
-  functions             10       2       1
-  literal-values         0       2       0
-  pattern-match          2       1       0
-----------------------------------------------
-```
-
-One error is expected — the `/` operator mutation on `uncoveredDummy` produces `0 / a :: Int`, which does not typecheck. Five escaped mutants are expected — the example tests are not exhaustive. If the killed count drops significantly, a test or mutator has regressed.
+Some errors are expected and normal — for example, the `/` operator mutation on `uncoveredDummy` produces `0 / a :: Int`, which does not typecheck. Some mutants will always escape because the example tests are not exhaustive.
 
 ## Shipping workflow
 
 Follow these steps in order when landing a change:
 
-1. **Build and test locally** — `cabal build all` and `cabal test all --test-show-details=direct`. All 22 examples must pass.
+1. **Build and test locally** — `cabal build all` and `cabal test all --test-show-details=direct`. All 24 tests must pass.
 2. **Run the smoke test** — build with `--write-ghc-environment-files=always`, then `cabal run mucheck -- Examples/AssertCheckTest.hs`. Confirm the kill count has not dropped.
 3. **Run haddock** — `cabal haddock all`. Confirm no new undocumented export warnings.
 4. **Update docs if needed** — if your change adds, removes, or renames a mutator, flag, config key, or user-facing behaviour, update `README.md` to match before committing.
