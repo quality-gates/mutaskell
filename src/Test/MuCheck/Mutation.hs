@@ -3,11 +3,12 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
-        Exp(App, Var, If, Lit, NegApp), QName(UnQual),
-        Match(Match), Pat(PVar),
-        Stmt(Qualifier), Module(Module),
+        Exp(App, Var, If, Lit, NegApp, Case, Do, Let), QName(UnQual),
+        Match(Match), Pat(PVar, PWildCard),
+        Stmt(Qualifier, LetStmt, Generator), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
-        GuardedRhs(GuardedRhs), Annotation(Ann), Name(Symbol, Ident),
+        GuardedRhs(GuardedRhs), Rhs(GuardedRhss), Alt(Alt), Binds(BDecls),
+        Annotation(Ann), Name(Symbol, Ident),
         prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..),
         ModuleHead(..), ModuleName(..))
 import Data.Generics (Typeable, mkMp, listify)
@@ -101,7 +102,12 @@ applicableOps config ast = relevantOps ast opsList
             (MutateNegateIfElse, selectIfElseBoolNegOps ast),
             (MutateNegateGuards, selectGuardedBoolNegOps ast),
             (MutateOther "remove-not", selectRemoveNotOps ast),
-            (MutateOther "remove-negation", selectRemoveNegationOps ast)]
+            (MutateOther "remove-negation", selectRemoveNegationOps ast),
+            (MutateOther "case-alt-remove", selectCaseAltRemoveOps ast),
+            (MutateOther "case-default-remove", selectCaseDefaultRemoveOps ast),
+            (MutateOther "remove-stmt", selectRemoveStmtOps ast),
+            (MutateOther "remove-let-binding", selectRemoveLetBindingOps ast),
+            (MutateOther "remove-where-binding", selectRemoveWhereBindingOps ast)]
 
 -- | Split declarations of the module to annotated and non annotated.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
@@ -366,3 +372,121 @@ selectRemoveNegationOps m = selectValOps isNeg removeNeg m
         removeNeg (NegApp _ expr) = [expr]
         removeNeg (App _ _ expr)  = [expr]
         removeNeg _ = []
+
+-- | Remove one alternative from 'case...of'
+selectCaseAltRemoveOps :: Module_ -> [MuOp]
+selectCaseAltRemoveOps m = selectValOps isCase convert m
+  where isCase :: Exp_ -> Bool
+        isCase (Case _ _ alts) = length alts > 1
+        isCase _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (Case l e alts) = [Case l e alts' | alts' <- removeOneElem alts]
+        convert _ = []
+
+-- | Remove default alternative from 'case...of' and 'otherwise' from guards
+selectCaseDefaultRemoveOps :: Module_ -> [MuOp]
+selectCaseDefaultRemoveOps m = selectCaseAltDefaultOps m ++ selectGuardedDefaultOps m
+  where selectCaseAltDefaultOps :: Module_ -> [MuOp]
+        selectCaseAltDefaultOps m' = selectValOps isCase convertAlt m'
+        isCase :: Exp_ -> Bool
+        isCase (Case _ _ alts) = any isDefault alts && length alts > 1
+        isCase _ = False
+        isDefault :: Alt_ -> Bool
+        isDefault (Alt _ (PWildCard _) _ _) = True
+        isDefault (Alt _ (PVar _ (Ident _ "otherwise")) _ _) = True
+        isDefault _ = False
+        convertAlt :: Exp_ -> [Exp_]
+        convertAlt (Case l e alts) = [Case l e (filter (not . isDefault) alts)]
+        convertAlt _ = []
+
+        selectGuardedDefaultOps :: Module_ -> [MuOp]
+        selectGuardedDefaultOps m' = selectValOps isRhs convertRhs m'
+        isRhs :: Rhs_ -> Bool
+        isRhs (GuardedRhss _ grhss) = any isDefaultGuardedRhs grhss && length grhss > 1
+        isRhs _ = False
+        isDefaultGuardedRhs :: GuardedRhs_ -> Bool
+        isDefaultGuardedRhs (GuardedRhs _ stmts _) = any isDefaultStmt stmts
+        isDefaultStmt :: Stmt_ -> Bool
+        isDefaultStmt (Qualifier _ (Var _ (UnQual _ (Ident _ "otherwise")))) = True
+        isDefaultStmt _ = False
+        convertRhs :: Rhs_ -> [Rhs_]
+        convertRhs (GuardedRhss l grhss) = [GuardedRhss l (filter (not . isDefaultGuardedRhs) grhss)]
+        convertRhs _ = []
+
+-- | Remove one statement from 'do' block
+selectRemoveStmtOps :: Module_ -> [MuOp]
+selectRemoveStmtOps m = selectValOps isDo convert m
+  where isDo :: Exp_ -> Bool
+        isDo Do{} = True
+        isDo _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (Do l stmts) = [Do l stmts' | stmts' <- removeOneStmt stmts]
+        convert _ = []
+        removeOneStmt :: [Stmt_] -> [[Stmt_]]
+        removeOneStmt stmts = [ take i stmts ++ drop (i+1) stmts
+                              | i <- [0..length stmts - 1]
+                              , isValidDo (take i stmts ++ drop (i+1) stmts)]
+        -- A do block must end with an expression (Qualifier)
+        isValidDo :: [Stmt_] -> Bool
+        isValidDo [] = False
+        isValidDo stmts = case last stmts of
+            Qualifier{} -> True
+            _ -> False
+
+-- | Remove one binding from 'let...in' and 'do' block 'let'
+selectRemoveLetBindingOps :: Module_ -> [MuOp]
+selectRemoveLetBindingOps m = selectValOps isLet convertLet m ++ selectValOps isDo convertDo m
+  where isLet :: Exp_ -> Bool
+        isLet (Let _ (BDecls _ decls) _) = length decls > 0
+        isLet _ = False
+        convertLet :: Exp_ -> [Exp_]
+        convertLet (Let l (BDecls lb decls) e) = [Let l (BDecls lb decls') e | decls' <- removeOneElem decls]
+        convertLet _ = []
+
+        isDo (Do _ stmts) = any isLetStmt stmts
+        isDo _ = False
+        isLetStmt :: Stmt_ -> Bool
+        isLetStmt (LetStmt _ (BDecls _ decls)) = not (null decls)
+        isLetStmt _ = False
+
+        convertDo :: Exp_ -> [Exp_]
+        convertDo (Do l stmts) =
+            [ Do l (replaceAt i s' stmts)
+            | (i, s) <- zip [0..] stmts
+            , s' <- convertLetStmt s ]
+        convertDo _ = []
+
+        convertLetStmt :: Stmt_ -> [Stmt_]
+        convertLetStmt (LetStmt l (BDecls lb decls)) = [LetStmt l (BDecls lb decls') | decls' <- removeOneElem decls]
+        convertLetStmt _ = []
+
+-- | Remove one binding from 'where' clauses
+selectRemoveWhereBindingOps :: Module_ -> [MuOp]
+selectRemoveWhereBindingOps m = selectValOps isFunBind convertFunBind m ++ selectValOps isPatBind convertPat m
+  where isFunBind :: Decl_ -> Bool
+        isFunBind (FunBind _ matches) = any hasBinds matches
+        isFunBind _ = False
+        hasBinds (Match _ _ _ _ (Just (BDecls _ decls))) = length decls > 0
+        hasBinds _ = False
+
+        convertFunBind :: Decl_ -> [Decl_]
+        convertFunBind (FunBind l matches) =
+            [ FunBind l (replaceAt i m' matches)
+            | (i, m_) <- zip [0..] matches
+            , m' <- convertMatch m_ ]
+        convertFunBind _ = []
+
+        convertMatch :: Match SrcSpanInfo -> [Match SrcSpanInfo]
+        convertMatch (Match l n p r (Just (BDecls lb decls))) = [Match l n p r (Just (BDecls lb decls')) | decls' <- removeOneElem decls]
+        convertMatch _ = []
+
+        isPatBind :: Decl_ -> Bool
+        isPatBind (PatBind _ _ _ (Just (BDecls _ decls))) = length decls > 0
+        isPatBind _ = False
+        convertPat :: Decl_ -> [Decl_]
+        convertPat (PatBind l p r (Just (BDecls lb decls))) = [PatBind l p r (Just (BDecls lb decls')) | decls' <- removeOneElem decls]
+        convertPat _ = []
+
+-- | Replace element at given index in a list
+replaceAt :: Int -> a -> [a] -> [a]
+replaceAt i x xs = take i xs ++ [x] ++ drop (i+1) xs

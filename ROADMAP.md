@@ -1,9 +1,9 @@
 - [x] Add a `remove-not` mutator: strip `not` from negated sub-expressions in `if` conditions, guards, and `&&`/`||` operands
-- [ ] Add a `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
-- [ ] Add a `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` expressions and guarded definitions
-- [ ] Add a `remove-stmt` mutator: remove one statement at a time from `do`-blocks, skipping result-binding statements where removal would produce invalid syntax
-- [ ] Add a `remove-let-binding` mutator: remove individual bindings from `let...in` expressions and do-block `let` groups
-- [ ] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
+- [x] Add a `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
+- [x] Add a `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` expressions and guarded definitions
+- [x] Add a `remove-stmt` mutator: remove one statement at a time from `do`-blocks, skipping result-binding statements where removal would produce invalid syntax
+- [x] Add a `remove-let-binding` mutator: remove individual bindings from `let...in` expressions and do-block `let` groups
+- [x] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
 - [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
 - [x] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
 - [ ] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements

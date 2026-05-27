@@ -15,6 +15,9 @@ module Test.MuCheck.MuOp (MuOp
           , Decl_
           , Literal_
           , GuardedRhs_
+          , Stmt_
+          , Alt_
+          , Rhs_
           , Annotation_
           , getSpan
           ) where
@@ -22,7 +25,7 @@ module Test.MuCheck.MuOp (MuOp
 import qualified Data.Generics as G
 import Control.Monad (MonadPlus, mzero)
 
-import Language.Haskell.Exts(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
+import Language.Haskell.Exts(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Stmt, Alt, Rhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
 
 -- | SrcSpanInfo wrapper
 type Module_ = Module SrcSpanInfo
@@ -41,6 +44,12 @@ type Literal_ = Literal SrcSpanInfo
 -- | SrcSpanInfo wrapper
 type GuardedRhs_ = GuardedRhs SrcSpanInfo
 -- | SrcSpanInfo wrapper
+type Stmt_ = Stmt SrcSpanInfo
+-- | SrcSpanInfo wrapper
+type Alt_ = Alt SrcSpanInfo
+-- | SrcSpanInfo wrapper
+type Rhs_ = Rhs SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Annotation_ = Annotation SrcSpanInfo
 
 
@@ -52,6 +61,9 @@ data MuOp = N  (Name_, Name_)
           | D  (Decl_, Decl_)
           | L  (Literal_, Literal_)
           | G  (GuardedRhs_, GuardedRhs_)
+          | S  (Stmt_, Stmt_)
+          | A  (Alt_, Alt_)
+          | R  (Rhs_, Rhs_)
   deriving Eq
 
 -- | Apply the given function on the tuple inside MuOp
@@ -63,6 +75,9 @@ apply f (E  m) = f m
 apply f (D  m) = f m
 apply f (L  m) = f m
 apply f (G  m) = f m
+apply f (S  m) = f m
+apply f (A  m) = f m
+apply f (R  m) = f m
 
 -- How do I get the Annotated (a SrcSpanInfo) on apply's signature?
 -- | getSpan retrieve the span as a tuple
@@ -77,6 +92,9 @@ getSpan m = (startLine, startCol, endLine, endCol)
         getSpan' (D  (a,_)) = ann a
         getSpan' (L  (a,_)) = ann a
         getSpan' (G  (a,_)) = ann a
+        getSpan' (S  (a,_)) = ann a
+        getSpan' (A  (a,_)) = ann a
+        getSpan' (R  (a,_)) = ann a
         lspan = srcInfoSpan $ getSpan' m
 
 -- | The function `same` applies on a `MuOP` determining if transformation is
@@ -144,3 +162,14 @@ instance Mutable Literal_ where
 instance Mutable GuardedRhs_ where
   (==>) = (G .) . (,)
 
+-- | Stmt instance for Mutable
+instance Mutable Stmt_ where
+  (==>) = (S .) . (,)
+
+-- | Alt instance for Mutable
+instance Mutable Alt_ where
+  (==>) = (A .) . (,)
+
+-- | Rhs instance for Mutable
+instance Mutable Rhs_ where
+  (==>) = (R .) . (,)

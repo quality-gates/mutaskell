@@ -67,4 +67,21 @@ the functions to leave alone while mutating.
 Take a look at the `Examples/AssertCheckTest.hs` to see how mucheck expects the
 module to be.
 
+## Supported Mutations
+
+MuCheck currently supports:
+
+1.  Literal values (Int, Float, Char, String, Bool)
+2.  Standard functions and operators substitution
+3.  If-else swapping
+4.  Guarded boolean negation
+5.  Pattern match permutation and removal
+6.  `not` removal from negated expressions (`remove-not`)
+7.  `negate` removal from expressions (`remove-negation`)
+8.  `case...of` alternative removal (`case-alt-remove`)
+9.  Default alternative (`_` or `otherwise`) removal from `case...of` and guards (`case-default-remove`)
+10. Do-block statement removal (`remove-stmt`)
+11. Let-binding removal from `let...in` and `do` blocks (`remove-let-binding`)
+12. Where-binding removal from declarations (`remove-where-binding`)
+
 

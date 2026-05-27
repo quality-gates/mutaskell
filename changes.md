@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.4] (Jonathan Baldie)
+  * Add `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
+  * Add `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` and guards
+  * Add `remove-stmt` mutator: remove one statement at a time from `do`-blocks
+  * Add `remove-let-binding` mutator: remove individual bindings from `let...in` and `do`-block `let` statements
+  * Add `remove-where-binding` mutator: remove individual bindings from `where` clauses
+  * Fix AST traversal to reach bindings in nested constructs
+  * Add `Stmt`, `Alt`, and `Rhs` support to the `MuOp` framework
+
 ## [0.4.3] (Jonathan Baldie)
   * Add `remove-not` mutator: strip `not` from negated sub-expressions
   * Add `remove-negation` mutator: strip `negate` and prefix `-` from expressions
