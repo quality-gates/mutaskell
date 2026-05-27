@@ -11,4 +11,8 @@ cabal.sandbox.config
 tags
 .ghc.environment.*
 .mucheck-noop.log
-mucheck-summary.json\nmucheck-agentic.json\nmucheck-gitlab.json\n.mucheck-baseline
+mucheck-summary.json
+mucheck-agentic.json
+mucheck-gitlab.json
+.mucheck-baseline
+.worktrees

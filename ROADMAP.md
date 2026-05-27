@@ -37,13 +37,13 @@
 - [x] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
 - [x] Add `--timeout N` flag: kill mutant evaluation after N seconds
 - [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
-- [ ] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
-- [ ] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
+- [x] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
+- [x] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
 - [ ] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
 - [ ] Add `--coverage` flag: run `cabal test --enable-coverage` automatically to produce the HPC tix file before mutation begins, eliminating the need for the user to provide a pre-generated `-tix` file; analogue of go-mutesting's `--coverage`
 - [ ] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
-- [ ] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
-- [ ] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
+- [x] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
+- [x] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
 - [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
 - [ ] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
 - [ ] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
@@ -74,7 +74,7 @@
 - [ ] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
 - [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
-- [ ] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
+- [x] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
 - [ ] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
 - [x] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
 - [ ] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
@@ -114,4 +114,4 @@
 - [ ] Verify that the github.io docs website actually builds and works
 - [ ] Entire CI pipeline in PRs must run in less than five minutes end to end
 - [ ] README.md must be up to date with modern badges
-- [ ] Add '.worktrees' to .gitignore 
+- [x] Add '.worktrees' to .gitignore 
