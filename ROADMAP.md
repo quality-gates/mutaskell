@@ -16,11 +16,17 @@
 - [ ] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
 - [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
 - [ ] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
+- [ ] Support inline source comment annotations to suppress mutations on a specific line (`-- mucheck: disable`) or for a region (`-- mucheck: disable-begin` / `-- mucheck: disable-end`); Haskell analogue of go-mutesting's `// mutator-disable-*` comments
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
+- [ ] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
 - [ ] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
+- [ ] Add `--verbose` flag: print per-mutant evaluation details (mutant source, test output) during a run
+- [ ] Add `--debug` flag: print mutant stable IDs and raw interpreter diagnostics during a run
 - [ ] Add `--no-diffs` flag: suppress the per-mutant unified diff output
 - [x] Add `--fail-on-escaped` flag: exit with code 4 if any mutant survives all tests
 - [x] Add `--min-msi <pct>` flag: exit with a non-zero code if the final MSI is below `<pct>`
+- [ ] Add `--min-covered-msi <pct>` flag: exit with code 5 if the covered-code MSI (mutations within HPC-covered lines only) is below `<pct>`; requires a `-tix` file
+- [ ] Add `--ignore-msi-with-no-mutations` flag: treat MSI quality gates as passed when no mutable constructs are found in the target source; prevents false failures on files that are not yet tested
 - [x] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
 - [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
 - [x] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
@@ -32,9 +38,13 @@
 - [ ] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
 - [ ] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
 - [ ] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
+- [ ] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
 - [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
 - [ ] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
+- [ ] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
+- [ ] Add `--logger-html <file>` flag: write a standalone HTML mutation report to the given file; include per-mutant source context, diff, and result classification
 - [ ] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
+- [ ] Add `--git-diff-lines` flag: when `--git-diff-base` is active, restrict mutations further to lines changed relative to `<ref>`, not just files
 - [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
 - [x] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
@@ -43,6 +53,10 @@
 - [ ] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
 - [ ] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
 - [ ] Add `ignore_source_lines` config key: list of regexes; mutations on source lines matching any regex are suppressed
+- [ ] Add `exclude_dirs` config key: list of source directory prefixes (relative to project root) to skip entirely during mutation
+- [ ] Add `skip_without_test` config key: when true, skip source modules that have no test annotations rather than treating them as untested
+- [ ] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
+- [ ] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
 - [ ] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
 - [ ] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
 - [ ] Add `workers` and `timeout` config keys, overridden by their respective CLI flags
