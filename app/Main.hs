@@ -4,11 +4,13 @@ module Main where
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when, forM_)
 import Data.Char (isSpace)
-import Data.List (group, isPrefixOf, nub, sort, sortBy, stripPrefix)
+import Data.List (group, intercalate, isPrefixOf, isSuffixOf, nub, sort, sortBy, stripPrefix)
 import Data.Ord (comparing, Down(..))
+import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
 import System.IO (hPutStrLn, stderr)
+import System.Process (readProcess)
 
 import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
@@ -45,6 +47,10 @@ data Opts = Opts
   , optUpdateBaseline :: Maybe FilePath
   , optBlacklist    :: Maybe FilePath
   , optRunMutantId  :: Maybe String
+  , optLoggerGithub :: Maybe FilePath
+  , optLoggerGitlab :: Maybe FilePath
+  , optTimeoutCoef  :: Maybe Double
+  , optGitDiffBase  :: Maybe String
   }
 
 defaultOpts :: Opts
@@ -71,6 +77,10 @@ defaultOpts = Opts
   , optUpdateBaseline = Nothing
   , optBlacklist    = Nothing
   , optRunMutantId  = Nothing
+  , optLoggerGithub = Nothing
+  , optLoggerGitlab = Nothing
+  , optTimeoutCoef  = Nothing
+  , optGitDiffBase  = Nothing
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -121,6 +131,17 @@ parseOpts = go defaultOpts
     go opts ("--blacklist" : f   : rest) = go opts { optBlacklist = Just f } rest
     go _    ("--run-mutant-id"   : [])   = Left "--run-mutant-id requires an ID argument"
     go opts ("--run-mutant-id" : i : rest) = go opts { optRunMutantId = Just i } rest
+    go _    ("--logger-github"   : [])   = Left "--logger-github requires a file path argument"
+    go opts ("--logger-github" : f : rest) = go opts { optLoggerGithub = Just f } rest
+    go _    ("--logger-gitlab"   : [])   = Left "--logger-gitlab requires a file path argument"
+    go opts ("--logger-gitlab" : f : rest) = go opts { optLoggerGitlab = Just f } rest
+    go _    ("--timeout-coefficient" : []) = Left "--timeout-coefficient requires a number argument"
+    go opts ("--timeout-coefficient" : n : rest) =
+      case reads n of
+        [(d, "")] -> go opts { optTimeoutCoef = Just d } rest
+        _         -> Left $ "--timeout-coefficient requires a number, got: " ++ n
+    go _    ("--git-diff-base"   : [])   = Left "--git-diff-base requires a ref argument"
+    go opts ("--git-diff-base" : r : rest) = go opts { optGitDiffBase = Just r } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -153,35 +174,112 @@ runOpts :: Opts -> IO ()
 runOpts opts
   | optDryRun opts = dryRun (optFile opts)
   | otherwise      = do
-      when (optNoop opts) $ noopCheck (optFile opts)
-      origSrc <- readFile (optFile opts)
-      let modFile  = toRun (optFile opts) :: AssertCheckRun
-          anns     = parseAnnotations origSrc
-      (len, mutants) <- genMutants (getName modFile) (optTix opts)
-      smutants        <- sampler defaultConfig mutants
-      let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
-          filtered1 = applyAnnotations anns filtered0
-      filtered2 <- applyBaseline  (optBaseline opts)  filtered1
-      filtered3 <- applyBlacklist (optBlacklist opts) filtered2
-      let finalMutants = applyRunMutantId (optRunMutantId opts) filtered3
-          tests        = map (genTest modFile)
-      testNames <- getAllTests (getName modFile)
-      let timeoutUs = fmap (* 1000000) (optTimeout opts)
-      (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
-      let msum = case len of
-                   -1 -> fsum' { _maCoveredNumMutants = -1 }
-                   _  -> fsum' { _maCoveredNumMutants = length mutants }
-      printMutantDetails opts origSrc tsum
-      unless (isSingleMutantMode opts) $ do
-        print msum
-        printMutatorBreakdown opts tsum
-        writeJsonLogger opts msum
-        writeUpdateBaseline opts tsum
-        applyExitPolicy opts msum
+      inDiff <- checkGitDiff (optFile opts) (optGitDiffBase opts)
+      unless inDiff $ do
+        putStrLn $ "Skipping " ++ optFile opts ++ ": not in git diff relative to " ++ maybe "" id (optGitDiffBase opts)
+        return ()
+      when inDiff $ do
+        when (optNoop opts) $ noopCheck (optFile opts)
+        origSrc <- readFile (optFile opts)
+        let modFile  = toRun (optFile opts) :: AssertCheckRun
+            anns     = parseAnnotations origSrc
+        (len, mutants) <- genMutants (getName modFile) (optTix opts)
+        smutants        <- sampler defaultConfig mutants
+        let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
+            filtered1 = applyAnnotations anns filtered0
+        filtered2 <- applyBaseline  (optBaseline opts)  filtered1
+        filtered3 <- applyBlacklist (optBlacklist opts) filtered2
+        let finalMutants = applyRunMutantId (optRunMutantId opts) filtered3
+            tests        = map (genTest modFile)
+        testNames <- getAllTests (getName modFile)
+        timeoutUs <- resolveTimeout opts (optFile opts) modFile testNames
+        (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
+        let msum = case len of
+                     -1 -> fsum' { _maCoveredNumMutants = -1 }
+                     _  -> fsum' { _maCoveredNumMutants = length mutants }
+        printMutantDetails opts origSrc tsum
+        unless (isSingleMutantMode opts) $ do
+          print msum
+          printMutatorBreakdown opts tsum
+          writeJsonLogger opts msum
+          writeGithubLogger opts (optFile opts) tsum
+          writeGitlabLogger opts (optFile opts) tsum
+          writeUpdateBaseline opts tsum
+          applyExitPolicy opts msum
 
 -- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
 isSingleMutantMode :: Opts -> Bool
 isSingleMutantMode = maybe False (const True) . optRunMutantId
+
+-- | Resolve the per-mutant timeout in microseconds.
+-- If --timeout-coefficient is set, measure baseline runtime and scale it.
+-- If --timeout is set, use it directly. If neither, return Nothing.
+resolveTimeout :: Opts -> FilePath -> AssertCheckRun -> [String] -> IO (Maybe Int)
+resolveTimeout opts file modFile testNames =
+  case optTimeoutCoef opts of
+    Nothing  -> return $ fmap (* 1000000) (optTimeout opts)
+    Just coef -> do
+      let testStrs = map (genTest modFile) testNames
+          logF = ".mucheck-baseline-timing.log"
+          runOne :: String -> IO (InterpreterOutput AssertCheckSummary)
+          runOne = evalTest Nothing file logF
+      t0 <- getCurrentTime
+      _ <- mapM runOne testStrs
+      t1 <- getCurrentTime
+      let baselineSeconds = realToFrac (diffUTCTime t1 t0) :: Double
+          timeoutUs = round (coef * baselineSeconds * 1e6) :: Int
+      return $ Just (max 1000000 timeoutUs)
+
+-- | Return True if --git-diff-base is not set, or if the file appears in the diff.
+checkGitDiff :: FilePath -> Maybe String -> IO Bool
+checkGitDiff _ Nothing = return True
+checkGitDiff file (Just ref) = do
+  result <- try (readProcess "git" ["diff", "--name-only", ref] "") :: IO (Either IOException String)
+  case result of
+    Left _       -> return True  -- git not available; proceed normally
+    Right output ->
+      let changed = lines output
+      in  return $ any (\c -> file == c || isSuffixOf c file || isSuffixOf file c) changed
+
+-- | Write GitHub Actions annotation lines for escaped mutants.
+writeGithubLogger :: Opts -> FilePath -> [MutantSummary] -> IO ()
+writeGithubLogger opts file tsum = case optLoggerGithub opts of
+  Nothing   -> return ()
+  Just path -> do
+    let aliveSums = [s | s@(MSumAlive _ _) <- tsum]
+        line s = case s of
+          MSumAlive m _ ->
+            let ln  = spanStartLine (_mspan m)
+                msg = "Mutant survived: " ++ showMuVar (_mtype m) ++ " (ID: " ++ hash (_mutant m) ++ ")"
+            in "::warning file=" ++ file ++ ",line=" ++ show ln ++ ",col=1::" ++ msg
+          _ -> ""
+        annotations = map line aliveSums
+    writeFile path (unlines annotations)
+
+-- | Write a GitLab Code Quality JSON artifact for escaped mutants.
+writeGitlabLogger :: Opts -> FilePath -> [MutantSummary] -> IO ()
+writeGitlabLogger opts file tsum = case optLoggerGitlab opts of
+  Nothing   -> return ()
+  Just path -> do
+    let aliveMs = [m | MSumAlive m _ <- tsum]
+        entry m =
+          let ln   = spanStartLine (_mspan m)
+              fp   = hash (_mutant m)
+              desc = "Mutant survived: " ++ showMuVar (_mtype m)
+          in intercalate "\n"
+             [ "  {"
+             , "    \"description\": " ++ show desc ++ ","
+             , "    \"fingerprint\": " ++ show fp ++ ","
+             , "    \"severity\": \"major\","
+             , "    \"location\": {"
+             , "      \"path\": " ++ show file ++ ","
+             , "      \"lines\": { \"begin\": " ++ show ln ++ " }"
+             , "    }"
+             , "  }"
+             ]
+        entries = map entry aliveMs
+        body    = intercalate ",\n" entries
+    writeFile path $ "[\n" ++ body ++ (if null entries then "" else "\n") ++ "]\n"
 
 -- | Keep only the mutant matching the given stable ID; return all if Nothing.
 applyRunMutantId :: Maybe String -> [Mutant] -> [Mutant]
@@ -287,6 +385,7 @@ writeJsonLogger opts msum = case optLoggerJson opts of
           , "  \"total\": " ++ show _maNumMutants ++ ","
           , "  \"killed\": " ++ show _maKilled ++ ","
           , "  \"alive\": " ++ show _maAlive ++ ","
+          , "  \"skipped\": " ++ show _maSkipped ++ ","
           , "  \"errors\": " ++ show _maErrors ++ ","
           , "  \"msi\": " ++ show msiVal ++ ","
           , "  \"covered_code_msi\": " ++ covMsiField
@@ -346,29 +445,32 @@ applyExitPolicy opts msum = do
 printMutatorBreakdown :: Opts -> [MutantSummary] -> IO ()
 printMutatorBreakdown _ [] = return ()
 printMutatorBreakdown _opts sums = do
-  let mutOf (MSumError m _ _) = m
-      mutOf (MSumAlive m _)   = m
-      mutOf (MSumKilled m _)  = m
-      mutOf (MSumOther m _)   = m
-      isKilled (MSumKilled _ _)  = True; isKilled _ = False
-      isAlive  (MSumAlive  _ _)  = True; isAlive  _ = False
-      isErr    (MSumError _ _ _) = True; isErr    _ = False
-      mutype   = showMuVar . _mtype . mutOf
-      types    = sort . nub $ map mutype sums
-      row t    = let ts = filter ((== t) . mutype) sums
-                     k  = length $ filter isKilled ts
-                     a  = length $ filter isAlive  ts
-                     e  = length $ filter isErr    ts
-                 in (t, k, a, e)
-      rows     = map row types
-      colW     = max 8 $ maximum $ map (\(t,_,_,_) -> length t) rows
-      pad s    = s ++ replicate (colW - length s + 2) ' '
-      sep      = replicate (colW + 32) '-'
-      fmtN n   = replicate (max 0 (6 - length (show n))) ' ' ++ show n
+  let mutOf (MSumError   m _ _) = m
+      mutOf (MSumSkipped m _)   = m
+      mutOf (MSumAlive   m _)   = m
+      mutOf (MSumKilled  m _)   = m
+      mutOf (MSumOther   m _)   = m
+      isKilled  (MSumKilled  _ _)   = True; isKilled  _ = False
+      isAlive   (MSumAlive   _ _)   = True; isAlive   _ = False
+      isErr     (MSumError   _ _ _) = True; isErr     _ = False
+      isSkipped (MSumSkipped _ _)   = True; isSkipped _ = False
+      mutype    = showMuVar . _mtype . mutOf
+      types     = sort . nub $ map mutype sums
+      row t     = let ts = filter ((== t) . mutype) sums
+                      k  = length $ filter isKilled  ts
+                      a  = length $ filter isAlive   ts
+                      e  = length $ filter isErr     ts
+                      s  = length $ filter isSkipped ts
+                  in (t, k, a, e, s)
+      rows      = map row types
+      colW      = max 8 $ maximum $ map (\(t,_,_,_,_) -> length t) rows
+      pad s'    = s' ++ replicate (colW - length s' + 2) ' '
+      sep       = replicate (colW + 42) '-'
+      fmtN n    = replicate (max 0 (6 - length (show n))) ' ' ++ show n
   putStrLn ""
-  putStrLn $ "  " ++ pad "Mutator" ++ "  Killed   Alive  Errors"
+  putStrLn $ "  " ++ pad "Mutator" ++ "  Killed   Alive  Errors  Skipped"
   putStrLn sep
-  mapM_ (\(t,k,a,e) -> putStrLn $ "  " ++ pad t ++ "  " ++ fmtN k ++ "  " ++ fmtN a ++ "  " ++ fmtN e) rows
+  mapM_ (\(t,k,a,e,s) -> putStrLn $ "  " ++ pad t ++ "  " ++ fmtN k ++ "  " ++ fmtN a ++ "  " ++ fmtN e ++ "  " ++ fmtN s) rows
   putStrLn sep
 
 printMutantDetails :: Opts -> String -> [MutantSummary] -> IO ()
@@ -376,19 +478,21 @@ printMutantDetails opts origSrc sums = do
   let filterStatuses s = case optOutputStatuses opts of
                            Nothing -> True
                            Just chars -> case s of
-                             MSumKilled _ _ -> 'k' `elem` chars
-                             MSumAlive _ _  -> 'a' `elem` chars
-                             MSumError _ _ _ -> 'e' `elem` chars
-                             MSumOther _ _  -> 'k' `elem` chars
+                             MSumKilled  _ _   -> 'k' `elem` chars
+                             MSumAlive   _ _   -> 'a' `elem` chars
+                             MSumError   _ _ _ -> 'e' `elem` chars
+                             MSumSkipped _ _   -> 's' `elem` chars
+                             MSumOther   _ _   -> 'k' `elem` chars
       shouldShowQuiet s = not (optQuiet opts) || case s of { MSumAlive _ _ -> True; _ -> False }
       toShow = filter (\s -> filterStatuses s && shouldShowQuiet s) sums
 
   forM_ toShow $ \s -> do
     let (status, Mutant{..}, logS, mErr) = case s of
-                                     MSumKilled mut l   -> ("KILLED", mut, l, Nothing)
-                                     MSumAlive  mut l   -> ("ALIVE",  mut, l, Nothing)
-                                     MSumError  mut e l -> ("ERROR",  mut, l, Just e)
-                                     MSumOther  mut l   -> ("OTHER",  mut, l, Nothing)
+                                     MSumKilled  mut l   -> ("KILLED",  mut, l, Nothing)
+                                     MSumAlive   mut l   -> ("ALIVE",   mut, l, Nothing)
+                                     MSumError   mut e l -> ("ERROR",   mut, l, Just e)
+                                     MSumSkipped mut l   -> ("SKIPPED", mut, l, Nothing)
+                                     MSumOther   mut l   -> ("OTHER",   mut, l, Nothing)
     putStrLn $ ">>> Mutant " ++ hash _mutant ++ " [" ++ status ++ "] " ++ showMuVar _mtype
     unless (optNoDiffs opts) $
       let d = unifiedDiff origSrc _mutant
@@ -488,6 +592,10 @@ help = putStrLn $ showAS
   , "  --update-baseline FILE    Write surviving mutant IDs to FILE after the run"
   , "  --blacklist FILE          Suppress mutations whose ID appears in FILE (false-positive exclusions)"
   , "  --run-mutant-id ID        Evaluate only the mutant with the given stable ID; no aggregate summary"
+  , "  --logger-github FILE      Write GitHub Actions annotations for escaped mutants to FILE"
+  , "  --logger-gitlab FILE      Write GitLab Code Quality JSON for escaped mutants to FILE"
+  , "  --timeout-coefficient N   Set per-mutant timeout to N × measured baseline test-suite runtime"
+  , "  --git-diff-base REF       Skip mutation if the source file is not in 'git diff --name-only REF'"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"

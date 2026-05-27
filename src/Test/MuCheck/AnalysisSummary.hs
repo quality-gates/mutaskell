@@ -13,12 +13,13 @@ data MAnalysisSummary = MAnalysisSummary {
   , _maNumMutants::Int     -- ^ The number of mutants tested (after sampling)
   , _maAlive::Int          -- ^ The number of mutants that were alive after the mutation run
   , _maKilled::Int         -- ^ The number of mutants that were killed
-  , _maErrors::Int         -- ^ The number of non-viable mutants.
+  , _maErrors::Int         -- ^ The number of mutants that produced interpreter errors
+  , _maSkipped::Int        -- ^ The number of non-compilable mutants (WontCompile errors)
 }
 
 -- | MAnalysisSummary to tuple
-maSummary :: MAnalysisSummary -> (Int, Int, Int, Int, Int)
-maSummary MAnalysisSummary{..} = (_maCoveredNumMutants, _maNumMutants, _maAlive, _maKilled, _maErrors)
+maSummary :: MAnalysisSummary -> (Int, Int, Int, Int, Int, Int)
+maSummary MAnalysisSummary{..} = (_maCoveredNumMutants, _maNumMutants, _maAlive, _maKilled, _maErrors, _maSkipped)
 
 -- | The show instance for MAnalysisSummary
 instance Show MAnalysisSummary where
@@ -31,6 +32,7 @@ instance Show MAnalysisSummary where
                "Total mutants: " ++ show mnum ++ " (basis for %)",
                "\tCovered: " ++  showx _maCoveredNumMutants,
                "\tSampled: " ++  show _maNumMutants,
+               "\tSkipped (non-compilable): " ++ show _maSkipped,
                "\tErrors: " ++  show _maErrors ++ "  "++ _maErrors ./. mnum,
                "\tAlive: " ++  show _maAlive  ++ "/" ++ show noerrors,
                "\tKilled: " ++  show _maKilled ++ "/" ++ show noerrors ++ " " ++ _maKilled ./. noerrors]

@@ -4,11 +4,12 @@
 {- | The Interpreter module is responible for invoking the Hint interpreter to
 evaluate mutants.
 -}
-module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary (..)) where
+module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary (..), isSkippedSummary) where
 
 import Control.Exception (IOException, try)
 import Control.Monad.Trans (liftIO)
 import Data.Either (partitionEithers)
+import Data.List (partition)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
 import System.Directory (createDirectoryIfMissing)
@@ -21,11 +22,17 @@ import Test.MuCheck.Utils.Common
 import Test.MuCheck.Utils.Print
 
 -- | Data type to hold results of a single test execution
-data MutantSummary = MSumError Mutant String [Summary]         -- ^ Capture the error if one occured
+data MutantSummary = MSumError Mutant String [Summary]         -- ^ Interpreter or runtime error
+                   | MSumSkipped Mutant [Summary]              -- ^ Non-compilable mutant (WontCompile)
                    | MSumAlive Mutant [Summary]                -- ^ The mutant was alive
-                   | MSumKilled Mutant [Summary]               -- ^ The mutant was kileld
+                   | MSumKilled Mutant [Summary]               -- ^ The mutant was killed
                    | MSumOther Mutant [Summary]                -- ^ Undetermined - we will treat it as killed as it is not a success.
                    deriving (Show)
+
+-- | True when the summary represents a non-compilable (skipped) mutant.
+isSkippedSummary :: MutantSummary -> Bool
+isSkippedSummary (MSumSkipped _ _) = True
+isSkippedSummary _                 = False
 
 -- | Given the list of tests suites to check, run the test suite on mutants.
 evaluateMutants ::
@@ -53,12 +60,13 @@ summarizeResults :: (Summarizable s, TRun a s) =>
   -> [TestStr]                                                    -- ^ Tests we used to run analysis
   -> (Mutant, [InterpreterOutput s])                              -- ^ The mutant and its corresponding output of test runs.
   -> MutantSummary                                                -- ^ Returns a summary of the run for the mutant
-summarizeResults m tests (mutant, ioresults) = 
+summarizeResults m tests (mutant, ioresults) =
   case [e | Io (Left e) _ <- ioresults] of
-    (err:_) -> MSumError mutant (show err) logS
-    [] -> if any isKilled ioresults
-            then MSumKilled mutant logS
-            else MSumAlive mutant logS
+    (I.WontCompile _ : _) -> MSumSkipped mutant logS
+    (err:_)               -> MSumError mutant (show err) logS
+    []                    -> if any isKilled ioresults
+                              then MSumKilled mutant logS
+                              else MSumAlive mutant logS
   where isKilled (Io (Right x) _) = isFailure x
         isKilled _ = False
         logS :: [Summary]
@@ -171,13 +179,18 @@ fullSummary m _tests results = MAnalysisSummary {
   _maNumMutants = length results,
   _maAlive = length alive,
   _maKilled = length fails,
-  _maErrors= length errors}
+  _maErrors = length runtimeErrors,
+  _maSkipped = length skipErrors}
   where res = map (map _io) results
         -- A mutant is an error if any test resulted in an error
-        (errors, completed) = partitionEithers $ map findError res
+        (allErrors, completed) = partitionEithers $ map findError res
         findError r = case [e | Left e <- r] of
                         (e:_) -> Left e
                         []    -> Right [x | Right x <- r]
+        -- Non-compilable mutants (WontCompile) are tracked separately as skipped
+        (skipErrors, runtimeErrors) = partition isWontCompile allErrors
+        isWontCompile (I.WontCompile _) = True
+        isWontCompile _                 = False
         -- A mutant is killed if any test failed
         fails = filter (any (failure_ m)) completed
         -- A mutant is alive if all tests succeeded
