@@ -44,12 +44,12 @@
 - [x] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
 - [x] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
 - [x] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
-- [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
+- [x] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
 - [x] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
 - [x] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
 - [ ] Add `--logger-html <file>` flag: write a standalone HTML mutation report to the given file; include per-mutant source context, diff, and result classification
 - [x] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
-- [ ] Add `--git-diff-lines` flag: when `--git-diff-base` is active, restrict mutations further to lines changed relative to `<ref>`, not just files
+- [x] Add `--git-diff-lines` flag: when `--git-diff-base` is active, restrict mutations further to lines changed relative to `<ref>`, not just files
 - [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
 - [x] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
@@ -77,21 +77,21 @@
 - [x] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
 - [x] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
 - [x] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
-- [ ] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
-- [ ] Agentic JSON: include a `description` field showing the exact textual change for single-line mutations
-- [ ] Agentic JSON: include a `reminder` field with guidance for the consuming LLM on how to act on escaped mutant data
-- [ ] Agentic JSON: ensure kill hints and descriptions are populated for all `MuVar` variants, not just a subset
-- [ ] Ensure `msi` is reported on the same 0–1 scale in both `--logger-json` and `--logger-agentic-json` outputs
+- [x] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
+- [x] Agentic JSON: include a `description` field showing the exact textual change for single-line mutations
+- [x] Agentic JSON: include a `reminder` field with guidance for the consuming LLM on how to act on escaped mutant data
+- [x] Agentic JSON: ensure kill hints and descriptions are populated for all `MuVar` variants, not just a subset
+- [x] Ensure `msi` is reported on the same 0–1 scale in both `--logger-json` and `--logger-agentic-json` outputs
 - [x] Count file-write errors during mutant creation in `_maErrors`; never silently discard a mutant that could not be written to disk
 - [ ] Implement subprocess-based parallel evaluation for `--workers N`; synchronize all output including diffs through a single writer to prevent interleaved lines
 - [x] Deduplicate structurally identical mutations (same `MuOp` at the same span) before evaluation to avoid running redundant tests
-- [ ] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
+- [x] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
 - [ ] For `--per-test`: build the per-test HPC coverage map before mutation begins; print the module name and test count as a startup message
 - [ ] Catch and display subprocess and hint errors per mutant cleanly (mutant file path + concise error summary) without letting raw exception traces reach stdout
 - [ ] Join the progress-display thread before printing the final summary to eliminate the output ordering race
 - [ ] Consolidate the triple AST traversal per operator (generate, relevance check, apply) into a single pass
-- [ ] Write mutant files to a `System.IO.Temp` directory by default and delete them after each evaluation; add `--keep-mutants <dir>` to preserve them
-- [ ] Add a test asserting each `MuVar` constructor produces at least one mutant on a canonical input (prevent silent registration gaps)
+- [x] Write mutant files to a `System.IO.Temp` directory by default and delete them after each evaluation; add `--keep-mutants <dir>` to preserve them
+- [x] Add a test asserting each `MuVar` constructor produces at least one mutant on a canonical input (prevent silent registration gaps)
 - [ ] Add tests for the coverage-filtering code path (`removeUncovered`, `getUnCoveredPatches`) to prevent regressions in HPC-guided mutation
 - [ ] Add an Hspec test adapter: run `hspec` programmatically and classify a non-empty failure list as a kill
 - [ ] Add a Tasty test adapter: parse ingredient output to classify pass vs fail
@@ -111,7 +111,7 @@
 - [x] Extend `.gitignore` to cover generated report artifacts (e.g. `mucheck-summary.json`, `mucheck-agentic.json`, `mucheck-gitlab.json`, `.mucheck-baseline`)
 - [x] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
 - [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork
-- [ ] Verify that the github.io docs website actually builds and works
+- [x] Verify that the github.io docs website actually builds and works
 - [ ] Entire CI pipeline in PRs must run in less than five minutes end to end
 - [x] README.md must be up to date with modern badges
 - [x] Add '.worktrees' to .gitignore 

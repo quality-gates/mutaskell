@@ -16,7 +16,7 @@ import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
 import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, getAllTests)
+import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, genMutantsFromAST, getASTFromStr, getAllTests)
 import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Tix (spanStartLine)
@@ -51,6 +51,9 @@ data Opts = Opts
   , optLoggerGitlab :: Maybe FilePath
   , optTimeoutCoef  :: Maybe Double
   , optGitDiffBase  :: Maybe String
+  , optGitDiffLines :: Bool
+  , optKeepMutants  :: Maybe FilePath
+  , optLoggerAgenticJson :: Maybe FilePath
   }
 
 defaultOpts :: Opts
@@ -81,6 +84,9 @@ defaultOpts = Opts
   , optLoggerGitlab = Nothing
   , optTimeoutCoef  = Nothing
   , optGitDiffBase  = Nothing
+  , optGitDiffLines = False
+  , optKeepMutants  = Nothing
+  , optLoggerAgenticJson = Nothing
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -142,6 +148,11 @@ parseOpts = go defaultOpts
         _         -> Left $ "--timeout-coefficient requires a number, got: " ++ n
     go _    ("--git-diff-base"   : [])   = Left "--git-diff-base requires a ref argument"
     go opts ("--git-diff-base" : r : rest) = go opts { optGitDiffBase = Just r } rest
+    go opts ("--git-diff-lines"  : rest) = go opts { optGitDiffLines = True } rest
+    go _    ("--keep-mutants"    : [])   = Left "--keep-mutants requires a directory argument"
+    go opts ("--keep-mutants" : d : rest) = go opts { optKeepMutants = Just d } rest
+    go _    ("--logger-agentic-json" : []) = Left "--logger-agentic-json requires a file path argument"
+    go opts ("--logger-agentic-json" : f : rest) = go opts { optLoggerAgenticJson = Just f } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -189,11 +200,12 @@ runOpts opts
             filtered1 = applyAnnotations anns filtered0
         filtered2 <- applyBaseline  (optBaseline opts)  filtered1
         filtered3 <- applyBlacklist (optBlacklist opts) filtered2
-        let finalMutants = applyRunMutantId (optRunMutantId opts) filtered3
+        filtered4 <- applyDiffLines (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) filtered3
+        let finalMutants = applyRunMutantId (optRunMutantId opts) filtered4
             tests        = map (genTest modFile)
         testNames <- getAllTests (getName modFile)
         timeoutUs <- resolveTimeout opts (optFile opts) modFile testNames
-        (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
+        (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) modFile finalMutants (tests testNames)
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
@@ -204,6 +216,7 @@ runOpts opts
           writeJsonLogger opts msum
           writeGithubLogger opts (optFile opts) tsum
           writeGitlabLogger opts (optFile opts) tsum
+          writeAgenticJsonLogger opts (optFile opts) origSrc tsum msum
           writeUpdateBaseline opts tsum
           applyExitPolicy opts msum
 
@@ -230,6 +243,99 @@ resolveTimeout opts file modFile testNames =
           timeoutUs = round (coef * baselineSeconds * 1e6) :: Int
       return $ Just (max 1000000 timeoutUs)
 
+-- | Human-readable description of what a mutator changes.
+mutatorDescription :: MuVar -> String
+mutatorDescription MutatePatternMatch              = "Permute or remove a function pattern match"
+mutatorDescription MutateValues                    = "Replace a literal value with a neighbouring value"
+mutatorDescription MutateFunctions                 = "Replace an operator or function with a similar one"
+mutatorDescription MutateNegateIfElse              = "Swap the then and else branches of an if expression"
+mutatorDescription MutateNegateGuards              = "Wrap a guard condition in 'not'"
+mutatorDescription (MutateOther "remove-not")      = "Remove 'not' from a negated sub-expression"
+mutatorDescription (MutateOther "remove-negation") = "Remove 'negate' or prefix '-' from an expression"
+mutatorDescription (MutateOther "case-alt-remove") = "Remove one alternative from a case expression"
+mutatorDescription (MutateOther "case-default-remove") = "Remove the catch-all alternative from a case or guard"
+mutatorDescription (MutateOther "remove-stmt")     = "Remove one statement from a do-block"
+mutatorDescription (MutateOther "remove-let-binding") = "Remove one binding from a let or where clause"
+mutatorDescription (MutateOther "remove-where-binding") = "Remove one binding from a where clause"
+mutatorDescription (MutateOther "remove-self-assign") = "Remove a self-assignment (let x = x or x <- return x)"
+mutatorDescription (MutateOther "negate-literal")  = "Replace a positive numeric literal with its negation"
+mutatorDescription (MutateOther "string-literal")  = "Replace a string literal in a comparison with \"\""
+mutatorDescription (MutateOther "bool-operand")    = "Replace a Boolean operand in && or || with True or False"
+mutatorDescription (MutateOther "flip-maybe")      = "Flip Just x to Nothing or Nothing to Just undefined"
+mutatorDescription (MutateOther "flip-either")     = "Flip Right x to Left x or Left x to Right x"
+mutatorDescription (MutateOther "remove-forkIO")   = "Remove forkIO/async/withAsync concurrency wrapper"
+mutatorDescription (MutateOther "bracket-degenerate") = "Replace bracket with acquire >>= action, removing cleanup"
+mutatorDescription (MutateOther "error-guard")     = "Replace exception handler with a no-op"
+mutatorDescription (MutateOther "replace-mutable-arg") = "Replace IORef/MVar/TVar argument with undefined"
+mutatorDescription (MutateOther s)                 = "Apply mutator: " ++ s
+
+-- | Write a per-mutant agentic JSON file for LLM consumption.
+writeAgenticJsonLogger :: Opts -> FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> IO ()
+writeAgenticJsonLogger opts file origSrc tsum msum = case optLoggerAgenticJson opts of
+  Nothing   -> return ()
+  Just path -> do
+    let MAnalysisSummary{..} = msum
+        noerrors = _maNumMutants - _maErrors
+        msiVal :: Double
+        msiVal = if noerrors > 0
+                 then fromIntegral _maKilled / fromIntegral noerrors
+                 else 0.0
+        resultOf (MSumKilled  _ _)   = "killed"  :: String
+        resultOf (MSumAlive   _ _)   = "alive"
+        resultOf (MSumError   _ _ _) = "error"
+        resultOf (MSumSkipped _ _)   = "skipped"
+        resultOf (MSumOther   _ _)   = "other"
+        mutOf (MSumKilled  m _)   = m
+        mutOf (MSumAlive   m _)   = m
+        mutOf (MSumError   m _ _) = m
+        mutOf (MSumSkipped m _)   = m
+        mutOf (MSumOther   m _)   = m
+        oLines = lines origSrc
+        contextWindow = 3
+        contextFor ln =
+          let start = max 1 (ln - contextWindow)
+              end   = min (length oLines) (ln + contextWindow)
+              numbered = zip [start..] (drop (start - 1) (take end oLines))
+          in  concatMap (\(i, l) -> "    " ++ show i ++ ": " ++ l ++ "\\n") numbered
+        entry s =
+          let m   = mutOf s
+              ln  = spanStartLine (_mspan m)
+              res = resultOf s
+              d   = show $ unifiedDiff origSrc (_mutant m)
+              desc = mutatorDescription (_mtype m)
+              mid  = hash (_mutant m)
+              ctx  = contextFor ln
+          in  intercalate "\n"
+              [ "  {"
+              , "    \"id\": " ++ show mid ++ ","
+              , "    \"type\": " ++ show (showMuVar (_mtype m)) ++ ","
+              , "    \"file\": " ++ show file ++ ","
+              , "    \"line\": " ++ show ln ++ ","
+              , "    \"description\": " ++ show desc ++ ","
+              , "    \"context_start_line\": " ++ show (max 1 (ln - contextWindow)) ++ ","
+              , "    \"context\": " ++ show ctx ++ ","
+              , "    \"diff\": " ++ d ++ ","
+              , "    \"result\": " ++ show res ++ ","
+              , "    \"reminder\": \"If result is alive, this mutation was not detected by any test. Consider adding a test that exercises this code path.\""
+              , "  }"
+              ]
+        entries = map entry tsum
+        mutantsBody = intercalate ",\n" entries
+        summaryJson = intercalate "\n"
+          [ "  \"summary\": {"
+          , "    \"total\": " ++ show _maNumMutants ++ ","
+          , "    \"killed\": " ++ show _maKilled ++ ","
+          , "    \"alive\": " ++ show _maAlive ++ ","
+          , "    \"skipped\": " ++ show _maSkipped ++ ","
+          , "    \"errors\": " ++ show _maErrors ++ ","
+          , "    \"msi\": " ++ show msiVal
+          , "  }"
+          ]
+        json = "{\n  \"mutants\": [\n" ++ mutantsBody ++
+               (if null entries then "" else "\n") ++
+               "  ],\n" ++ summaryJson ++ "\n}\n"
+    writeFile path json
+
 -- | Return True if --git-diff-base is not set, or if the file appears in the diff.
 checkGitDiff :: FilePath -> Maybe String -> IO Bool
 checkGitDiff _ Nothing = return True
@@ -240,6 +346,42 @@ checkGitDiff file (Just ref) = do
     Right output ->
       let changed = lines output
       in  return $ any (\c -> file == c || isSuffixOf c file || isSuffixOf file c) changed
+
+-- | If --git-diff-lines is active (requires --git-diff-base), filter mutants
+-- to those whose start line falls within lines changed relative to the base ref.
+applyDiffLines :: FilePath -> Maybe String -> Bool -> [Mutant] -> IO [Mutant]
+applyDiffLines _    Nothing  _     ms = return ms
+applyDiffLines _    _        False ms = return ms
+applyDiffLines file (Just ref) True ms = do
+  result <- try (readProcess "git" ["diff", "--unified=0", ref, "--", file] "") :: IO (Either IOException String)
+  case result of
+    Left _       -> return ms
+    Right output ->
+      let changedLines = parseDiffChangedLines output
+          inChanged m  = spanStartLine (_mspan m) `elem` changedLines
+      in  return $ filter inChanged ms
+
+-- | Parse `git diff --unified=0` output and return all changed line numbers in the new file.
+parseDiffChangedLines :: String -> [Int]
+parseDiffChangedLines = concatMap parseHunk . lines
+  where
+    parseHunk line = case stripPrefix "@@ " line of
+      Nothing   -> []
+      Just rest ->
+        let plusPart = dropWhile (/= '+') rest
+        in  case stripPrefix "+" plusPart of
+              Nothing -> []
+              Just s  ->
+                let (startStr, afterStart) = break (\c -> c == ',' || c == ' ') s
+                in  case reads startStr of
+                      [(start, "")] ->
+                        let count = case afterStart of
+                                      (',' : cs) -> case reads (takeWhile (/= ' ') cs) of
+                                                      [(n, "")] -> n
+                                                      _         -> 1
+                                      _          -> 1
+                        in  [start .. start + count - 1]
+                      _ -> []
 
 -- | Write GitHub Actions annotation lines for escaped mutants.
 writeGithubLogger :: Opts -> FilePath -> [MutantSummary] -> IO ()
@@ -549,7 +691,8 @@ groupConsec (x:xs) = go [x] x xs
 
 dryRun file = do
   src <- readFile file
-  let mutants = genMutantsForSrc defaultConfig src
+  let ast     = getASTFromStr src
+      mutants = genMutantsFromAST defaultConfig ast
       byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
       byType' = sortBy (comparing (Down . snd)) byType
       colW    = max 7 $ maximum $ map (length . showMuVar . fst) byType'
@@ -596,6 +739,9 @@ help = putStrLn $ showAS
   , "  --logger-gitlab FILE      Write GitLab Code Quality JSON for escaped mutants to FILE"
   , "  --timeout-coefficient N   Set per-mutant timeout to N × measured baseline test-suite runtime"
   , "  --git-diff-base REF       Skip mutation if the source file is not in 'git diff --name-only REF'"
+  , "  --git-diff-lines          Restrict mutants to changed lines (requires --git-diff-base)"
+  , "  --keep-mutants DIR        Write mutant files to DIR and keep them after evaluation"
+  , "  --logger-agentic-json FILE  Write per-mutant JSON with descriptions and context for LLM consumption"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"

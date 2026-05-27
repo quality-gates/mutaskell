@@ -72,9 +72,10 @@ genMutantsWith ::
 genMutantsWith _config filename tix = do
     f <- readFile filename
 
-    let modul = getModuleName (getASTFromStr f)
+    let origAst = getASTFromStr f
+        modul = getModuleName origAst
         mutants :: [Mutant]
-        mutants = genMutantsForSrc defaultConfig f
+        mutants = genMutantsFromAST defaultConfig origAst
 
     -- We have a choice here. We could allow users to specify test specific
     -- coverage rather than a single coverage. This can further reduce the
@@ -108,13 +109,24 @@ genMutantsForSrc ::
     String ->
     -- | Returns the mutants
     [Mutant]
-genMutantsForSrc config src =
+genMutantsForSrc config src = genMutantsFromAST config (getASTFromStr src)
+
+{- | Like 'genMutantsForSrc' but accepts a pre-parsed AST, avoiding a second
+parse when the caller already has one.
+-}
+genMutantsFromAST ::
+    -- | Configuration
+    Config ->
+    -- | Pre-parsed AST of the module to mutate
+    Module_ ->
+    -- | Returns the mutants
+    [Mutant]
+genMutantsFromAST config origAst =
     nubBy (\a b -> _mutant a == _mutant b) $
         filter (\m -> _mutant m /= origStr) $
             map (toMutant . apTh (prettyPrint . withAnn)) $
                 programMutants config ast
   where
-    origAst = getASTFromStr src
     (onlyAnn, noAnn) = splitAnnotations origAst
     ast = putDecl origAst noAnn
     withAnn mast = putDecl mast $ getDecl mast ++ onlyAnn
