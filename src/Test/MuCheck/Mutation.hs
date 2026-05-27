@@ -3,11 +3,12 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
-        Exp(App, Var, If, Lit, NegApp, Case, Do, Let), QName(UnQual),
+        Exp(App, Var, If, Lit, NegApp, Case, Do, Let, InfixApp, Con), QName(UnQual),
         Match(Match), Pat(PVar, PWildCard),
         Stmt(Qualifier, LetStmt, Generator), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
-        GuardedRhs(GuardedRhs), Rhs(GuardedRhss), Alt(Alt), Binds(BDecls),
+        GuardedRhs(GuardedRhs), Rhs(..), Alt(Alt), Binds(BDecls),
+        QOp(QVarOp),
         Annotation(Ann), Name(Symbol, Ident),
         prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..),
         ModuleHead(..), ModuleName(..))
@@ -107,7 +108,12 @@ applicableOps config ast = relevantOps ast opsList
             (MutateOther "case-default-remove", selectCaseDefaultRemoveOps ast),
             (MutateOther "remove-stmt", selectRemoveStmtOps ast),
             (MutateOther "remove-let-binding", selectRemoveLetBindingOps ast),
-            (MutateOther "remove-where-binding", selectRemoveWhereBindingOps ast)]
+            (MutateOther "remove-where-binding", selectRemoveWhereBindingOps ast),
+            (MutateOther "remove-self-assign", selectRemoveSelfAssignOps ast),
+            (MutateOther "negate-literal", selectNegateLiteralOps ast),
+            (MutateOther "string-literal", selectStringLiteralOps ast),
+            (MutateOther "bool-operand", selectBoolOperandOps ast),
+            (MutateOther "flip-maybe", selectFlipMaybeOps ast)]
 
 -- | Split declarations of the module to annotated and non annotated.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
@@ -490,3 +496,72 @@ selectRemoveWhereBindingOps m = selectValOps isFunBind convertFunBind m ++ selec
 -- | Replace element at given index in a list
 replaceAt :: Int -> a -> [a] -> [a]
 replaceAt i x xs = take i xs ++ [x] ++ drop (i+1) xs
+
+-- | Remove self assignments: @let x = x@ and @x <- return x@
+selectRemoveSelfAssignOps :: Module_ -> [MuOp]
+selectRemoveSelfAssignOps m = selectValOps isLet convertLet m ++ selectValOps isDo convertDo m
+  where isLet (Let _ (BDecls _ decls) _) = any isSelfAssign decls
+        isLet _ = False
+        isSelfAssign (PatBind _ (PVar _ (Ident _ x)) (UnGuardedRhs _ (Var _ (UnQual _ (Ident _ x2)))) Nothing) = x == x2
+        isSelfAssign _ = False
+        convertLet :: Exp_ -> [Exp_]
+        convertLet (Let l (BDecls lb decls) e) = [Let l (BDecls lb (filter (not . isSelfAssign) decls)) e]
+        convertLet _ = []
+
+        isDo (Do _ stmts) = any isSelfAssignStmt stmts
+        isDo _ = False
+        isSelfAssignStmt :: Stmt_ -> Bool
+        isSelfAssignStmt (Generator _ (PVar _ (Ident _ x)) (App _ (Var _ (UnQual _ (Ident _ "return"))) (Var _ (UnQual _ (Ident _ x2))))) = x == x2
+        isSelfAssignStmt _ = False
+        convertDo :: Exp_ -> [Exp_]
+        convertDo (Do l stmts) = [Do l (filter (not . isSelfAssignStmt) stmts)]
+        convertDo _ = []
+
+-- | Negate numeric literals: @42@ becomes @negate 42@
+selectNegateLiteralOps :: Module_ -> [MuOp]
+selectNegateLiteralOps m = selectValOps isPosLit convert m
+  where isPosLit (Lit _ (Int _ i _)) | i > 0 = True
+        isPosLit (Lit _ (Frac _ f _)) | f > 0 = True
+        isPosLit _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (Lit l (Int _ i s)) = [App l (Var l (UnQual l (Ident l "negate"))) (Lit l (Int l i s))]
+        convert (Lit l (Frac _ f s)) = [App l (Var l (UnQual l (Ident l "negate"))) (Lit l (Frac l f s))]
+        convert _ = []
+
+-- | Replace string literals in comparisons and guards with @""@
+selectStringLiteralOps :: Module_ -> [MuOp]
+selectStringLiteralOps m = selectValOps isStringComp convert m
+  where isStringComp (InfixApp _ e1 (QVarOp _ (UnQual _ (Symbol _ op))) e2) 
+            | op `elem` ["==", "/="] = isNonEmptyString e1 || isNonEmptyString e2
+        isStringComp _ = False
+        isNonEmptyString (Lit _ (String _ s _)) = not (null s)
+        isNonEmptyString _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (InfixApp l e1 op e2) = 
+            [ InfixApp l (if isNonEmptyString e1 then emptyStr else e1) op (if isNonEmptyString e2 then emptyStr else e2) ]
+        convert _ = []
+        emptyStr = Lit l_ (String l_ "" "")
+
+-- | Replace operands in @&&@ and @||@ with @True@ or @False@
+selectBoolOperandOps :: Module_ -> [MuOp]
+selectBoolOperandOps m = selectValOps isBoolOp convert m
+  where isBoolOp (InfixApp _ _ (QVarOp _ (UnQual _ (Symbol _ op))) _) = op `elem` ["&&", "||"]
+        isBoolOp _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (InfixApp l e1 op e2) = 
+            [ InfixApp l (Var l (UnQual l (Ident l "True"))) op e2
+            , InfixApp l (Var l (UnQual l (Ident l "False"))) op e2
+            , InfixApp l e1 op (Var l (UnQual l (Ident l "True")))
+            , InfixApp l e1 op (Var l (UnQual l (Ident l "False"))) ]
+        convert _ = []
+
+-- | Flip @Maybe@ values: @Just x@ <-> @Nothing@
+selectFlipMaybeOps :: Module_ -> [MuOp]
+selectFlipMaybeOps m = selectValOps isMaybe convert m
+  where isMaybe (App _ (Con _ (UnQual _ (Ident _ "Just"))) _) = True
+        isMaybe (Con _ (UnQual _ (Ident _ "Nothing"))) = True
+        isMaybe _ = False
+        convert :: Exp_ -> [Exp_]
+        convert (App l (Con _ (UnQual _ (Ident _ "Just"))) _) = [Con l (UnQual l (Ident l "Nothing"))]
+        convert (Con l (UnQual _ (Ident _ "Nothing"))) = [App l (Con l (UnQual l (Ident l "Just"))) (Var l (UnQual l (Ident l "undefined")))]
+        convert _ = []

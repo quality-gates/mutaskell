@@ -6,13 +6,13 @@
 - [x] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
 - [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
 - [x] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
-- [ ] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
-- [ ] Add a `negate-literal` mutator: replace positive numeric literals with their negation (`42 → negate 42`, `3.14 → negate 3.14`); tests sign-handling that `remove-negation` cannot reach because the original source has no existing negation; Haskell analogue of go-mutesting's `numbers/float-negate`
-- [ ] Add a `string-literal` mutator: replace non-empty string literals in `==` and `/=` comparisons and guard positions with `""`; finds code that compares against a specific string that tests never flip; Haskell analogue of go-mutesting's `expression/string-literal`
-- [ ] Add a `bool-operand` mutator: in `&&` and `||` expressions, replace each operand with `True` or `False` to make one arm irrelevant; tests whether both operands are independently exercised by the suite; Haskell analogue of go-mutesting's `expression/remove`
+- [x] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
+- [x] Add a `negate-literal` mutator: replace positive numeric literals with their negation (`42 → negate 42`, `3.14 → negate 3.14`); tests sign-handling that `remove-negation` cannot reach because the original source has no existing negation; Haskell analogue of go-mutesting's `numbers/float-negate`
+- [x] Add a `string-literal` mutator: replace non-empty string literals in `==` and `/=` comparisons and guard positions with `""`; finds code that compares against a specific string that tests never flip; Haskell analogue of go-mutesting's `expression/string-literal`
+- [x] Add a `bool-operand` mutator: in `&&` and `||` expressions, replace each operand with `True` or `False` to make one arm irrelevant; tests whether both operands are independently exercised by the suite; Haskell analogue of go-mutesting's `expression/remove`
 - [ ] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
 - [ ] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
-- [ ] Add a `flip-maybe` mutator: replace `Just x` with `Nothing` and `Nothing` with `Just undefined` in return positions
+- [x] Add a `flip-maybe` mutator: replace `Just x` with `Nothing` and `Nothing` with `Just undefined` in return positions
 - [ ] Add a `flip-either` mutator: replace `Right x` with `Left x` and `Left x` with `Right x` in return and guard positions
 - [ ] Add an `error-guard` mutator: in functions that use `catch`, `try`, `handle`, or `throwIO`, replace the error-handling branch with a no-op that returns a zero/default value, testing whether exception-handling paths matter; Haskell analogue of `expression/error-guard`
 - [ ] Add a `replace-mutable-arg` mutator: replace explicit `IORef`/`MVar`/`TVar` arguments at call sites with `undefined`, testing whether mutable state propagation matters; Haskell analogue of `expression/context-nil`

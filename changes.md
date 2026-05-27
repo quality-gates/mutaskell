@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.5] (Jonathan Baldie)
+  * Add `remove-self-assign` mutator: remove `let x = x` and `x <- return x` self-assignments
+  * Add `negate-literal` mutator: replace positive numeric literals with their negation
+  * Add `string-literal` mutator: replace non-empty string literals in comparisons with `""`
+  * Add `bool-operand` mutator: replace operands in `&&` and `||` with `True`/`False`
+  * Add `flip-maybe` mutator: flip between `Just x` and `Nothing`
+  * Clean up redundant imports in `Mutation.hs`
+
 ## [0.4.4] (Jonathan Baldie)
   * Add `case-alt-remove` mutator: remove one alternative at a time from `case...of` expressions
   * Add `case-default-remove` mutator: remove the catch-all `_` or `otherwise` alternative from `case...of` and guards
