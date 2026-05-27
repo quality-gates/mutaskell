@@ -36,7 +36,7 @@
 - [x] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
 - [x] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
 - [x] Add `--timeout N` flag: kill mutant evaluation after N seconds
-- [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
+- [x] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
 - [x] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
 - [x] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
 - [x] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
@@ -45,10 +45,10 @@
 - [x] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
 - [x] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
 - [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
-- [ ] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
-- [ ] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
+- [x] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
+- [x] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
 - [ ] Add `--logger-html <file>` flag: write a standalone HTML mutation report to the given file; include per-mutant source context, diff, and result classification
-- [ ] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
+- [x] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
 - [ ] Add `--git-diff-lines` flag: when `--git-diff-base` is active, restrict mutations further to lines changed relative to `<ref>`, not just files
 - [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
@@ -75,7 +75,7 @@
 - [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
 - [x] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
-- [ ] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
+- [x] Track skipped (non-compilable) mutants as a distinct category in `MAnalysisSummary`; include them in the per-mutator breakdown and all report formats
 - [x] Audit and remove dead fields in `MAnalysisSummary` that are never populated in normal runs (e.g. `_maOriginalNumMutants` before tix data is available)
 - [ ] Agentic JSON: include a `context_start_line` field anchoring the first context line to its 1-based source line number
 - [ ] Agentic JSON: include a `description` field showing the exact textual change for single-line mutations

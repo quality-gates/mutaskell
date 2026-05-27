@@ -131,5 +131,9 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--no-diffs`: Suppress the per-mutant unified diff output.
 *   `--output-statuses CHARS`: Filter terminal output to specific result types (`k`, `a`, `e`, `s`).
 *   `--timeout N`: Kill mutant evaluation after N seconds.
+*   `--timeout-coefficient N`: Set per-mutant timeout to N × measured baseline test-suite runtime.
+*   `--logger-github FILE`: Write GitHub Actions `::warning` annotations for escaped mutants to FILE.
+*   `--logger-gitlab FILE`: Write a GitLab Code Quality JSON artifact for escaped mutants to FILE.
+*   `--git-diff-base REF`: Skip mutation if the source file is not in `git diff --name-only REF`.
 
 

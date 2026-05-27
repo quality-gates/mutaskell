@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.12]
+  * Add `--logger-github <file>` flag: write GitHub Actions `::warning` annotations for escaped mutants
+  * Add `--logger-gitlab <file>` flag: write a GitLab Code Quality JSON artifact for escaped mutants
+  * Track non-compilable mutants as `Skipped` (distinct from interpreter `Errors`) in the summary and per-mutator breakdown table
+  * Add `MSumSkipped` constructor to `MutantSummary`; `--output-statuses` filter now uses `s` for skipped
+  * Add `--timeout-coefficient N` flag: set per-mutant timeout to N × measured baseline test-suite runtime
+  * Add `--git-diff-base <ref>` flag: skip mutation if the source file does not appear in `git diff --name-only <ref>`
+  * Include `skipped` field in `--logger-json` output
+
 ## [0.4.11]
   * Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; skips aggregate summary and exit-policy gates
   * Add `--blacklist <file>` flag: suppress mutations whose ID appears in a file (for permanently excluding false-positive mutants)
