@@ -1,4 +1,8 @@
-To begin:
+[![Mutation Analysis](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml)
+[![HLint](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml)
+[![OSV-Scanner](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml)
+[![Docs](https://github.com/jonbaldie/mucheck/actions/workflows/pages.yml/badge.svg)](https://jonbaldie.github.io/mucheck)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 
 # Documentation
 

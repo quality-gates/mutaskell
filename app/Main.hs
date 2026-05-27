@@ -3,7 +3,8 @@ module Main where
 
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when, forM_)
-import Data.List (group, isPrefixOf, nub, sort, sortBy)
+import Data.Char (isSpace)
+import Data.List (group, isPrefixOf, nub, sort, sortBy, stripPrefix)
 import Data.Ord (comparing, Down(..))
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
@@ -16,6 +17,7 @@ import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
 import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, getAllTests)
 import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
+import Test.MuCheck.Tix (spanStartLine)
 import Test.MuCheck.Utils.Print
 import Test.MuCheck.Utils.Common (hash)
 
@@ -41,6 +43,8 @@ data Opts = Opts
   , optLoggerJson   :: Maybe FilePath
   , optBaseline     :: Maybe FilePath
   , optUpdateBaseline :: Maybe FilePath
+  , optBlacklist    :: Maybe FilePath
+  , optRunMutantId  :: Maybe String
   }
 
 defaultOpts :: Opts
@@ -65,6 +69,8 @@ defaultOpts = Opts
   , optLoggerJson   = Nothing
   , optBaseline     = Nothing
   , optUpdateBaseline = Nothing
+  , optBlacklist    = Nothing
+  , optRunMutantId  = Nothing
   }
 
 parseOpts :: [String] -> Either String Opts
@@ -111,6 +117,10 @@ parseOpts = go defaultOpts
     go opts ("--baseline" : f    : rest) = go opts { optBaseline = Just f } rest
     go _    ("--update-baseline" : [])   = Left "--update-baseline requires a file path argument"
     go opts ("--update-baseline" : f : rest) = go opts { optUpdateBaseline = Just f } rest
+    go _    ("--blacklist"       : [])   = Left "--blacklist requires a file path argument"
+    go opts ("--blacklist" : f   : rest) = go opts { optBlacklist = Just f } rest
+    go _    ("--run-mutant-id"   : [])   = Left "--run-mutant-id requires an ID argument"
+    go opts ("--run-mutant-id" : i : rest) = go opts { optRunMutantId = Just i } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -144,24 +154,39 @@ runOpts opts
   | optDryRun opts = dryRun (optFile opts)
   | otherwise      = do
       when (optNoop opts) $ noopCheck (optFile opts)
-      let modFile = toRun (optFile opts) :: AssertCheckRun
+      origSrc <- readFile (optFile opts)
+      let modFile  = toRun (optFile opts) :: AssertCheckRun
+          anns     = parseAnnotations origSrc
       (len, mutants) <- genMutants (getName modFile) (optTix opts)
       smutants        <- sampler defaultConfig mutants
       let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
-      finalMutants <- applyBaseline (optBaseline opts) filtered0
-      let tests     = map (genTest modFile)
+          filtered1 = applyAnnotations anns filtered0
+      filtered2 <- applyBaseline  (optBaseline opts)  filtered1
+      filtered3 <- applyBlacklist (optBlacklist opts) filtered2
+      let finalMutants = applyRunMutantId (optRunMutantId opts) filtered3
+          tests        = map (genTest modFile)
       testNames <- getAllTests (getName modFile)
       let timeoutUs = fmap (* 1000000) (optTimeout opts)
       (fsum', tsum) <- evaluateMutants timeoutUs modFile finalMutants (tests testNames)
       let msum = case len of
                    -1 -> fsum' { _maCoveredNumMutants = -1 }
                    _  -> fsum' { _maCoveredNumMutants = length mutants }
-      printMutantDetails opts tsum
-      print msum
-      printMutatorBreakdown opts tsum
-      writeJsonLogger opts msum
-      writeUpdateBaseline opts tsum
-      applyExitPolicy opts msum
+      printMutantDetails opts origSrc tsum
+      unless (isSingleMutantMode opts) $ do
+        print msum
+        printMutatorBreakdown opts tsum
+        writeJsonLogger opts msum
+        writeUpdateBaseline opts tsum
+        applyExitPolicy opts msum
+
+-- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
+isSingleMutantMode :: Opts -> Bool
+isSingleMutantMode = maybe False (const True) . optRunMutantId
+
+-- | Keep only the mutant matching the given stable ID; return all if Nothing.
+applyRunMutantId :: Maybe String -> [Mutant] -> [Mutant]
+applyRunMutantId Nothing   ms = ms
+applyRunMutantId (Just mid) ms = filter (\m -> hash (_mutant m) == mid) ms
 
 -- | Load a baseline file and filter out mutants whose hash appears in it.
 applyBaseline :: Maybe FilePath -> [Mutant] -> IO [Mutant]
@@ -173,8 +198,60 @@ applyBaseline (Just path) ms = do
       hPutStrLn stderr $ "Warning: could not read baseline file: " ++ show e
       return ms
     Right contents -> do
-      let baselineIds = lines contents
-      return $ filter (\m -> hash (_mutant m) `notElem` baselineIds) ms
+      let ids = filter (not . null) (lines contents)
+      return $ filter (\m -> hash (_mutant m) `notElem` ids) ms
+
+-- | Load a blacklist file and filter out mutants whose hash appears in it.
+applyBlacklist :: Maybe FilePath -> [Mutant] -> IO [Mutant]
+applyBlacklist Nothing ms = return ms
+applyBlacklist (Just path) ms = do
+  result <- try (readFile path) :: IO (Either IOException String)
+  case result of
+    Left e -> do
+      hPutStrLn stderr $ "Warning: could not read blacklist file: " ++ show e
+      return ms
+    Right contents -> do
+      let ids = filter (not . null) (lines contents)
+      return $ filter (\m -> hash (_mutant m) `notElem` ids) ms
+
+-- | Parse inline @-- mucheck: disable-next-line [mutators]@ annotations.
+-- Returns a list of (1-based comment line, suppressed mutator names).
+-- An empty name list means suppress all mutators.
+parseAnnotations :: String -> [(Int, [String])]
+parseAnnotations src = concatMap check (zip [1..] (lines src))
+  where
+    check (n, line) =
+      let trimmed = dropWhile isSpace line
+      in case stripPrefix "-- mucheck: disable-next-line" trimmed of
+           Nothing   -> []
+           Just rest ->
+             let names = case dropWhile isSpace rest of
+                           "" -> []
+                           s  -> splitOn ',' s
+             in [(n, names)]
+
+-- | Split a string on a delimiter character, trimming whitespace from each part.
+splitOn :: Char -> String -> [String]
+splitOn _ "" = []
+splitOn c s  = map (dropWhile isSpace . reverse . dropWhile isSpace . reverse) $ go s ""
+  where
+    go []     acc = [acc]
+    go (x:xs) acc
+      | x == c    = acc : go xs ""
+      | otherwise = go xs (acc ++ [x])
+
+-- | Filter out mutants suppressed by inline annotations.
+applyAnnotations :: [(Int, [String])] -> [Mutant] -> [Mutant]
+applyAnnotations [] ms = ms
+applyAnnotations anns ms = filter (not . isSuppressed) ms
+  where
+    isSuppressed m =
+      let sl      = spanStartLine (_mspan m)
+          mName   = showMuVar (_mtype m)
+      in any (\(annLine, names) ->
+                sl == annLine + 1 &&
+                (null names || mName `elem` names)
+             ) anns
 
 -- | Write surviving mutant IDs to the update-baseline file.
 writeUpdateBaseline :: Opts -> [MutantSummary] -> IO ()
@@ -294,8 +371,8 @@ printMutatorBreakdown _opts sums = do
   mapM_ (\(t,k,a,e) -> putStrLn $ "  " ++ pad t ++ "  " ++ fmtN k ++ "  " ++ fmtN a ++ "  " ++ fmtN e) rows
   putStrLn sep
 
-printMutantDetails :: Opts -> [MutantSummary] -> IO ()
-printMutantDetails opts sums = do
+printMutantDetails :: Opts -> String -> [MutantSummary] -> IO ()
+printMutantDetails opts origSrc sums = do
   let filterStatuses s = case optOutputStatuses opts of
                            Nothing -> True
                            Just chars -> case s of
@@ -303,38 +380,69 @@ printMutantDetails opts sums = do
                              MSumAlive _ _  -> 'a' `elem` chars
                              MSumError _ _ _ -> 'e' `elem` chars
                              MSumOther _ _  -> 'k' `elem` chars
-      
-      shouldShowQuiet s = if optQuiet opts
-                          then case s of
-                                 MSumAlive _ _ -> True
-                                 _ -> False
-                          else True
-                          
+      shouldShowQuiet s = not (optQuiet opts) || case s of { MSumAlive _ _ -> True; _ -> False }
       toShow = filter (\s -> filterStatuses s && shouldShowQuiet s) sums
 
   forM_ toShow $ \s -> do
     let (status, Mutant{..}, logS, mErr) = case s of
-                                     MSumKilled mut l -> ("KILLED", mut, l, Nothing)
-                                     MSumAlive mut l -> ("ALIVE", mut, l, Nothing)
-                                     MSumError mut e l -> ("ERROR", mut, l, Just e)
-                                     MSumOther mut l -> ("OTHER", mut, l, Nothing)
-    
-    unless (optQuiet opts && not (optVerbose opts) && not (optDebug opts) && status /= "ALIVE") $ do
-      when (optVerbose opts || optDebug opts || status == "ALIVE" || not (optQuiet opts)) $ do
-        putStrLn $ ">>> Mutant " ++ hash _mutant ++ " [" ++ status ++ "] " ++ showMuVar _mtype
-        when (optVerbose opts) $ do
-          unless (optNoDiffs opts) $ do
-            putStrLn "--- Source ---"
-            putStrLn _mutant 
-            putStrLn "--------------"
-          mapM_ print logS
-        when (optDebug opts) $ do
-          case mErr of
-            Just e -> putStrLn $ "Error: " ++ e
-            _ -> return ()
-        putStrLn ""
+                                     MSumKilled mut l   -> ("KILLED", mut, l, Nothing)
+                                     MSumAlive  mut l   -> ("ALIVE",  mut, l, Nothing)
+                                     MSumError  mut e l -> ("ERROR",  mut, l, Just e)
+                                     MSumOther  mut l   -> ("OTHER",  mut, l, Nothing)
+    putStrLn $ ">>> Mutant " ++ hash _mutant ++ " [" ++ status ++ "] " ++ showMuVar _mtype
+    unless (optNoDiffs opts) $
+      let d = unifiedDiff origSrc _mutant
+      in unless (null d) $ putStr d
+    when (optVerbose opts) $ do
+      putStrLn "--- Full source ---"
+      putStrLn _mutant
+      putStrLn "-------------------"
+      mapM_ print logS
+    when (optDebug opts) $
+      case mErr of
+        Just e  -> putStrLn $ "Error: " ++ e
+        Nothing -> return ()
+    putStrLn ""
 
 dryRun :: FilePath -> IO ()
+-- | Produce a compact unified diff between two source strings.
+-- Shows only changed lines with up to 2 lines of context.
+unifiedDiff :: String -> String -> String
+unifiedDiff origSrc mutSrc
+  | origSrc == mutSrc = ""
+  | otherwise = concatMap renderHunk hunks
+  where
+    oLines   = lines origSrc
+    mLines   = lines mutSrc
+    maxLen   = max (length oLines) (length mLines)
+    ctx      = 2
+    getL i ls = if i <= length ls then ls !! (i - 1) else ""
+    diffIdxs = [i | i <- [1..maxLen], getL i oLines /= getL i mLines]
+    ctxSet   = nub $ sort $ concatMap (\i -> [max 1 (i-ctx)..min maxLen (i+ctx)]) diffIdxs
+    hunks    = groupConsec ctxSet
+    renderHunk hunk@(lo:_) =
+      let hi  = hunk !! (length hunk - 1)
+          hdr = "@@ -" ++ show lo ++ "," ++ show (hi - lo + 1) ++ " @@\n"
+          rows = concat (concatMap renderRow hunk)
+      in hdr ++ rows
+    renderHunk [] = ""
+    renderRow i
+      | i `elem` diffIdxs =
+          let oL = getL i oLines; mL = getL i mLines
+          in  ["-" ++ oL ++ "\n" | not (null oL) || i <= length oLines]
+           ++ ["+" ++ mL ++ "\n" | not (null mL) || i <= length mLines]
+      | otherwise = [" " ++ getL i oLines ++ "\n"]
+
+-- | Group a sorted list of ints into runs of consecutive integers.
+groupConsec :: [Int] -> [[Int]]
+groupConsec [] = []
+groupConsec (x:xs) = go [x] x xs
+  where
+    go cur _    []     = [cur]
+    go cur prev (y:ys)
+      | y == prev + 1  = go (cur ++ [y]) y ys
+      | otherwise      = cur : go [y] y ys
+
 dryRun file = do
   src <- readFile file
   let mutants = genMutantsForSrc defaultConfig src
@@ -378,6 +486,8 @@ help = putStrLn $ showAS
   , "  --logger-json FILE        Write a compact JSON run summary to FILE"
   , "  --baseline FILE           Skip mutants whose ID appears in FILE from a previous run"
   , "  --update-baseline FILE    Write surviving mutant IDs to FILE after the run"
+  , "  --blacklist FILE          Suppress mutations whose ID appears in FILE (false-positive exclusions)"
+  , "  --run-mutant-id ID        Evaluate only the mutant with the given stable ID; no aggregate summary"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"

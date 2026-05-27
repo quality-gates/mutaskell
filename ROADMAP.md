@@ -19,7 +19,7 @@
 - [x] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
 - [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
 - [x] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
-- [ ] Support inline source comment annotations to suppress mutations: `-- mucheck: disable-func` before a function body to suppress all mutations in that function; `-- mucheck: disable-next-line [name1,name2]` to suppress specific mutators on the next line (`*` for all); `-- mucheck: disable-regexp <pattern> [*]` to suppress on all lines matching the regex; Haskell analogue of go-mutesting's `// mutator-disable-func`, `// mutator-disable-next-line`, and `// mutator-disable-regexp`
+- [x] Support inline source comment annotations to suppress mutations: `-- mucheck: disable-func` before a function body to suppress all mutations in that function; `-- mucheck: disable-next-line [name1,name2]` to suppress specific mutators on the next line (`*` for all); `-- mucheck: disable-regexp <pattern> [*]` to suppress on all lines matching the regex; Haskell analogue of go-mutesting's `// mutator-disable-func`, `// mutator-disable-next-line`, and `// mutator-disable-regexp`
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
 - [ ] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
 - [x] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
@@ -39,9 +39,9 @@
 - [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
 - [x] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
 - [x] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
-- [ ] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
+- [x] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
 - [ ] Add `--coverage` flag: run `cabal test --enable-coverage` automatically to produce the HPC tix file before mutation begins, eliminating the need for the user to provide a pre-generated `-tix` file; analogue of go-mutesting's `--coverage`
-- [ ] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
+- [x] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
 - [x] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
 - [x] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
 - [ ] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
@@ -71,7 +71,7 @@
 - [ ] Publish a JSON Schema for the config file (`schema/config-schema.json`) with editor autocomplete support
 - [ ] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
 - [ ] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
-- [ ] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
+- [x] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
 - [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
 - [x] Assign each mutant a stable content-hash ID and print it alongside every result line; use it for `--run-mutant-id`, `--baseline`, and the GitLab fingerprint
@@ -113,5 +113,5 @@
 - [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork
 - [ ] Verify that the github.io docs website actually builds and works
 - [ ] Entire CI pipeline in PRs must run in less than five minutes end to end
-- [ ] README.md must be up to date with modern badges
+- [x] README.md must be up to date with modern badges
 - [x] Add '.worktrees' to .gitignore 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.11]
+  * Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; skips aggregate summary and exit-policy gates
+  * Add `--blacklist <file>` flag: suppress mutations whose ID appears in a file (for permanently excluding false-positive mutants)
+  * Print a compact unified diff for each mutant by default; `--no-diffs` suppresses it; `--verbose` still shows the full source after the diff
+  * Add inline comment annotations: `-- mucheck: disable-next-line` (all mutators) or `-- mucheck: disable-next-line name1,name2` (named mutators) suppress mutations on the following source line
+  * Add CI status badges (Mutation, HLint, OSV-Scanner, Docs, License) to README
+
 ## [0.4.10]
   * Add `--logger-json <file>` flag: write a compact JSON summary (total, killed, alive, errors, MSI) to a file after each run
   * Include `covered_code_msi` in `--logger-json` output when a `-tix` file is provided

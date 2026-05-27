@@ -14,6 +14,10 @@ type Span = HpcPos
 toSpan :: (Int, Int, Int, Int) -> Span
 toSpan = toHpcPos
 
+-- | Extract the 1-based start line from a span.
+spanStartLine :: Span -> Int
+spanStartLine sp = let (l, _, _, _) = fromHpcPos sp in l
+
 -- | Whether a line is covered or not
 data TCovered
     = TCovered
