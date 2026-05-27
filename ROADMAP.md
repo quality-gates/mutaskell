@@ -7,6 +7,9 @@
 - [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
 - [x] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
 - [ ] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
+- [ ] Add a `negate-literal` mutator: replace positive numeric literals with their negation (`42 → negate 42`, `3.14 → negate 3.14`); tests sign-handling that `remove-negation` cannot reach because the original source has no existing negation; Haskell analogue of go-mutesting's `numbers/float-negate`
+- [ ] Add a `string-literal` mutator: replace non-empty string literals in `==` and `/=` comparisons and guard positions with `""`; finds code that compares against a specific string that tests never flip; Haskell analogue of go-mutesting's `expression/string-literal`
+- [ ] Add a `bool-operand` mutator: in `&&` and `||` expressions, replace each operand with `True` or `False` to make one arm irrelevant; tests whether both operands are independently exercised by the suite; Haskell analogue of go-mutesting's `expression/remove`
 - [ ] Add a `remove-forkIO` mutator: strip the `forkIO`/`async`/`withAsync` wrapper and run the action inline
 - [ ] Add a `bracket-degenerate` mutator: replace `bracket acquire release action` with `acquire >>= action`, removing the cleanup step
 - [ ] Add a `flip-maybe` mutator: replace `Just x` with `Nothing` and `Nothing` with `Just undefined` in return positions
@@ -16,7 +19,7 @@
 - [ ] Add `Data.Bits` operators (`(.&.)`, `(.|.)`, `xor`, `shiftL`, `shiftR`, `complement`) to the configurable symbol operator groups
 - [x] Skip mutations that produce an AST identical to the original after `prettyPrint` to eliminate false no-op escapes
 - [ ] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
-- [ ] Support inline source comment annotations to suppress mutations on a specific line (`-- mucheck: disable`) or for a region (`-- mucheck: disable-begin` / `-- mucheck: disable-end`); Haskell analogue of go-mutesting's `// mutator-disable-*` comments
+- [ ] Support inline source comment annotations to suppress mutations: `-- mucheck: disable-func` before a function body to suppress all mutations in that function; `-- mucheck: disable-next-line [name1,name2]` to suppress specific mutators on the next line (`*` for all); `-- mucheck: disable-regexp <pattern> [*]` to suppress on all lines matching the regex; Haskell analogue of go-mutesting's `// mutator-disable-func`, `// mutator-disable-next-line`, and `// mutator-disable-regexp`
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
 - [ ] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
 - [ ] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
@@ -36,6 +39,8 @@
 - [ ] Add `--timeout-coefficient N` flag: scale per-mutant timeout by N times the measured baseline test-suite runtime
 - [ ] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
 - [ ] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
+- [ ] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
+- [ ] Add `--coverage` flag: run `cabal test --enable-coverage` automatically to produce the HPC tix file before mutation begins, eliminating the need for the user to provide a pre-generated `-tix` file; analogue of go-mutesting's `--coverage`
 - [ ] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
 - [ ] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
 - [ ] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
@@ -58,6 +63,8 @@
 - [ ] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
 - [ ] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
 - [ ] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
+- [ ] Add `min_msi` config key: persistent equivalent of `--min-msi`; minimum required MSI (0–100); 0 means no gate; overridden by the CLI flag
+- [ ] Add `min_covered_msi` config key: persistent equivalent of `--min-covered-msi`; minimum required covered-code MSI (0–100); 0 means no gate
 - [ ] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
 - [ ] Add `workers` and `timeout` config keys, overridden by their respective CLI flags
 - [ ] Reject unknown keys in the config file with a clear error rather than silently ignoring them
