@@ -9,11 +9,12 @@ module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTe
 import Control.Exception (IOException, try)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
+import Data.Char (isAlphaNum)
 import Data.Either (partitionEithers)
-import Data.List (partition)
+import Data.List (isPrefixOf, partition)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import System.Directory (createDirectoryIfMissing, removeFile)
+import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
 import System.Environment (withArgs)
 import System.IO.Temp (getCanonicalTemporaryDirectory)
 import System.Timeout (timeout)
@@ -93,6 +94,30 @@ resolveMutantDir :: Maybe FilePath -> IO FilePath
 resolveMutantDir (Just dir) = createDirectoryIfMissing True dir >> return dir
 resolveMutantDir Nothing    = getCanonicalTemporaryDirectory
 
+-- | Extract the module name from the first line of a Haskell source string.
+-- Returns @\"Main\"@ if no @module@ declaration is found.
+extractModuleName :: String -> String
+extractModuleName src =
+    case dropWhile (not . ("module " `isPrefixOf`)) (lines src) of
+        []    -> "Main"
+        (l:_) -> let rest = drop (length "module ") l
+                     name = takeWhile (\c -> isAlphaNum c || c == '.') rest
+                 in if null name then "Main" else name
+
+-- | Convert a dotted module name to a relative file path.
+-- E.g. @\"Examples.AssertCheckTest\"@ becomes @\"Examples\/AssertCheckTest.hs\"@.
+moduleNameToPath :: String -> FilePath
+moduleNameToPath modName = map dotToSlash modName ++ ".hs"
+  where dotToSlash '.' = '/'
+        dotToSlash c   = c
+
+-- | Return the directory portion of a file path (everything up to the last @\/@).
+-- Returns @\".\"@ for paths without a directory component.
+parentDir :: FilePath -> FilePath
+parentDir p = case reverse (dropWhile (/= '/') (reverse p)) of
+    []  -> "."
+    dir -> init dir  -- drop trailing slash
+
 -- | The `summarizeResults` function evaluates the results of a test run
 -- using the supplied `isSuccess` and `summarize_` functions from the adapters
 summarizeResults :: (Summarizable s, TRun a s) =>
@@ -131,18 +156,25 @@ evalMutant ::
     -- | Returns the result of test runs
     IO [InterpreterOutput t]
 evalMutant mtimeout doDelete mutantDir extraArgs tests Mutant{..} = do
-    let mutantFile = mutantDir ++ "/" ++ hash _mutant ++ ".hs"
+    -- Write the mutant file to a path matching its module name so that GHC
+    -- (via hint) can load it regardless of whether it enforces the
+    -- file-path/module-name correspondence (behaviour that varies by GHC
+    -- version).  A per-mutant hash subdirectory keeps concurrent mutants
+    -- for the same module from colliding.
+    let hashDir    = mutantDir ++ "/" ++ hash _mutant
+        modRelPath = moduleNameToPath (extractModuleName _mutant)
+        mutantFile = hashDir ++ "/" ++ modRelPath
         logF       = mutantFile ++ ".log"
 
     say mutantFile
 
+    createDirectoryIfMissing True (parentDir mutantFile)
     writeResult <- try (writeFile mutantFile _mutant) :: IO (Either IOException ())
     result <- case writeResult of
         Left err -> return [Io{_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
         Right () -> stopFast (evalTest mtimeout extraArgs mutantFile logF) tests
     when doDelete $ do
-        _ <- try (removeFile mutantFile) :: IO (Either IOException ())
-        _ <- try (removeFile logF)       :: IO (Either IOException ())
+        _ <- try (removeDirectoryRecursive hashDir) :: IO (Either IOException ())
         return ()
     return result
 
