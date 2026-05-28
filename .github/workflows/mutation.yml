@@ -20,8 +20,10 @@ jobs:
           path: ~/.cabal/store
           key: ${{ runner.os }}-ghc-9.8.2-cabal-${{ hashFiles('MuCheck.cabal') }}
           restore-keys: ${{ runner.os }}-ghc-9.8.2-cabal-
-      - name: Build and run test suite
-        run: cabal test all --test-show-details=direct --write-ghc-environment-files=always
+      - name: Build all targets (writes .ghc.environment.* for hint)
+        run: cabal build --write-ghc-environment-files=always all
+      - name: Run test suite
+        run: cabal test all --test-show-details=direct
       - name: Run sample-test with coverage (MuCheck package only)
         run: |
           echo "package MuCheck" > cabal.project.local
