@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                MuCheck
-version:             0.4.18
+version:             0.4.19
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
@@ -42,6 +42,7 @@ common dependencies
                     hpc >= 0.5.1.1,
                     template-haskell >= 2.5.0,
                     process >= 1.6.0,
+                    unix >= 2.7,
 
 library
   import:           dependencies

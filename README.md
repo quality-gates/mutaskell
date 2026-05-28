@@ -131,6 +131,7 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--debug`: Print raw interpreter diagnostics and mutant type during a run.
 *   `--no-diffs`: Suppress the per-mutant unified diff output.
 *   `--output-statuses CHARS`: Filter terminal output to specific result types (`k`, `a`, `e`, `s`).
+*   `--workers N`: Evaluate mutants concurrently using N subprocess workers (default: 1). Uses process-level parallelism to keep hint evaluations isolated.
 *   `--timeout N`: Kill mutant evaluation after N seconds.
 *   `--timeout-coefficient N`: Set per-mutant timeout to N × measured baseline test-suite runtime.
 *   `--logger-github FILE`: Write GitHub Actions `::warning` annotations for escaped mutants to FILE.

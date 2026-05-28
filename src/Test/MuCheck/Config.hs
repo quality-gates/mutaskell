@@ -7,13 +7,13 @@ module Test.MuCheck.Config where
 data GenerationMode
     = FirstOrderOnly
     | FirstAndHigherOrder
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 {- | For function mutations, whether the function is a symbol or an identifier
 for example,`head` is an identifier while `==` is a symbol.
 -}
 data FnType = FnSymbol | FnIdent
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 {- | User defined function groups. Indicate whether the functions are symbols
 or identifiers, and also the group of functions to interchange for.
@@ -21,7 +21,7 @@ We dont allow mixing of identifiers and functions for now (harder to
 match)
 -}
 data FnOp = FnOp {_type :: FnType, _fns :: [String]}
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 -- | predicates ["pred", "id", "succ"]
 predNums :: [String]
@@ -104,7 +104,7 @@ data Config = Config
       -- higher order (higher order is experimental)
       genMode :: GenerationMode
     }
-    deriving (Show)
+    deriving (Show, Read)
 
 -- | The default configuration
 defaultConfig :: Config
@@ -135,7 +135,7 @@ data MuVar
     | MutateNegateIfElse
     | MutateNegateGuards
     | MutateOther String
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Read)
 
 {- | getSample returns the fraction in config corresponding to the enum passed
 in

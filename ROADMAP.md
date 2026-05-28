@@ -31,7 +31,7 @@
 - [x] Add `--min-covered-msi <pct>` flag: exit with code 5 if the covered-code MSI (mutations within HPC-covered lines only) is below `<pct>`; requires a `-tix` file
 - [x] Add `--ignore-msi-with-no-mutations` flag: treat MSI quality gates as passed when no mutable constructs are found in the target source; prevents false failures on files that are not yet tested
 - [x] Add `--noop` flag: run the test suite once unmodified before mutation begins; exit with a clear error if the suite already fails
-- [ ] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
+- [x] Add `--workers N` flag: fork N subprocesses to evaluate mutants concurrently; hint is not thread-safe so must use process-level parallelism
 - [x] Add `--disable <name>` flag: skip a named mutator or category prefix; support trailing-`*` wildcards (e.g. `--disable functions/*`); reject bare `*` with a clear error
 - [x] Add `--enable <name>` flag: restrict mutation to only the named mutators or category prefix, with trailing-`*` wildcard support
 - [x] Add `--output-statuses <chars>` flag: filter terminal output to specific result types; define chars `k` (killed), `a` (alive), `e` (error), `s` (skipped); ensure diffs for suppressed result types are also suppressed
@@ -83,7 +83,7 @@
 - [x] Agentic JSON: ensure kill hints and descriptions are populated for all `MuVar` variants, not just a subset
 - [x] Ensure `msi` is reported on the same 0–1 scale in both `--logger-json` and `--logger-agentic-json` outputs
 - [x] Count file-write errors during mutant creation in `_maErrors`; never silently discard a mutant that could not be written to disk
-- [ ] Implement subprocess-based parallel evaluation for `--workers N`; synchronize all output including diffs through a single writer to prevent interleaved lines
+- [x] Implement subprocess-based parallel evaluation for `--workers N`; synchronize all output including diffs through a single writer to prevent interleaved lines
 - [x] Deduplicate structurally identical mutations (same `MuOp` at the same span) before evaluation to avoid running redundant tests
 - [x] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
 - [ ] For `--per-test`: build the per-test HPC coverage map before mutation begins; print the module name and test count as a startup message
