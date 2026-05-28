@@ -1,4 +1,6 @@
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -6,36 +8,33 @@
 module Test.MuCheck.Mutation where
 
 import Data.Generics (Typeable, listify, mkMp)
-import Data.List (isPrefixOf, nub, nubBy, partition, permutations, (\\))
-import Language.Haskell.Exts (
-    Alt (Alt),
-    Annotation (Ann),
-    Binds (BDecls),
-    Decl (AnnPragma, FunBind, PatBind, TypeSig),
-    Exp (App, Case, Con, Do, If, InfixApp, Lambda, Let, List, Lit, NegApp, Var),
-    Type (TyApp, TyCon, TyFun, TyList),
-    Extension (..),
-    GuardedRhs (GuardedRhs),
-    KnownExtension (..),
-    Literal (Char, Frac, Int, PrimChar, PrimDouble, PrimFloat, PrimInt, PrimString, PrimWord, String),
-    Match (Match),
-    Module (Module),
-    ModuleHead (..),
-    ModuleName (..),
-    Name (Ident, Symbol),
-    ParseMode (..),
-    ParseResult (..),
-    Pat (PVar, PWildCard),
-    QName (UnQual),
-    QOp (QVarOp),
-    Rhs (..),
-    SrcSpan (..),
-    SrcSpanInfo (..),
-    Stmt (Generator, LetStmt, Qualifier),
-    defaultParseMode,
-    parseModuleWithMode,
-    prettyPrint,
- )
+import Data.List (isPrefixOf, nub, nubBy, partition, permutations)
+-- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
+
+import GHC.Hs
+import GHC.Parser.Annotation ()
+import GHC.Types.SrcLoc
+    ( GenLocated (..)
+    , generatedSrcSpan
+    , unLoc
+    )
+import GHC.Types.Name.Reader
+    ( RdrName (..), rdrNameOcc, mkRdrUnqual )
+import GHC.Types.Name.Occurrence
+    ( occNameString, mkVarOcc, mkDataOcc )
+import GHC.Types.SourceText
+    ( SourceText (..), IntegralLit (..), FractionalLit (..)
+    , FractionalExponentBase (..)
+    )
+import GHC.Data.FastString (unpackFS, mkFastString)
+import Language.Haskell.Syntax.Module.Name ()
+import Language.Haskell.Syntax.Extension ()
+import GHC.Utils.Outputable (showSDocUnsafe, ppr)
+import System.Process (readProcess)
+
+import Language.Haskell.GHC.ExactPrint (exactPrint)
+import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString)
+import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
 
 import Test.MuCheck.Config
 import Test.MuCheck.MuOp
@@ -44,802 +43,1034 @@ import Test.MuCheck.Tix
 import Test.MuCheck.Utils.Common
 import Test.MuCheck.Utils.Syb
 
-{- | The `genMutants` function is a wrapper to genMutantsWith with standard
-configuraton
+-- ---------------------------------------------------------------------------
+-- Helpers for constructing synthetic GHC AST nodes
+
+-- | The GHC library directory, obtained at runtime.
+getLibdir :: IO FilePath
+getLibdir = fmap (filter (/= '\n')) $ readProcess "ghc" ["--print-libdir"] ""
+
+-- | String name of an 'RdrName'.
+rdrStr :: RdrName -> String
+rdrStr = occNameString . rdrNameOcc
+
+-- | Create a located expression node with empty annotation.
+-- The entry delta will be repaired by '(~~>)' via 'transferEntry'.
+mkL :: NoAnn ann => a -> GenLocated (EpAnn ann) a
+mkL = L noAnn
+
+-- | Create a located expression wrapping an 'HsExpr'.
+mkExpr :: HsExpr GhcPs -> LHsExpr GhcPs
+mkExpr = mkL
+
+-- | Create a variable reference expression.
+-- XVar GhcPs = NoExtField, so we use 'noExtField' rather than 'noAnn'.
+mkVar :: String -> LHsExpr GhcPs
+mkVar s = mkL (HsVar noExtField (L noAnn (mkRdrUnqual (mkVarOcc s))))
+
+-- | Create a data constructor reference expression.
+mkDataVar :: String -> LHsExpr GhcPs
+mkDataVar s = mkL (HsVar noExtField (L noAnn (mkRdrUnqual (mkDataOcc s))))
+
+-- | Create a function application expression.
+-- XApp GhcPs = NoExtField.  The argument is given a one-space entry delta so
+-- that 'exactPrint' renders "f x" rather than "fx".
+mkApp :: LHsExpr GhcPs -> LHsExpr GhcPs -> LHsExpr GhcPs
+mkApp f e = mkL (HsApp noExtField f (setEntryDP e (SameLine 1)))
+
+-- | Create an operator application expression.
+-- XOpApp GhcPs = NoExtField.
+mkOpApp :: LHsExpr GhcPs -> LHsExpr GhcPs -> LHsExpr GhcPs -> LHsExpr GhcPs
+mkOpApp l op r = mkL (OpApp noExtField l op r)
+
+-- | Create an overloaded integer literal expression.
+-- XOverLitE GhcPs = NoExtField; XOverLit GhcPs = NoExtField.
+mkIntLitExpr :: Integer -> LHsExpr GhcPs
+mkIntLitExpr n = mkL (HsOverLit noExtField overlit)
+  where
+    overlit = OverLit
+        { ol_ext = noExtField
+        , ol_val = HsIntegral IL
+            { il_text  = SourceText (mkFastString (show n))
+            , il_neg   = False
+            , il_value = n
+            }
+        }
+
+-- | Create an overloaded fractional literal expression.
+mkFracLitExpr :: Rational -> LHsExpr GhcPs
+mkFracLitExpr f = mkL (HsOverLit noExtField overlit)
+  where
+    overlit = OverLit
+        { ol_ext = noExtField
+        , ol_val = HsFractional FL
+            { fl_text     = SourceText (mkFastString (show f))
+            , fl_neg      = False
+            , fl_signi    = f
+            , fl_exp      = 0
+            , fl_exp_base = Base10
+            }
+        }
+
+-- | Create a string literal expression.
+-- XLitE GhcPs = NoExtField; HsString takes NoSourceText for synthetic nodes.
+mkStringExpr :: String -> LHsExpr GhcPs
+mkStringExpr s = mkL (HsLit noExtField (HsString NoSourceText (mkFastString s)))
+
+-- | Create an empty list expression @[]@.
+-- We provide explicit bracket tokens so that 'exactPrint' emits @[]@ rather
+-- than the empty string that results from @noAnn :: AnnList ()@.
+mkListExpr :: LHsExpr GhcPs
+mkListExpr = mkL (ExplicitList ann [])
+  where
+    epTok d = EpTok (EpaDelta generatedSrcSpan d [])
+    ann = (noAnn :: AnnList ())
+            { al_brackets = ListSquare (epTok (SameLine 0)) (epTok (SameLine 0)) }
+
+-- ---------------------------------------------------------------------------
+-- Public API
+
+{- | Generate mutants using the default configuration.
 -}
 genMutants ::
-    -- | The module we are mutating
+    -- | The module file to mutate
     FilePath ->
-    -- | Coverage information for the module
+    -- | Coverage information (@.tix@ file or empty)
     FilePath ->
-    -- | Returns the covering mutants produced, and original length.
     IO (Either String (Int, [Mutant]))
 genMutants = genMutantsWith defaultConfig
 
-{- | The `genMutantsWith` function takes configuration function to mutate,
-function to mutate, filename the function is defined in, and produces
-mutants in the same directory as the filename, and returns the number
-of mutants produced.
+{- | Generate mutants with a custom configuration.
 -}
 genMutantsWith ::
-    -- | The configuration to be used
     Config ->
-    -- | The module we are mutating
     FilePath ->
-    -- | Coverage information for the module
     FilePath ->
-    -- | Returns the covered mutants produced, and the original number
     IO (Either String (Int, [Mutant]))
 genMutantsWith config filename tix = do
-    f <- readFile filename
+    src <- readFile filename
+    eparsed <- getASTFromStr src
+    case eparsed of
+        Left err -> return (Left err)
+        Right origAst -> do
+            let modul   = getModuleName origAst
+                mutants = genMutantsFromAST config origAst
+            ec <- getUnCoveredPatches tix modul
+            case ec of
+                Left err -> return (Left err)
+                Right c  -> return $ Right $ case c of
+                    Nothing -> (-1, mutants)
+                    Just v  -> (length mutants, removeUncovered v mutants)
 
-    case getASTFromStr f of
-      Left err -> return $ Left err
-      Right origAst -> do
-        let modul = getModuleName origAst
-            mutants :: [Mutant]
-            mutants = genMutantsFromAST config origAst
-
-        -- We have a choice here. We could allow users to specify test specific
-        -- coverage rather than a single coverage. This can further reduce the
-        -- mutants.
-        ec <- getUnCoveredPatches tix modul
-        -- check if the mutants span is within any of the covered spans.
-        case ec of
-          Left err -> return $ Left err
-          Right c  -> return $ Right $ case c of
-            Nothing -> (-1, mutants)
-            Just v -> (length mutants, removeUncovered v mutants)
-
--- | Remove mutants that are not covered by any tests
+-- | Remove mutants not covered by any test.
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]
-removeUncovered uspans mutants = filter isMCovered mutants -- get only covering mutants.
+removeUncovered uspans = filter mutantIsCovered
   where
-    isMCovered :: Mutant -> Bool
-    -- \| is it contained in any of the spans? if it is, then return false.
-    isMCovered Mutant{..} = not $ any (insideSpan _mspan) uspans
+    mutantIsCovered Mutant{..} = not $ any (insideSpan _mspan) uspans
 
--- | Get the module name from ast
-getModuleName :: Module t -> String
-getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
-getModuleName _ = ""
+-- | Get the module name from a parsed AST.
+getModuleName :: Module_ -> String
+getModuleName m =
+    maybe "" (moduleNameString . unLoc) (hsmodName m)
 
-{- | The `genMutantsForSrc` takes the function name to mutate, source where it
-is defined, and returns the mutated sources
+{- | Generate mutants from a source string (used by tests and the CLI).
 -}
-genMutantsForSrc ::
-    -- | Configuration
-    Config ->
-    -- | The module we are mutating
-    String ->
-    -- | Returns the mutants
-    Either String [Mutant]
-genMutantsForSrc config src = genMutantsFromAST config <$> getASTFromStr src
+genMutantsForSrc :: Config -> String -> IO (Either String [Mutant])
+genMutantsForSrc config src =
+    fmap (fmap (genMutantsFromAST config)) (getASTFromStr src)
 
-{- | Like 'genMutantsForSrc' but accepts a pre-parsed AST, avoiding a second
-parse when the caller already has one.
+{- | Generate mutants from a pre-parsed AST.
 -}
-genMutantsFromAST ::
-    -- | Configuration
-    Config ->
-    -- | Pre-parsed AST of the module to mutate
-    Module_ ->
-    -- | Returns the mutants
-    [Mutant]
-genMutantsFromAST config origAst = genMutantsWithExtra config [] origAst
+genMutantsFromAST :: Config -> Module_ -> [Mutant]
+genMutantsFromAST config = genMutantsWithExtra config []
 
-{- | Like 'genMutantsFromAST' but also accepts additional custom selector functions.
-Third-party packages can use this to inject extra mutation operators without forking.
-Each extra selector receives the pre-parsed AST and returns @(MuVar, MuOp)@ pairs;
-use 'MutateOther' with a descriptive name as the 'MuVar'.
-
-Example:
-
-> import Test.MuCheck.Mutation (genMutantsWithExtra)
-> import Test.MuCheck.MuOp (MuOp, Module_, Mutable (..))
-> import Test.MuCheck.Config (Config, MuVar (..), defaultConfig)
-> import Data.Generics (listify)
->
-> mySelector :: Module_ -> [(MuVar, MuOp)]
-> mySelector ast = [(MutateOther "my-mutator", old ==> new) | ...]
->
-> mutants = genMutantsWithExtra defaultConfig [mySelector] parsedAst
+{- | Like 'genMutantsFromAST' but also accepts additional custom selectors.
+Third-party packages can inject custom mutation operators here; use
+'MutateOther' with a descriptive name as the 'MuVar'.
 -}
 genMutantsWithExtra ::
-    -- | Configuration
     Config ->
-    -- | Additional custom selector functions
     [Module_ -> [(MuVar, MuOp)]] ->
-    -- | Pre-parsed AST of the module to mutate
     Module_ ->
-    -- | Returns the mutants
     [Mutant]
 genMutantsWithExtra config extraSels origAst =
     nubBy (\a b -> _mutant a == _mutant b) $
         filter (\m -> _mutant m /= origStr) $
-            map (toMutant . apTh (prettyPrint . withAnn)) $
-                programMutantsWith config extraSels ast
+            map (toMutant . apTh exactPrint) $
+                nubBy (\(v1,s1,_) (v2,s2,_) -> v1==v2 && s1==s2)
+                    (mutatesN ops origAst 1)
   where
-    (onlyAnn, noAnn) = splitAnnotations origAst
-    ast = putDecl origAst noAnn
-    withAnn mast = putDecl mast $ getDecl mast ++ onlyAnn
-    origStr = prettyPrint (withAnn ast)
+    -- Generate ops only from non-test declarations (to avoid mutating the test
+    -- harness), but apply them to the full module so exactPrint can use every
+    -- declaration's original EpAnn delta positions.
+    (_, noAnnDecls) = splitAnnotations origAst
+    opsAst  = putDecl origAst noAnnDecls
+    ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
+    origStr = exactPrint origAst
 
--- | Produce all mutants after applying all operators
-programMutants ::
-    -- | Configuration
-    Config ->
-    -- | Module to mutate
-    Module_ ->
-    -- | Returns mutated modules
-    [(MuVar, Span, Module_)]
-programMutants config ast = programMutantsWith config [] ast
+-- | Produce all mutants using the default operator list.
+programMutants :: Config -> Module_ -> [(MuVar, Span, Module_)]
+programMutants config = programMutantsWith config []
 
--- | Like 'programMutants' but also accepts additional custom selector functions.
+-- | Like 'programMutants' but accepts additional custom selectors.
 programMutantsWith ::
-    -- | Configuration
     Config ->
-    -- | Additional custom selector functions
     [Module_ -> [(MuVar, MuOp)]] ->
-    -- | Module to mutate
     Module_ ->
-    -- | Returns mutated modules
     [(MuVar, Span, Module_)]
 programMutantsWith config extraSels ast =
-    nub $ mutatesN (applicableOps config ast ++ concatMap ($ ast) extraSels) ast fstOrder
-  where
-    fstOrder = 1 -- first order
+    nubBy (\(v1,s1,_) (v2,s2,_) -> v1==v2 && s1==s2) $
+        mutatesN (applicableOps config ast ++ concatMap ($ ast) extraSels) ast 1
 
--- | Returns all mutation operators
-applicableOps ::
-    -- | Configuration
-    Config ->
-    -- | Module to mutate
-    Module_ ->
-    -- | Returns mutation operators
-    [(MuVar, MuOp)]
+-- | All applicable mutation operators for the given module.
+applicableOps :: Config -> Module_ -> [(MuVar, MuOp)]
 applicableOps config ast = relevantOps ast opsList
   where
     opsList =
-        concatMap
-            spread
-            [ (MutatePatternMatch, selectFnMatches ast)
-            , (MutateValues, selectLiteralOps ast)
-            , (MutateFunctions, selectFunctionOps (muOp config) ast)
-            , (MutateNegateIfElse, selectIfElseBoolNegOps ast)
-            , (MutateNegateGuards, selectGuardedBoolNegOps ast)
-            , (MutateOther "remove-not", selectRemoveNotOps ast)
-            , (MutateOther "remove-negation", selectRemoveNegationOps ast)
-            , (MutateOther "case-alt-remove", selectCaseAltRemoveOps ast)
+        concatMap spread
+            [ (MutatePatternMatch,      selectFnMatches ast)
+            , (MutateValues,            selectLiteralOps ast)
+            , (MutateFunctions,         selectFunctionOps (muOp config) ast)
+            , (MutateNegateIfElse,      selectIfElseBoolNegOps ast)
+            , (MutateNegateGuards,      selectGuardedBoolNegOps ast)
+            , (MutateOther "remove-not",          selectRemoveNotOps ast)
+            , (MutateOther "remove-negation",     selectRemoveNegationOps ast)
+            , (MutateOther "case-alt-remove",     selectCaseAltRemoveOps ast)
             , (MutateOther "case-default-remove", selectCaseDefaultRemoveOps ast)
-            , (MutateOther "remove-stmt", selectRemoveStmtOps ast)
-            , (MutateOther "remove-let-binding", selectRemoveLetBindingOps ast)
-            , (MutateOther "remove-where-binding", selectRemoveWhereBindingOps ast)
-            , (MutateOther "remove-self-assign", selectRemoveSelfAssignOps ast)
-            , (MutateOther "negate-literal", selectNegateLiteralOps ast)
-            , (MutateOther "string-literal", selectStringLiteralOps ast)
-            , (MutateOther "bool-operand", selectBoolOperandOps ast)
-            , (MutateOther "flip-maybe", selectFlipMaybeOps ast)
-            , (MutateOther "flip-either", selectFlipEitherOps ast)
-            , (MutateOther "remove-forkIO", selectRemoveForkIOOps ast)
-            , (MutateOther "bracket-degenerate", selectBracketDegenerateOps ast)
-            , (MutateOther "error-guard", selectErrorGuardOps ast)
+            , (MutateOther "remove-stmt",         selectRemoveStmtOps ast)
+            , (MutateOther "remove-let-binding",  selectRemoveLetBindingOps ast)
+            , (MutateOther "remove-where-binding",selectRemoveWhereBindingOps ast)
+            , (MutateOther "remove-self-assign",  selectRemoveSelfAssignOps ast)
+            , (MutateOther "negate-literal",      selectNegateLiteralOps ast)
+            , (MutateOther "string-literal",      selectStringLiteralOps ast)
+            , (MutateOther "bool-operand",        selectBoolOperandOps ast)
+            , (MutateOther "flip-maybe",          selectFlipMaybeOps ast)
+            , (MutateOther "flip-either",         selectFlipEitherOps ast)
+            , (MutateOther "remove-forkIO",       selectRemoveForkIOOps ast)
+            , (MutateOther "bracket-degenerate",  selectBracketDegenerateOps ast)
+            , (MutateOther "error-guard",         selectErrorGuardOps ast)
             , (MutateOther "replace-mutable-arg", selectReplaceMutableArgOps ast)
-            , (MutateOther "zero-return", selectZeroReturnOps ast)
+            , (MutateOther "zero-return",         selectZeroReturnOps ast)
             ]
 
--- | Split declarations of the module to annotated and non annotated.
+-- ---------------------------------------------------------------------------
+-- Module-level structural helpers
+
+-- | Split declarations into test-annotated and non-annotated groups.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
-splitAnnotations ast = partition fn $ getDecl ast
+splitAnnotations ast = partition fn (getDecl ast)
   where
     fn x = (functionName x ++ pragmaName x) `elem` getAnnotatedTests ast
 
--- only one of pragmaName or functionName will be present at a time.
-
--- | Returns the annotated tests and their annotations.
--- Falls back to naming conventions when no ANN annotations are present.
+-- | Get all annotated test names from the module.
+-- Falls back to naming-convention auto-discovery when no ANN annotations exist.
 getAnnotatedTests :: Module_ -> [String]
 getAnnotatedTests ast =
-  let byAnn = concatMap (getAnn ast) ["Test", "TestSupport"]
-  in if null byAnn then autoDiscoverTestNames ast else byAnn
+    let byAnn = concatMap (getAnn ast) ["Test", "TestSupport"]
+    in if null byAnn then autoDiscoverTestNames ast else byAnn
 
--- | Get the embedded declarations from a module.
+-- | Extract the declaration list from a parsed module.
 getDecl :: Module_ -> [Decl_]
-getDecl (Module _ _ _ _ decls) = decls
-getDecl _ = []
+getDecl m = hsmodDecls m
 
--- | Put the given declarations into the given module
+-- | Replace the declaration list in a parsed module.
 putDecl :: Module_ -> [Decl_] -> Module_
-putDecl (Module a b c d _) decls = Module a b c d decls
-putDecl m _ = m
+putDecl m decls = m { hsmodDecls = decls }
 
-{- | First and higher order mutation. The actual apply of mutation operators,
-and generation of mutants happens here.
-The third argument specifies whether it's first order or higher order
--}
-mutatesN ::
-    -- | Applicable Operators
-    [(MuVar, MuOp)] ->
-    -- | Module to mutate
-    Module_ ->
-    -- | Order of mutation (usually 1 - first order)
-    Int ->
-    -- | Returns the mutated module
-    [(MuVar, Span, Module_)]
-mutatesN os ast n = mutatesN' os (MutateOther [], toSpan (0, 0, 0, 0), ast) n
-  where
-    mutatesN' ops ms 1 = concat [mutate op ms | op <- ops]
-    mutatesN' ops ms c = concat [mutatesN' ops m 1 | m <- mutatesN' ops ms $ pred c]
+-- ---------------------------------------------------------------------------
+-- Parsing and serialisation
 
-{- | Given a function, generate all mutants after applying applying
-op once (op might be applied at different places).
-E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
-"<" in the AST, then it will return two AST with each replaced.
--}
-mutate :: (MuVar, MuOp) -> (MuVar, Span, Module_) -> [(MuVar, Span, Module_)]
-mutate (v, op) (_v, _s, m) = map (v,toSpan $ getSpan op,) $ once (mkMpMuOp op) m \\ [m]
+-- | Parse a Haskell source string into a 'Module_'.
+-- 'parseModuleFromString' returns @Located (HsModule GhcPs)@ (= 'ParsedSource');
+-- we strip the outer 'Located' wrapper since mutations operate on the bare
+-- 'HsModule GhcPs' and 'exactPrint' works on the bare type too.
+getASTFromStr :: String -> IO (Either String Module_)
+getASTFromStr src = do
+    libdir <- getLibdir
+    result <- parseModuleFromString libdir "<mucheck>" src
+    return $ case result of
+        Left msgs      -> Left (showSDocUnsafe (ppr msgs))
+        Right (L _ m)  -> Right m
 
-{- | Generate sub-arrays with one less element except when we have only
-a single element.
--}
-removeOneElem :: (Eq t) => [t] -> [[t]]
-removeOneElem [_] = []
-removeOneElem l = choose l (length l - 1)
+-- | Get all test function names from a source file (by path).
+getAllTests :: String -> IO (Either String [String])
+getAllTests modname = readFile modname >>= allTests
 
--- AST/module-related operations
+-- | Get all test function names from a source string.
+allTests :: String -> IO (Either String [String])
+allTests modsrc = do
+    parsed <- getASTFromStr modsrc
+    return $ case parsed of
+        Left err  -> Left err
+        Right ast -> Right (nub (getAnn ast "Test" ++ autoDiscoverTestNames ast))
 
--- | Returns the AST from the file
-getASTFromStr :: String -> Either String Module_
-getASTFromStr fname = case parseModuleWithMode mode fname of
-    ParseOk a -> Right a
-    ParseFailed loc msg -> Left $ "Parse failed at " ++ show loc ++ ": " ++ msg
-  where
-    mode = defaultParseMode{extensions = exts}
-    exts =
-        [ EnableExtension ScopedTypeVariables
-        , EnableExtension MultiParamTypeClasses
-        , EnableExtension FunctionalDependencies
-        , EnableExtension FlexibleInstances
-        , EnableExtension FlexibleContexts
-        , EnableExtension TypeFamilies
-        , EnableExtension GADTs
-        ]
-
--- | get all annotated functions
+-- | Get all @{-# ANN funcName "label" #-}@ annotations matching @label@.
 getAnn :: Module_ -> String -> [String]
-getAnn m s = [conv name | Ann _l name _exp <- listify isAnn m]
+getAnn m label =
+    [ rdrStr rdr
+    | L _ (AnnD _ (HsAnnotation _ prov (L _ expr))) <- listify isAnnDecl m
+    , matchesLabel label expr
+    , rdr <- provRdr prov
+    ]
   where
-    isAnn :: Annotation_ -> Bool
-    isAnn (Ann _l (Symbol _lsy _name) (Lit _ll (String _ls e _))) = e == s
-    isAnn (Ann _l (Ident _lid _name) (Lit _ll (String _ls e _))) = e == s
-    isAnn _ = False
-    conv (Symbol _l n) = n
-    conv (Ident _l n) = n
+    isAnnDecl :: LHsDecl GhcPs -> Bool
+    isAnnDecl (L _ AnnD{}) = True
+    isAnnDecl _            = False
 
--- | Auto-discover test function names by naming convention.
--- Used as a fallback when no {-# ANN ... "Test" #-} annotations are present.
+    matchesLabel :: String -> HsExpr GhcPs -> Bool
+    matchesLabel expected (HsLit _ (HsString _ fs)) = unpackFS fs == expected
+    matchesLabel _ _                                = False
+
+    provRdr :: AnnProvenance GhcPs -> [RdrName]
+    provRdr (ValueAnnProvenance (L _ rdr)) = [rdr]
+    provRdr (TypeAnnProvenance  (L _ rdr)) = [rdr]
+    provRdr ModuleAnnProvenance            = []
+
+-- | Auto-discover test names by naming convention (@prop_*@, @test_*@, @spec_*@).
 autoDiscoverTestNames :: Module_ -> [String]
 autoDiscoverTestNames ast = filter isTestName $ map functionName (getDecl ast)
   where
     isTestName n = not (null n) && any (`isPrefixOf` n) ["prop_", "test_", "spec_"]
 
--- | Given the module name, return all marked tests.
--- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
-getAllTests :: String -> IO (Either String [String])
-getAllTests modname = allTests <$> readFile modname
-
--- | Given module source, return all marked tests.
--- Returns both annotated tests and those discovered by naming conventions.
-allTests :: String -> Either String [String]
-allTests modsrc = do
-  ast <- getASTFromStr modsrc
-  return $ nub $ getAnn ast "Test" ++ autoDiscoverTestNames ast
-
--- | The name of a function
+-- | Extract the string name of a function binding declaration.
 functionName :: Decl_ -> String
-functionName (FunBind _l (Match _ (Ident _li n) _ _ _ : _)) = n
-functionName (FunBind _l (Match _ (Symbol _ls n) _ _ _ : _)) = n
--- we also consider where clauses
-functionName (PatBind _ (PVar _lpv (Ident _li n)) _ _) = n
-functionName _ = []
+functionName (L _ (ValD _ (FunBind _ fid _))) =
+    rdrStr (unLoc fid)
+functionName (L _ (ValD _ (PatBind _ (L _ (VarPat _ (L _ rdr))) _ _))) =
+    rdrStr rdr
+functionName _ = ""
 
--- | The identifier of declared pragma
+-- | Extract the name of an @{-# ANN name ... #-}@ pragma declaration.
 pragmaName :: Decl_ -> String
-pragmaName (AnnPragma _ (Ann _l (Ident _li n) (Lit _ll (String _ls _t _)))) = n
-pragmaName _ = []
+pragmaName (L _ (AnnD _ (HsAnnotation _ (ValueAnnProvenance (L _ rdr)) _))) =
+    rdrStr rdr
+pragmaName _ = ""
 
--- but not let, because it has a different type, and for our purposes
--- this is sufficient.
--- (Let Binds Exp) :: Exp
+-- ---------------------------------------------------------------------------
+-- Mutation application
 
-{- | For valops, we specify how any given literal value might
-change. So we take a predicate specifying how to recognize the literal
-value, a list of mappings specifying how the literal can change, and the
-AST, and recurse over the AST looking for literals that match our predicate.
-When we find any, we apply the given list of mappings to them, and produce
-a MuOp mapping between the original value and transformed value. This list
-of MuOp mappings are then returned.
+{- | Apply mutation operators up to order @n@, returning mutated modules.
+-}
+mutatesN ::
+    [(MuVar, MuOp)] ->
+    Module_ ->
+    Int ->
+    [(MuVar, Span, Module_)]
+mutatesN ops ast n = mutatesN' ops (MutateOther [], toSpan (0,0,0,0), ast) n
+  where
+    mutatesN' os ms 1 = concatMap (`mutate` ms) os
+    mutatesN' os ms c =
+        concat [mutatesN' os m 1 | m <- mutatesN' os ms (pred c)]
+
+{- | Apply one mutation operator at exactly one site in the module.
+Returns all single-site applications of the operator.
+We no longer use @\\ [m]@ since 'once' with SrcSpan-based matching never
+returns the original unchanged module.
+-}
+mutate :: (MuVar, MuOp) -> (MuVar, Span, Module_) -> [(MuVar, Span, Module_)]
+mutate (v, op) (_, _, m) =
+    map (v, toSpan (getSpan op),) $ once (mkMpMuOp op) m
+
+-- | Sub-arrays with one fewer element (returns @[]@ for a singleton list).
+-- 'choose' uses 'subsequences' internally and does not require 'Eq'.
+removeOneElem :: [t] -> [[t]]
+removeOneElem [_] = []
+removeOneElem l   = choose l (length l - 1)
+
+-- | Replace the element at index @i@ with @x@.
+replaceAt :: Int -> a -> [a] -> [a]
+replaceAt i x xs = take i xs ++ [x] ++ drop (i + 1) xs
+
+-- ---------------------------------------------------------------------------
+-- Generic selector helper
+
+{- | 'selectValOps' finds all nodes of type @b@ matching @predicate@, applies
+@f@ to each to get replacement candidates, and returns the resulting 'MuOp' list.
 -}
 selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module_ -> [MuOp]
-selectValOps predicate f m = concat [x ==>* f x | x <- vals]
-  where
-    vals = listify predicate m
+selectValOps predicate f m =
+    concat [x ==>* f x | x <- listify predicate m]
 
--- | Look for literal values in AST, and return applicable MuOp transforms.
+-- ---------------------------------------------------------------------------
+-- Literal value mutations
+
+-- | Mutations of literal values (integers, fractions, chars, strings, booleans).
 selectLiteralOps :: Module_ -> [MuOp]
 selectLiteralOps m = selectLitOps m ++ selectBLitOps m
 
-{- | Look for literal values in AST, and return applicable MuOp transforms.
-Unfortunately booleans are not handled here.
--}
+-- | Mutations of monomorphic and overloaded numeric/char/string literals.
 selectLitOps :: Module_ -> [MuOp]
-selectLitOps m = selectValOps isLit convert m
-  where isLit :: Literal_ -> Bool
-        isLit Int{} = True
-        isLit PrimInt{} = True
-        isLit Char{} = True
-        isLit PrimChar{} = True
-        isLit Frac{} = True
-        isLit PrimFloat{} = True
-        isLit PrimDouble{} = True
-        isLit String{} = True
-        isLit PrimString{} = True
-        isLit PrimWord{} = True
-        convert (Int l i _) = map (apX (Int l)) $ nub [i + 1, i - 1, 0, 1]
-        convert (PrimInt l i _) = map (apX (PrimInt l)) $ nub [i + 1, i - 1, 0, 1]
-        convert (Char l c _) = map (apX (Char l)) [pred c, succ c]
-        convert (PrimChar l c _) = map (apX (PrimChar l)) [pred c, succ c]
-        convert (Frac l f _) = map (apX (Frac l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
-        convert (PrimFloat l f _) = map (apX (PrimFloat l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
-        convert (PrimDouble l f _) = map (apX (PrimDouble l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
-        convert (String l _ _) = map (apX (String l)) $ nub [""]
-        convert (PrimString l _ _) = map (apX (PrimString l)) $ nub [""]
-        convert (PrimWord l i _) = map (apX (PrimWord l)) $ nub [i + 1, i - 1, 0, 1]
-        apX :: (t1 -> [a] -> t) -> t1 -> t
-        apX fn i = fn i []
-
-{- | Convert Boolean Literals
-
-> (True, False)
-
-becomes
-
-> (False, True)
--}
-selectBLitOps :: Module_ -> [MuOp]
-selectBLitOps m = selectValOps isLit convert m
+selectLitOps m = selectValOps isLitExpr toLitVariants m
   where
-    isLit :: Name_ -> Bool
-    isLit (Ident _l "True") = True
-    isLit (Ident _l "False") = True
-    isLit _ = False
-    convert (Ident l "True") = [Ident l "False"]
-    convert (Ident l "False") = [Ident l "True"]
-    convert _ = []
+    isLitExpr :: LHsExpr GhcPs -> Bool
+    isLitExpr (L _ (HsLit _ _))     = True
+    isLitExpr (L _ (HsOverLit _ _)) = True
+    isLitExpr _                     = False
 
-{- | Negating boolean in if/else statements
+    toLitVariants :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    -- Monomorphic integer prims
+    toLitVariants (L _ (HsLit _ (HsIntPrim _ n))) =
+        map mkL [HsLit noExtField (HsIntPrim NoSourceText v) | v <- nub [n+1, n-1, 0, 1], v /= n]
+    toLitVariants (L _ (HsLit _ (HsWordPrim _ n))) =
+        map mkL [HsLit noExtField (HsWordPrim NoSourceText v) | v <- nub [n+1, n-1, 0, 1], v /= n]
+    -- Monomorphic char
+    toLitVariants (L _ (HsLit _ (HsChar _ c))) =
+        map mkL [HsLit noExtField (HsChar NoSourceText v) | v <- [pred c, succ c]]
+    toLitVariants (L _ (HsLit _ (HsCharPrim _ c))) =
+        map mkL [HsLit noExtField (HsCharPrim NoSourceText v) | v <- [pred c, succ c]]
+    -- Monomorphic string
+    toLitVariants (L _ (HsLit _ (HsString _ _))) =
+        [mkL (HsLit noExtField (HsString NoSourceText (mkFastString "")))]
+    toLitVariants (L _ (HsLit _ (HsStringPrim _ _))) =
+        [mkL (HsLit noExtField (HsString NoSourceText (mkFastString "")))]
+    -- Overloaded integer (Num): reuse the original ol_ext field for annotation fidelity
+    toLitVariants (L _ (HsOverLit _ ol@OverLit{ ol_val = HsIntegral il })) =
+        let n = il_value il
+            vals = nub [n+1, n-1, 0, 1]
+        in [ mkL (HsOverLit noExtField ol{ ol_val = HsIntegral il{ il_value = v, il_text = SourceText (mkFastString (show v)) } })
+           | v <- vals ]
+    -- Overloaded fractional (Fractional)
+    toLitVariants (L _ (HsOverLit _ ol@OverLit{ ol_val = HsFractional fl })) =
+        let f = fl_signi fl
+            vals = nub [f+1, f-1, 0, 1]
+        in [ mkL (HsOverLit noExtField ol{ ol_val = HsFractional fl{ fl_signi = v } })
+           | v <- vals ]
+    toLitVariants _ = []
 
-> if True then 1 else 0
+-- | Mutations of boolean literals (@True@ ↔ @False@).
+selectBLitOps :: Module_ -> [MuOp]
+selectBLitOps m = selectValOps isBoolVar convertBool m
+  where
+    isBoolVar :: LHsExpr GhcPs -> Bool
+    isBoolVar (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` ["True", "False"]
+    isBoolVar _                         = False
 
-becomes
+    convertBool :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertBool (L _ (HsVar _ (L _ rdr)))
+        | rdrStr rdr == "True"  = [mkDataVar "False"]
+        | rdrStr rdr == "False" = [mkDataVar "True"]
+    convertBool _ = []
 
-> if True then 0 else 1
--}
+-- ---------------------------------------------------------------------------
+-- Control-flow mutations
+
+-- | Swap then/else branches of @if@ expressions.
 selectIfElseBoolNegOps :: Module_ -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf convert m
   where
-    isIf :: Exp_ -> Bool
-    isIf If{} = True
-    isIf _ = False
-    convert (If l e1 e2 e3) = [If l e1 e3 e2]
+    isIf :: LHsExpr GhcPs -> Bool
+    isIf (L _ HsIf{}) = True
+    isIf _            = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsIf x cond t f)) = [mkL (HsIf x cond f t)]
     convert _ = []
 
-{- | Negating boolean in Guards
-| negate guarded booleans in guarded definitions
-
-> myFn x | x == 1 = True
-> myFn   | otherwise = False
-
-becomes
-
-> myFn x | not (x == 1) = True
-> myFn   | otherwise = False
--}
+-- | Negate boolean guards: @x == 1@ → @not (x == 1)@.
+-- We match at the 'Alt_' (whole match) level because 'GRHS' has no
+-- 'Outputable' instance, making 'GuardedRhs_' unsuitable for 'MuOp'.
 selectGuardedBoolNegOps :: Module_ -> [MuOp]
-selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
+selectGuardedBoolNegOps m = selectValOps isMatchWithGuards convert m
   where
-    isGuardedRhs :: GuardedRhs_ -> Bool
-    isGuardedRhs GuardedRhs{} = True
-    convert (GuardedRhs l stmts expr) = [GuardedRhs l s expr | s <- once (mkMp boolNegate) stmts]
-    boolNegate _e@(Qualifier _l (Var _lv (UnQual _lu (Ident _li "otherwise")))) = [] -- VERIFY
-    boolNegate (Qualifier l expr) = [Qualifier l (App l_ (Var l_ (UnQual l_ (Ident l_ "not"))) expr)]
-    boolNegate _x = [] -- VERIFY
+    isMatchWithGuards :: Alt_ -> Bool
+    isMatchWithGuards (L _ (Match _ _ _ (GRHSs _ grhss _))) =
+        any hasNonOtherwiseGuard grhss
 
--- | dummy
-l_ :: SrcSpanInfo
-l_ = SrcSpanInfo (SrcSpan "" 0 0 0 0) []
+    hasNonOtherwiseGuard :: GuardedRhs_ -> Bool
+    hasNonOtherwiseGuard (L _ (GRHS _ stmts _)) =
+        any (not . isOtherwiseStmt) stmts && not (null stmts)
 
-{- | Generate all operators for permuting and removal of pattern guards from
-function definitions
+    isOtherwiseStmt :: ExprLStmt GhcPs -> Bool
+    isOtherwiseStmt (L _ (BodyStmt _ (L _ (HsVar _ (L _ rdr))) _ _)) =
+        rdrStr rdr == "otherwise"
+    isOtherwiseStmt _ = False
 
-> myFn (x:xs) = False
-> myFn _ = True
+    convert :: Alt_ -> [Alt_]
+    convert (L _ (Match xm ctx pats (GRHSs xg grhss binds))) =
+        [ mkL (Match xm ctx pats (GRHSs xg (replaceAt i grhs' grhss) binds))
+        | (i, grhs) <- zip [0..] grhss
+        , grhs' <- convertGrhs grhs
+        ]
 
-becomes
+    convertGrhs :: GuardedRhs_ -> [GuardedRhs_]
+    convertGrhs (L lg (GRHS x stmts body)) =
+        [ L lg (GRHS x stmts' body)
+        | stmts' <- once (mkMp boolNegate) stmts
+        ]
 
-> myFn _ = True
-> myFn (x:xs) = False
+    boolNegate :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
+    boolNegate s | isOtherwiseStmt s = []
+    boolNegate (L _ (BodyStmt x expr y z)) =
+        [mkL (BodyStmt x (mkApp (mkVar "not") expr) y z)]
+    boolNegate _ = []
 
-> myFn _ = True
+-- ---------------------------------------------------------------------------
+-- Pattern-match mutations
 
-> myFn (x:xs) = False
--}
+-- | Permute / remove clauses in function definitions.
 selectFnMatches :: Module_ -> [MuOp]
-selectFnMatches m = selectValOps isFunct convert m
+selectFnMatches m = selectValOps isFunDecl convert m
   where
-    isFunct :: Decl_ -> Bool
-    isFunct FunBind{} = True
-    isFunct _ = False
-    convert (FunBind l ms) = map (FunBind l) $ filter (/= ms) (permutations ms ++ removeOneElem ms)
+    isFunDecl :: Decl_ -> Bool
+    isFunDecl (L _ (ValD _ FunBind{})) = True
+    isFunDecl _                        = False
+
+    convert :: Decl_ -> [Decl_]
+    convert (L _ (ValD xv (FunBind xb fid (MG xmg (L lms ms))))) =
+        -- Re-assign each match's entry delta from the corresponding original
+        -- position so that exactPrint places clauses on the correct lines
+        -- whether we reorder or remove them.
+        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (fixEntries ms ms')))))
+        | ms' <- permutations ms ++ removeOneElem ms
+        ]
     convert _ = []
 
-{- | Generate all operators for permuting symbols like binary operators
-Since we are looking for symbols, we are reasonably sure that it is not
-locally bound to a variable.
--}
+    -- Copy each original match's leading-whitespace delta to the match at the
+    -- same position in the modified list.  This ensures correctness for both
+    -- clause removal (ms' shorter than ms) and reordering.
+    fixEntries :: [Alt_] -> [Alt_] -> [Alt_]
+    fixEntries origMs newMs = zipWith transferEntryDP origMs newMs
+
+-- ---------------------------------------------------------------------------
+-- Function / operator substitution
+
+-- | Substitute symbolic operator names.
 selectSymbolFnOps :: Module_ -> [String] -> [MuOp]
-selectSymbolFnOps m s = selectValOps isBin convert m
+selectSymbolFnOps m syms = selectValOps isSym convert m
   where
-    isBin :: Name_ -> Bool
-    isBin (Symbol _l n) | n `elem` s = True
-    isBin _ = False
-    convert (Symbol l n) = map (Symbol l) $ filter (/= n) s
+    isSym :: LHsExpr GhcPs -> Bool
+    isSym (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` syms
+    isSym _                         = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsVar _ (L _ rdr))) =
+        [ mkVar s | s <- filter (/= rdrStr rdr) syms ]
     convert _ = []
 
-{- | Generate all operators for permuting commonly used functions (with
-identifiers).
--}
+-- | Substitute identifier (non-operator) function names.
 selectIdentFnOps :: Module_ -> [String] -> [MuOp]
-selectIdentFnOps m s = selectValOps isCommonFn convert m
+selectIdentFnOps m idents = selectValOps isIdent convert m
   where
-    isCommonFn :: Exp_ -> Bool
-    isCommonFn (Var _lv (UnQual _lu (Ident _l n))) | n `elem` s = True
-    isCommonFn _ = False
-    convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map (Var lv_ . UnQual lu_ . Ident li_) $ filter (/= n) s
+    isIdent :: LHsExpr GhcPs -> Bool
+    isIdent (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` idents
+    isIdent _                         = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsVar _ (L _ rdr))) =
+        [ mkVar s | s <- filter (/= rdrStr rdr) idents ]
     convert _ = []
 
--- | Generate all operators depending on whether it is a symbol or not.
+-- | Combined function/operator substitution based on 'Config' 'FnOp' entries.
 selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
-selectFunctionOps fo f = concatMap (selectIdentFnOps f) idents ++ concatMap (selectSymbolFnOps f) syms
+selectFunctionOps fos m = concatMap (selectIdentFnOps m) idents
+                       ++ concatMap (selectSymbolFnOps m) syms
   where
-    idents = map _fns $ filter (\a -> _type a == FnIdent) fo
-    syms = map _fns $ filter (\a -> _type a == FnSymbol) fo
+    idents = map _fns $ filter (\a -> _type a == FnIdent)  fos
+    syms   = map _fns $ filter (\a -> _type a == FnSymbol) fos
 
--- (Var l (UnQual l (Ident l "ab")))
--- (App l (Var l (UnQual l (Ident l "head"))) (Var l (UnQual l (Ident l "b"))))
--- (App l (App l (Var l (UnQual l (Ident l "head"))) (Var l (UnQual l (Ident l "a")))) (Var l (UnQual l (Ident l "b")))))
--- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Symbol l ">"))) (Var l (UnQual l (Ident l "b"))))
--- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Ident l "x"))) (Var l (UnQual l (Ident l "b"))))
+-- ---------------------------------------------------------------------------
+-- Logical operator mutations
 
--- | Remove 'not' application: replace @not expr@ with @expr@
+-- | Remove @not@ application: @not e@ → @e@.
 selectRemoveNotOps :: Module_ -> [MuOp]
 selectRemoveNotOps m = selectValOps isNotApp removeNot m
   where
-    isNotApp :: Exp_ -> Bool
-    isNotApp (App _ (Var _ (UnQual _ (Ident _ "not"))) _) = True
+    isNotApp :: LHsExpr GhcPs -> Bool
+    isNotApp (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) = rdrStr rdr == "not"
     isNotApp _ = False
-    removeNot (App _ _ expr) = [expr]
+
+    removeNot :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    removeNot (L _ (HsApp _ _ e)) = [e]
     removeNot _ = []
 
--- | Remove negation: replace @negate expr@ or @-expr@ with @expr@
+-- | Remove negation: @negate e@ or @-e@ → @e@.
 selectRemoveNegationOps :: Module_ -> [MuOp]
 selectRemoveNegationOps m = selectValOps isNeg removeNeg m
   where
-    isNeg :: Exp_ -> Bool
-    isNeg (NegApp _ _) = True
-    isNeg (App _ (Var _ (UnQual _ (Ident _ "negate"))) _) = True
+    isNeg :: LHsExpr GhcPs -> Bool
+    isNeg (L _ (NegApp _ _ _))                             = True
+    isNeg (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _))
+        | rdrStr rdr == "negate"                           = True
     isNeg _ = False
-    removeNeg (NegApp _ expr) = [expr]
-    removeNeg (App _ _ expr) = [expr]
+
+    removeNeg :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    removeNeg (L _ (NegApp _ e _))   = [e]
+    removeNeg (L _ (HsApp _ _ e))    = [e]
     removeNeg _ = []
 
--- | Remove one alternative from 'case...of'
+-- ---------------------------------------------------------------------------
+-- Case expression mutations
+
+-- | Remove one alternative from a @case@ expression.
 selectCaseAltRemoveOps :: Module_ -> [MuOp]
 selectCaseAltRemoveOps m = selectValOps isCase convert m
   where
-    isCase :: Exp_ -> Bool
-    isCase (Case _ _ alts) = length alts > 1
+    isCase :: LHsExpr GhcPs -> Bool
+    isCase (L _ (HsCase _ _ (MG _ (L _ alts)))) = length alts > 1
     isCase _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (Case l e alts) = [Case l e alts' | alts' <- removeOneElem alts]
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsCase x scrut (MG xmg (L la alts)))) =
+        [ mkL (HsCase x scrut (MG xmg (L la alts')))
+        | alts' <- removeOneElem alts
+        ]
     convert _ = []
 
--- | Remove default alternative from 'case...of' and 'otherwise' from guards
+-- | Remove the catch-all / @otherwise@ alternative from @case@ and guards.
 selectCaseDefaultRemoveOps :: Module_ -> [MuOp]
-selectCaseDefaultRemoveOps m = selectCaseAltDefaultOps m ++ selectGuardedDefaultOps m
+selectCaseDefaultRemoveOps m = caseAltDefault m ++ guardDefault m
   where
-    selectCaseAltDefaultOps :: Module_ -> [MuOp]
-    selectCaseAltDefaultOps m' = selectValOps isCase convertAlt m'
-    isCase :: Exp_ -> Bool
-    isCase (Case _ _ alts) = any isDefault alts && length alts > 1
-    isCase _ = False
-    isDefault :: Alt_ -> Bool
-    isDefault (Alt _ (PWildCard _) _ _) = True
-    isDefault (Alt _ (PVar _ (Ident _ "otherwise")) _ _) = True
-    isDefault _ = False
-    convertAlt :: Exp_ -> [Exp_]
-    convertAlt (Case l e alts) = [Case l e (filter (not . isDefault) alts)]
-    convertAlt _ = []
+    -- Case: remove the wildcard / @otherwise@ alt
+    caseAltDefault :: Module_ -> [MuOp]
+    caseAltDefault = selectValOps isCaseWithDefault convertCaseDefault
 
-    selectGuardedDefaultOps :: Module_ -> [MuOp]
-    selectGuardedDefaultOps m' = selectValOps isRhs convertRhs m'
-    isRhs :: Rhs_ -> Bool
-    isRhs (GuardedRhss _ grhss) = any isDefaultGuardedRhs grhss && length grhss > 1
-    isRhs _ = False
-    isDefaultGuardedRhs :: GuardedRhs_ -> Bool
-    isDefaultGuardedRhs (GuardedRhs _ stmts _) = any isDefaultStmt stmts
-    isDefaultStmt :: Stmt_ -> Bool
-    isDefaultStmt (Qualifier _ (Var _ (UnQual _ (Ident _ "otherwise")))) = True
-    isDefaultStmt _ = False
-    convertRhs :: Rhs_ -> [Rhs_]
-    convertRhs (GuardedRhss l grhss) = [GuardedRhss l (filter (not . isDefaultGuardedRhs) grhss)]
-    convertRhs _ = []
+    isCaseWithDefault :: LHsExpr GhcPs -> Bool
+    isCaseWithDefault (L _ (HsCase _ _ (MG _ (L _ alts)))) =
+        any isDefaultAlt alts && length alts > 1
+    isCaseWithDefault _ = False
 
--- | Remove one statement from 'do' block
+    isDefaultAlt :: Alt_ -> Bool
+    isDefaultAlt (L _ (Match _ _ (L _ [L _ (WildPat _)]) _)) = True
+    isDefaultAlt (L _ (Match _ _ (L _ [L _ (VarPat _ (L _ rdr))]) _))
+        = rdrStr rdr == "otherwise"
+    isDefaultAlt _ = False
+
+    convertCaseDefault :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertCaseDefault (L _ (HsCase x scrut (MG xmg (L la alts)))) =
+        [mkL (HsCase x scrut (MG xmg (L la (filter (not . isDefaultAlt) alts))))]
+    convertCaseDefault _ = []
+
+    -- Guards: remove the @otherwise@ guarded RHS from function matches.
+    -- We match at the Alt_ (LMatch) level for the same reason as
+    -- selectGuardedBoolNegOps: GRHS lacks an Outputable instance.
+    guardDefault :: Module_ -> [MuOp]
+    guardDefault = selectValOps isMatchWithDefaultGuard convertMatchDefault2
+
+    isMatchWithDefaultGuard :: Alt_ -> Bool
+    isMatchWithDefaultGuard (L _ (Match _ _ _ (GRHSs _ grhss _))) =
+        any isDefaultGRHS grhss && length grhss > 1
+
+    isDefaultGRHS :: GuardedRhs_ -> Bool
+    isDefaultGRHS (L _ (GRHS _ stmts _)) = any isOtherwiseStmt stmts
+
+    isOtherwiseStmt :: ExprLStmt GhcPs -> Bool
+    isOtherwiseStmt (L _ (BodyStmt _ (L _ (HsVar _ (L _ rdr))) _ _)) =
+        rdrStr rdr == "otherwise"
+    isOtherwiseStmt _ = False
+
+    convertMatchDefault2 :: Alt_ -> [Alt_]
+    convertMatchDefault2 (L _ (Match xm ctx pats (GRHSs xg grhss binds))) =
+        [mkL (Match xm ctx pats (GRHSs xg (filter (not . isDefaultGRHS) grhss) binds))]
+
+-- ---------------------------------------------------------------------------
+-- Do-block mutations
+
+-- | Remove one statement from a @do@ block (skips result-binding statements).
 selectRemoveStmtOps :: Module_ -> [MuOp]
 selectRemoveStmtOps m = selectValOps isDo convert m
   where
-    isDo :: Exp_ -> Bool
-    isDo Do{} = True
+    isDo :: LHsExpr GhcPs -> Bool
+    isDo (L _ (HsDo _ _ _)) = True
     isDo _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (Do l stmts) = [Do l stmts' | stmts' <- removeOneStmt stmts]
-    convert _ = []
-    removeOneStmt :: [Stmt_] -> [[Stmt_]]
-    removeOneStmt stmts =
-        [ take i stmts ++ drop (i + 1) stmts
-        | i <- [0 .. length stmts - 1]
-        , isValidDo (take i stmts ++ drop (i + 1) stmts)
-        ]
-    -- A do block must end with an expression (Qualifier)
-    isValidDo :: [Stmt_] -> Bool
-    isValidDo [] = False
-    isValidDo stmts = case last stmts of
-        Qualifier{} -> True
-        _ -> False
 
--- | Remove one binding from 'let...in' and 'do' block 'let'
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsDo x ctx (L ls stmts))) =
+        [ mkL (HsDo x ctx (L ls stmts'))
+        | stmts' <- removeOneStmt stmts
+        ]
+    convert _ = []
+
+    removeOneStmt :: [ExprLStmt GhcPs] -> [[ExprLStmt GhcPs]]
+    removeOneStmt stmts =
+        [ take i stmts ++ drop (i+1) stmts
+        | i <- [0 .. length stmts - 1]
+        , isValidDo (take i stmts ++ drop (i+1) stmts)
+        ]
+
+    isValidDo :: [ExprLStmt GhcPs] -> Bool
+    isValidDo [] = False
+    isValidDo ss = case last ss of
+        L _ (BodyStmt _ _ _ _)  -> True
+        _                       -> False
+
+-- ---------------------------------------------------------------------------
+-- Let/where binding mutations
+
+-- | Remove one binding from @let...in@ expressions and @do@-block @let@s.
 selectRemoveLetBindingOps :: Module_ -> [MuOp]
-selectRemoveLetBindingOps m = selectValOps isLet convertLet m ++ selectValOps isDo convertDo m
+selectRemoveLetBindingOps m =
+    selectValOps isLetExpr convertLet m ++
+    selectValOps isDoWithLet convertDo m
   where
-    isLet :: Exp_ -> Bool
-    isLet (Let _ (BDecls _ decls) _) = length decls > 0
-    isLet _ = False
-    convertLet :: Exp_ -> [Exp_]
-    convertLet (Let l (BDecls lb decls) e) = [Let l (BDecls lb decls') e | decls' <- removeOneElem decls]
+    isLetExpr :: LHsExpr GhcPs -> Bool
+    isLetExpr (L _ (HsLet _ (HsValBinds _ (ValBinds _ bag _)) _)) =
+        not (null bag)
+    isLetExpr _ = False
+
+    convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
+        let bs = bag
+        in [ mkL (HsLet x (HsValBinds xv (ValBinds xvb (bs') sigs)) body)
+           | bs' <- removeOneElem bs
+           ]
     convertLet _ = []
 
-    isDo (Do _ stmts) = any isLetStmt stmts
-    isDo _ = False
-    isLetStmt :: Stmt_ -> Bool
-    isLetStmt (LetStmt _ (BDecls _ decls)) = not (null decls)
+    isDoWithLet :: LHsExpr GhcPs -> Bool
+    isDoWithLet (L _ (HsDo _ _ (L _ stmts))) = any isLetStmt stmts
+    isDoWithLet _ = False
+
+    isLetStmt :: ExprLStmt GhcPs -> Bool
+    isLetStmt (L _ (LetStmt _ (HsValBinds _ (ValBinds _ bag _)))) =
+        not (null bag)
     isLetStmt _ = False
 
-    convertDo :: Exp_ -> [Exp_]
-    convertDo (Do l stmts) =
-        [ Do l (replaceAt i s' stmts)
-        | (i, s) <- zip [0 ..] stmts
+    convertDo :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertDo (L _ (HsDo x ctx (L ls stmts))) =
+        [ mkL (HsDo x ctx (L ls (replaceAt i s' stmts)))
+        | (i, s) <- zip [0..] stmts
         , s' <- convertLetStmt s
         ]
     convertDo _ = []
 
-    convertLetStmt :: Stmt_ -> [Stmt_]
-    convertLetStmt (LetStmt l (BDecls lb decls)) = [LetStmt l (BDecls lb decls') | decls' <- removeOneElem decls]
+    convertLetStmt :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
+    convertLetStmt (L _ (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
+        let bs = bag
+        in [ mkL (LetStmt x (HsValBinds xv (ValBinds xvb (bs') sigs)))
+           | bs' <- removeOneElem bs
+           ]
     convertLetStmt _ = []
 
--- | Remove one binding from 'where' clauses
+-- | Remove one binding from @where@ clauses.
 selectRemoveWhereBindingOps :: Module_ -> [MuOp]
-selectRemoveWhereBindingOps m = selectValOps isFunBind convertFunBind m ++ selectValOps isPatBind convertPat m
+selectRemoveWhereBindingOps m =
+    selectValOps isFunWithWhere convertFun m ++
+    selectValOps isPatWithWhere  convertPat  m
   where
-    isFunBind :: Decl_ -> Bool
-    isFunBind (FunBind _ matches) = any hasBinds matches
-    isFunBind _ = False
-    hasBinds (Match _ _ _ _ (Just (BDecls _ decls))) = length decls > 0
-    hasBinds _ = False
+    isFunWithWhere :: Decl_ -> Bool
+    isFunWithWhere (L _ (ValD _ (FunBind _ _ (MG _ (L _ ms))))) =
+        any matchHasWhere ms
+    isFunWithWhere _ = False
 
-    convertFunBind :: Decl_ -> [Decl_]
-    convertFunBind (FunBind l matches) =
-        [ FunBind l (replaceAt i m' matches)
-        | (i, m_) <- zip [0 ..] matches
-        , m' <- convertMatch m_
+    matchHasWhere :: Alt_ -> Bool
+    matchHasWhere (L _ (Match _ _ _ (GRHSs _ _ (HsValBinds _ (ValBinds _ bag _))))) =
+        not (null bag)
+    matchHasWhere _ = False
+
+    convertFun :: Decl_ -> [Decl_]
+    convertFun (L _ (ValD xv (FunBind xb fid (MG xmg (L lms ms))))) =
+        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (replaceAt i m' ms)))))
+        | (i, match_) <- zip [0..] ms
+        , m' <- convertMatch match_
         ]
-    convertFunBind _ = []
+    convertFun _ = []
 
-    convertMatch :: Match SrcSpanInfo -> [Match SrcSpanInfo]
-    convertMatch (Match l n p r (Just (BDecls lb decls))) = [Match l n p r (Just (BDecls lb decls')) | decls' <- removeOneElem decls]
+    convertMatch :: Alt_ -> [Alt_]
+    -- Preserve the outer 'L la' annotation so exactPrint knows where to place
+    -- the match after the where-binding is removed.
+    convertMatch (L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bag sigs))))) =
+        [ L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bs' sigs))))
+        | bs' <- removeOneElem bag
+        ]
     convertMatch _ = []
 
-    isPatBind :: Decl_ -> Bool
-    isPatBind (PatBind _ _ _ (Just (BDecls _ decls))) = length decls > 0
-    isPatBind _ = False
+    isPatWithWhere :: Decl_ -> Bool
+    isPatWithWhere (L _ (ValD _ (PatBind _ _ _ (GRHSs _ _ (HsValBinds _ (ValBinds _ bag _)))))) =
+        not (null bag)
+    isPatWithWhere _ = False
+
     convertPat :: Decl_ -> [Decl_]
-    convertPat (PatBind l p r (Just (BDecls lb decls))) = [PatBind l p r (Just (BDecls lb decls')) | decls' <- removeOneElem decls]
+    convertPat (L _ (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs sigs)))))) =
+        [ mkL (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs' sigs)))))
+        | bs' <- removeOneElem bs
+        ]
     convertPat _ = []
 
--- | Replace element at given index in a list
-replaceAt :: Int -> a -> [a] -> [a]
-replaceAt i x xs = take i xs ++ [x] ++ drop (i + 1) xs
+-- ---------------------------------------------------------------------------
+-- Self-assignment removal
 
--- | Remove self assignments: @let x = x@ and @x <- return x@
+-- | Remove @let x = x@ and @x <- return x@ self-assignments.
 selectRemoveSelfAssignOps :: Module_ -> [MuOp]
-selectRemoveSelfAssignOps m = selectValOps isLet convertLet m ++ selectValOps isDo convertDo m
+selectRemoveSelfAssignOps m =
+    selectValOps isLetWithSelf convertLet m ++
+    selectValOps isDoWithSelf  convertDo  m
   where
-    isLet (Let _ (BDecls _ decls) _) = any isSelfAssign decls
-    isLet _ = False
-    isSelfAssign (PatBind _ (PVar _ (Ident _ x)) (UnGuardedRhs _ (Var _ (UnQual _ (Ident _ x2)))) Nothing) = x == x2
-    isSelfAssign _ = False
-    convertLet :: Exp_ -> [Exp_]
-    convertLet (Let l (BDecls lb decls) e) = [Let l (BDecls lb (filter (not . isSelfAssign) decls)) e]
+    isLetWithSelf :: LHsExpr GhcPs -> Bool
+    isLetWithSelf (L _ (HsLet _ (HsValBinds _ (ValBinds _ bag _)) _)) =
+        any isSelfAssignBind (bag)
+    isLetWithSelf _ = False
+
+    isSelfAssignBind :: LHsBind GhcPs -> Bool
+    -- GHC parses `x = x` in let-bindings as FunBind (function with no patterns).
+    isSelfAssignBind (L _ (FunBind _ (L _ rdr1)
+                           (MG _ (L _ [L _ (Match _ _ (L _ [])
+                               (GRHSs _ [L _ (GRHS _ [] (L _ (HsVar _ (L _ rdr2))))] _))])))) =
+        rdrStr rdr1 == rdrStr rdr2
+    -- Fallback: PatBind-style variable binding `x = x`.
+    isSelfAssignBind (L _ (PatBind _ (L _ (VarPat _ (L _ rdr1)))
+                           _mult
+                           (GRHSs _ [L _ (GRHS _ [] (L _ (HsVar _ (L _ rdr2))))] _))) =
+        rdrStr rdr1 == rdrStr rdr2
+    isSelfAssignBind _ = False
+
+    convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
+        let bs = bag
+            bs' = filter (not . isSelfAssignBind) bs
+        in [mkL (HsLet x (HsValBinds xv (ValBinds xvb (bs') sigs)) body)]
     convertLet _ = []
 
-    isDo (Do _ stmts) = any isSelfAssignStmt stmts
-    isDo _ = False
-    isSelfAssignStmt :: Stmt_ -> Bool
-    isSelfAssignStmt (Generator _ (PVar _ (Ident _ x)) (App _ (Var _ (UnQual _ (Ident _ "return"))) (Var _ (UnQual _ (Ident _ x2))))) = x == x2
+    isDoWithSelf :: LHsExpr GhcPs -> Bool
+    isDoWithSelf (L _ (HsDo _ _ (L _ stmts))) = any isSelfAssignStmt stmts
+    isDoWithSelf _ = False
+
+    isSelfAssignStmt :: ExprLStmt GhcPs -> Bool
+    isSelfAssignStmt (L _ (BindStmt _ (L _ (VarPat _ (L _ rdr1)))
+                            (L _ (HsApp _ (L _ (HsVar _ (L _ ret)))
+                                          (L _ (HsVar _ (L _ rdr2))))))) =
+        rdrStr rdr1 == rdrStr rdr2 && rdrStr ret == "return"
     isSelfAssignStmt _ = False
-    convertDo :: Exp_ -> [Exp_]
-    convertDo (Do l stmts) = [Do l (filter (not . isSelfAssignStmt) stmts)]
+
+    convertDo :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convertDo (L _ (HsDo x ctx (L ls stmts))) =
+        [mkL (HsDo x ctx (L ls (filter (not . isSelfAssignStmt) stmts)))]
     convertDo _ = []
 
--- | Negate numeric literals: @42@ becomes @negate 42@
+-- ---------------------------------------------------------------------------
+-- Numeric literal negation
+
+-- | Replace positive integer/fraction literals with @negate x@.
 selectNegateLiteralOps :: Module_ -> [MuOp]
 selectNegateLiteralOps m = selectValOps isPosLit convert m
   where
-    isPosLit (Lit _ (Int _ i _)) | i > 0 = True
-    isPosLit (Lit _ (Frac _ f _)) | f > 0 = True
+    isPosLit :: LHsExpr GhcPs -> Bool
+    isPosLit (L _ (HsOverLit _ OverLit{ ol_val = HsIntegral    IL{ il_value = n } })) = n > 0
+    isPosLit (L _ (HsOverLit _ OverLit{ ol_val = HsFractional  FL{ fl_signi = f } })) = f > 0
     isPosLit _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (Lit l (Int _ i s)) = [App l (Var l (UnQual l (Ident l "negate"))) (Lit l (Int l i s))]
-    convert (Lit l (Frac _ f s)) = [App l (Var l (UnQual l (Ident l "negate"))) (Lit l (Frac l f s))]
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    -- Build a fresh literal so the argument does not carry its original source
+    -- positions, which would corrupt exactPrint when wrapped in `negate`.
+    convert (L _ (HsOverLit _ OverLit{ol_val = HsIntegral il})) =
+        [mkApp (mkVar "negate") (mkIntLitExpr (il_value il))]
+    convert (L _ (HsOverLit _ OverLit{ol_val = HsFractional fl})) =
+        [mkApp (mkVar "negate") (mkFracLitExpr (fl_signi fl))]
     convert _ = []
 
--- | Replace string literals in comparisons and guards with @""@
+-- ---------------------------------------------------------------------------
+-- String literal mutation
+
+-- | Replace non-empty string literals in @==@ / @/=@ comparisons with @""@.
 selectStringLiteralOps :: Module_ -> [MuOp]
 selectStringLiteralOps m = selectValOps isStringComp convert m
   where
-    isStringComp (InfixApp _ e1 (QVarOp _ (UnQual _ (Symbol _ op))) e2)
-        | op `elem` ["==", "/="] = isNonEmptyString e1 || isNonEmptyString e2
+    isStringComp :: LHsExpr GhcPs -> Bool
+    isStringComp (L _ (OpApp _ e1 (L _ (HsVar _ (L _ op))) e2)) =
+        rdrStr op `elem` ["==", "/="] &&
+        (isNonEmptyStr e1 || isNonEmptyStr e2)
     isStringComp _ = False
-    isNonEmptyString (Lit _ (String _ s _)) = not (null s)
-    isNonEmptyString _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (InfixApp l e1 op e2) =
-        [InfixApp l (if isNonEmptyString e1 then emptyStr else e1) op (if isNonEmptyString e2 then emptyStr else e2)]
-    convert _ = []
-    emptyStr = Lit l_ (String l_ "" "")
 
--- | Replace operands in @&&@ and @||@ with @True@ or @False@
+    isNonEmptyStr :: LHsExpr GhcPs -> Bool
+    isNonEmptyStr (L _ (HsLit _ (HsString _ fs))) = not (null (unpackFS fs))
+    isNonEmptyStr _ = False
+
+    emptyStr :: LHsExpr GhcPs
+    emptyStr = mkStringExpr ""
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (OpApp x e1 op e2)) =
+        [mkL (OpApp x (if isNonEmptyStr e1 then emptyStr else e1)
+                      op
+                      (if isNonEmptyStr e2 then emptyStr else e2))]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- Boolean operand mutation
+
+-- | Replace operands of @&&@ / @||@ with @True@ or @False@.
 selectBoolOperandOps :: Module_ -> [MuOp]
 selectBoolOperandOps m = selectValOps isBoolOp convert m
   where
-    isBoolOp (InfixApp _ _ (QVarOp _ (UnQual _ (Symbol _ op))) _) = op `elem` ["&&", "||"]
+    isBoolOp :: LHsExpr GhcPs -> Bool
+    isBoolOp (L _ (OpApp _ _ (L _ (HsVar _ (L _ op))) _)) =
+        rdrStr op `elem` ["&&", "||"]
     isBoolOp _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (InfixApp l e1 op e2) =
-        [ InfixApp l (Var l (UnQual l (Ident l "True"))) op e2
-        , InfixApp l (Var l (UnQual l (Ident l "False"))) op e2
-        , InfixApp l e1 op (Var l (UnQual l (Ident l "True")))
-        , InfixApp l e1 op (Var l (UnQual l (Ident l "False")))
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (OpApp x e1 op e2)) =
+        [ mkL (OpApp x (mkDataVar "True")  op e2)
+        , mkL (OpApp x (mkDataVar "False") op e2)
+        , mkL (OpApp x e1 op (mkDataVar "True"))
+        , mkL (OpApp x e1 op (mkDataVar "False"))
         ]
     convert _ = []
 
--- | Flip @Maybe@ values: @Just x@ <-> @Nothing@
+-- ---------------------------------------------------------------------------
+-- Maybe / Either mutations
+
+-- | Flip @Just x@ ↔ @Nothing@ and vice versa.
 selectFlipMaybeOps :: Module_ -> [MuOp]
 selectFlipMaybeOps m = selectValOps isMaybe convert m
   where
-    isMaybe (App _ (Con _ (UnQual _ (Ident _ "Just"))) _) = True
-    isMaybe (Con _ (UnQual _ (Ident _ "Nothing"))) = True
+    isMaybe :: LHsExpr GhcPs -> Bool
+    isMaybe (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) = rdrStr rdr == "Just"
+    isMaybe (L _ (HsVar _ (L _ rdr)))                    = rdrStr rdr == "Nothing"
     isMaybe _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (App l (Con _ (UnQual _ (Ident _ "Just"))) _) = [Con l (UnQual l (Ident l "Nothing"))]
-    convert (Con l (UnQual _ (Ident _ "Nothing"))) = [App l (Con l (UnQual l (Ident l "Just"))) (Var l (UnQual l (Ident l "undefined")))]
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsVar _ _)) _)) =
+        [mkDataVar "Nothing"]
+    convert (L _ (HsVar _ _)) =
+        [mkApp (mkDataVar "Just") (mkVar "undefined")]
     convert _ = []
 
--- | Flip @Either@ values: @Right x@ <-> @Left x@
+-- | Flip @Right x@ ↔ @Left x@ and @Left x@ ↔ @Right x@.
 selectFlipEitherOps :: Module_ -> [MuOp]
 selectFlipEitherOps m = selectValOps isEither convert m
   where
-    isEither (App _ (Con _ (UnQual _ (Ident _ "Right"))) _) = True
-    isEither (App _ (Con _ (UnQual _ (Ident _ "Left"))) _) = True
-    isEither (Con _ (UnQual _ (Ident _ "Right"))) = True
-    isEither (Con _ (UnQual _ (Ident _ "Left"))) = True
+    isEither :: LHsExpr GhcPs -> Bool
+    isEither (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) =
+        rdrStr rdr `elem` ["Right", "Left"]
+    isEither (L _ (HsVar _ (L _ rdr))) =
+        rdrStr rdr `elem` ["Right", "Left"]
     isEither _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (App l (Con _ (UnQual _ (Ident _ "Right"))) e) = [App l (Con l (UnQual l (Ident l "Left"))) e]
-    convert (App l (Con _ (UnQual _ (Ident _ "Left"))) e) = [App l (Con l (UnQual l (Ident l "Right"))) e]
-    convert (Con l (UnQual _ (Ident _ "Right"))) = [Con l (UnQual l (Ident l "Left"))]
-    convert (Con l (UnQual _ (Ident _ "Left"))) = [Con l (UnQual l (Ident l "Right"))]
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e))
+        | rdrStr rdr == "Right" = [mkApp (mkDataVar "Left")  e]
+        | rdrStr rdr == "Left"  = [mkApp (mkDataVar "Right") e]
+    convert (L _ (HsVar _ (L _ rdr)))
+        | rdrStr rdr == "Right" = [mkDataVar "Left"]
+        | rdrStr rdr == "Left"  = [mkDataVar "Right"]
     convert _ = []
 
--- | Remove @forkIO@, @async@, @withAsync@: run action inline
+-- ---------------------------------------------------------------------------
+-- Concurrency / resource mutations
+
+-- | Strip @forkIO@ / @async@ / @withAsync@ wrappers.
 selectRemoveForkIOOps :: Module_ -> [MuOp]
 selectRemoveForkIOOps m = selectValOps isFork convert m
   where
-    isFork (App _ (Var _ (UnQual _ (Ident _ "forkIO"))) _) = True
-    isFork (App _ (Var _ (UnQual _ (Ident _ "async"))) _) = True
-    isFork (App _ (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) _) _) = True
+    isFork :: LHsExpr GhcPs -> Bool
+    isFork (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) =
+        rdrStr rdr `elem` ["forkIO", "async"]
+    isFork (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) _)) =
+        rdrStr rdr == "withAsync"
     isFork _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (App _ (Var _ (UnQual _ (Ident _ "forkIO"))) e) = [e]
-    convert (App _ (Var _ (UnQual _ (Ident _ "async"))) e) = [e]
-    convert (App l (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) e1) (Lambda _ [PVar _ _] e2)) =
-        [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>"))) e2]
-    convert (App l (App _ (Var _ (UnQual _ (Ident _ "withAsync"))) e1) e2) =
-        [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>"))) e2]
+
+    gtgtgt :: LHsExpr GhcPs
+    gtgtgt = mkVar ">>"
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e))
+        | rdrStr rdr `elem` ["forkIO", "async"] = [e]
+    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ _)) e1)) (L _ (HsLam _ _ (MG _ (L _ [L _ (Match _ _ _ (GRHSs _ [L _ (GRHS _ [] e2)] _))]))))))
+        = [mkOpApp e1 gtgtgt e2]
+    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ _)) e1)) e2))
+        = [mkOpApp e1 gtgtgt e2]
     convert _ = []
 
--- | Replace @bracket acquire release action@ with @acquire >>= action@
+-- | Replace @bracket acq rel act@ with @acq >>= act@.
 selectBracketDegenerateOps :: Module_ -> [MuOp]
 selectBracketDegenerateOps m = selectValOps isBracket convert m
   where
-    isBracket (App _ (App _ (App _ (Var _ (UnQual _ (Ident _ "bracket"))) _) _) _) = True
+    isBracket :: LHsExpr GhcPs -> Bool
+    isBracket (L _ (HsApp _ (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) _)) _)) =
+        rdrStr rdr == "bracket"
     isBracket _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (App l (App _ (App _ (Var _ (UnQual _ (Ident _ "bracket"))) e1) _) e3) =
-        [InfixApp l e1 (QVarOp l (UnQual l (Symbol l ">>="))) e3]
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ _)) e1)) _)) e3)) =
+        [mkOpApp e1 (mkVar ">>=") e3]
     convert _ = []
 
--- | Replace exception handlers with a no-op returning @undefined@
+-- | Replace exception handlers with a no-op returning @undefined@.
 selectErrorGuardOps :: Module_ -> [MuOp]
 selectErrorGuardOps m = selectValOps isErrorOp convert m
   where
-    isErrorOp (App _ (App _ (Var _ (UnQual _ (Ident _ "catch"))) _) _) = True
-    isErrorOp (App _ (App _ (Var _ (UnQual _ (Ident _ "handle"))) _) _) = True
-    isErrorOp (App _ (Var _ (UnQual _ (Ident _ "try"))) _) = True
+    isErrorOp :: LHsExpr GhcPs -> Bool
+    isErrorOp (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) _)) =
+        rdrStr rdr `elem` ["catch", "handle"]
+    isErrorOp (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) =
+        rdrStr rdr == "try"
     isErrorOp _ = False
-    convert :: Exp_ -> [Exp_]
-    convert (App l (App _ (Var _ (UnQual _ (Ident _ "catch"))) e1) _) =
-        [App l (App l (Var l (UnQual l (Ident l "catch"))) e1) (Lambda l [PWildCard l] (App l (Var l (UnQual l (Ident l "return"))) (Var l (UnQual l (Ident l "undefined")))))]
-    convert (App l (App _ (Var _ (UnQual _ (Ident _ "handle"))) _) e2) =
-        [App l (Lambda l [PWildCard l] (App l (Var l (UnQual l (Ident l "return"))) (Var l (UnQual l (Ident l "undefined"))))) e2]
-    convert (App l (Var _ (UnQual _ (Ident _ "try"))) e) =
-        [App l (Var l (UnQual l (Ident l "return"))) (App l (Con l (UnQual l (Ident l "Right"))) e)]
+
+    -- Simplest meaningful mutation: strip the error-handling wrapper entirely.
+    -- catch e _handler → e   (removes the catch)
+    -- handle _handler e → e  (removes the handle)
+    -- try e → return (Right e)  (always succeeds)
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e1)) _))
+        | rdrStr rdr == "catch"  = [e1]
+        | rdrStr rdr == "handle" = [e1]
+    convert (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e))
+        | rdrStr rdr == "try" =
+            [mkApp (mkVar "return") (mkApp (mkDataVar "Right") e)]
     convert _ = []
 
--- | Replace @IORef@/@MVar@/@TVar@ arguments with @undefined@
+-- | Replace @IORef@ / @MVar@ / @TVar@ arguments with @undefined@.
 selectReplaceMutableArgOps :: Module_ -> [MuOp]
 selectReplaceMutableArgOps m = selectValOps isMutableVar convert m
-  where isMutableVar (Var _ (UnQual _ (Ident _ n))) | n `elem` ["ref", "mvar", "tvar", "ior", "stref"] = True
-        isMutableVar _ = False
-        convert :: Exp_ -> [Exp_]
-        convert (Var l _) = [Var l (UnQual l (Ident l "undefined"))]
-        convert _ = []
+  where
+    mutableNames :: [String]
+    mutableNames = ["ref", "mvar", "tvar", "ior", "stref"]
 
--- | Replace each function match body with the zero value for the declared return type.
--- Only applies to functions that have a type signature in the same module.
+    isMutableVar :: LHsExpr GhcPs -> Bool
+    isMutableVar (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` mutableNames
+    isMutableVar _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert _ = [mkVar "undefined"]
+
+-- ---------------------------------------------------------------------------
+-- Zero-return mutation
+
+-- | Replace each function match body with the zero value for the declared
+-- return type.  Only applies when a type signature is present in the same module.
 selectZeroReturnOps :: Module_ -> [MuOp]
-selectZeroReturnOps (Module _ _ _ _ decls) =
-    [ rhs ==> UnGuardedRhs l_ zv
-    | FunBind _ matches <- decls
-    , Match _ name _ rhs _ <- matches
-    , Just retType <- [lookup (nameStr name) typeSigs]
-    , Just zv <- [typeZeroVal retType]
+selectZeroReturnOps m =
+    -- XValD GhcPs = NoExtField; XFunBind = NoExtField.
+    -- Eq (Match GhcPs) doesn't exist; identity mutations filtered by genMutantsWithExtra.
+    [ fromDecl ==> mkL (ValD noExtField (FunBind noExtField fid mg'))
+    | fromDecl@(L _ (ValD _ (FunBind _ fid (MG xmg (L lms ms))))) <- decls
+    , let fname = occNameString (rdrNameOcc (unLoc fid))
+    , Just retTy <- [lookup fname typeSigs]
+    , Just zv    <- [typeZeroVal retTy]
+    , let ms' = map (replaceMatchBody zv) ms
+          mg' = MG xmg (L lms ms')
     ]
   where
-    typeSigs = [(nameStr n, returnType t) | TypeSig _ ns t <- decls, n <- ns]
-    nameStr (Ident _ s) = s
-    nameStr (Symbol _ s) = s
-    returnType (TyFun _ _ t) = returnType t
-    returnType t = t
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Bool")))    = Just $ Var l_ (UnQual l_ (Ident l_ "False"))
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Int")))     = Just $ Lit l_ (Int l_ 0 "0")
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Integer"))) = Just $ Lit l_ (Int l_ 0 "0")
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Double")))  = Just $ Lit l_ (Frac l_ 0 "0.0")
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Float")))   = Just $ Lit l_ (Frac l_ 0 "0.0")
-    typeZeroVal (TyCon _ (UnQual _ (Ident _ "String")))  = Just $ Lit l_ (String l_ "" "\"\"")
-    typeZeroVal (TyList _ _)                              = Just $ List l_ []
-    typeZeroVal (TyApp _ (TyCon _ (UnQual _ (Ident _ "Maybe"))) _) = Just $ Var l_ (UnQual l_ (Ident l_ "Nothing"))
-    typeZeroVal (TyApp _ (TyCon _ (UnQual _ (Ident _ "IO"))) _) =
-      Just $ App l_ (Var l_ (UnQual l_ (Ident l_ "return"))) (Var l_ (UnQual l_ (Ident l_ "undefined")))
+    decls    = hsmodDecls m
+    -- TypeSig _ ns ty  where ty :: LHsSigWcType GhcPs = HsWildCardBndrs GhcPs (LHsSigType GhcPs)
+    typeSigs = [ (occNameString (rdrNameOcc (unLoc n)), returnType (unLoc (sig_body sig)))
+               | L _ (SigD _ (TypeSig _ ns (HsWC _ (L _ sig)))) <- decls
+               , n <- ns
+               ]
+
+    returnType :: HsType GhcPs -> HsType GhcPs
+    returnType (HsFunTy _ _ _ ret) = returnType (unLoc ret)
+    returnType (HsParTy _ ty)      = returnType (unLoc ty)
+    returnType t                   = t
+
+    typeZeroVal :: HsType GhcPs -> Maybe (LHsExpr GhcPs)
+    typeZeroVal (HsTyVar _ _ (L _ rdr)) = case rdrStr rdr of
+        "Bool"    -> Just (mkDataVar "False")
+        "Int"     -> Just (mkIntLitExpr 0)
+        "Integer" -> Just (mkIntLitExpr 0)
+        "Double"  -> Just (mkFracLitExpr 0.0)
+        "Float"   -> Just (mkFracLitExpr 0.0)
+        "String"  -> Just (mkStringExpr "")
+        _         -> Nothing
+    typeZeroVal (HsListTy _ _)  = Just mkListExpr
+    typeZeroVal (HsAppTy _ (L _ (HsTyVar _ _ (L _ rdr))) _) = case rdrStr rdr of
+        "Maybe" -> Just (mkDataVar "Nothing")
+        "IO"    -> Just (mkApp (mkVar "return") (mkVar "undefined"))
+        _       -> Nothing
     typeZeroVal _ = Nothing
-selectZeroReturnOps _ = []
+
+    replaceMatchBody :: LHsExpr GhcPs -> Alt_ -> Alt_
+    -- Preserve the first GRHS's located annotation (which encodes the `=`
+    -- position) so exactPrint can render "= zv" correctly.
+    replaceMatchBody zv (L la (Match xm ctx pats (GRHSs xg (L lg (GRHS xga _ _):_) binds))) =
+        L la (Match xm ctx pats
+               (GRHSs xg [L lg (GRHS xga [] (setEntryDP zv (SameLine 1)))] binds))
+    replaceMatchBody _ a = a

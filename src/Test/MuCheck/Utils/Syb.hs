@@ -1,40 +1,49 @@
 {-# LANGUAGE RankNTypes #-}
--- | SYB functions
+
+-- | SYB (Scrap Your Boilerplate) utilities for AST traversal
 module Test.MuCheck.Utils.Syb (relevantOps, once) where
 
-import Data.Generics (Data, GenericM, gmapMo, mkQ)
-import Test.MuCheck.MuOp (MuOp, same)
-import Test.MuCheck.Config (MuVar)
 import Control.Monad (MonadPlus, mplus, mzero)
-import Language.Haskell.Exts (Decl(TypeSig, InstDecl, ClassDecl, TypeDecl, DataDecl, GDataDecl, TypeFamDecl, DataFamDecl, ClosedTypeFamDecl, TypeInsDecl, DataInsDecl, GDataInsDecl), SrcSpanInfo)
+import Data.Generics (Data, GenericM, gmapMo, mkQ)
 
+import GHC.Hs (HsDecl (..), LHsDecl, GhcPs)
+import GHC.Types.SrcLoc (GenLocated (..))
+
+import Test.MuCheck.Config (MuVar)
+import Test.MuCheck.MuOp (MuOp, same)
+
+-- | Returns @True@ for declaration forms that should never be traversed into
+-- for mutations: type\/class\/instance heads, type signatures, standalone
+-- @deriving@, annotation pragmas, and foreign declarations.
+--
+-- We check both the bare @'HsDecl' 'GhcPs'@ (reached when syb peels the
+-- 'GenLocated' wrapper) and the located @'LHsDecl' 'GhcPs'@ (the top-level
+-- entry in a module\'s declaration list).
 isSkippedDecl :: Data a => a -> Bool
-isSkippedDecl = mkQ False checkDecl
+isSkippedDecl x = mkQ False checkBare x || mkQ False checkLocated x
   where
-    checkDecl :: Decl SrcSpanInfo -> Bool
-    checkDecl TypeSig{} = True
-    checkDecl InstDecl{} = True
-    checkDecl ClassDecl{} = True
-    checkDecl TypeDecl{} = True
-    checkDecl DataDecl{} = True
-    checkDecl GDataDecl{} = True
-    checkDecl TypeFamDecl{} = True
-    checkDecl DataFamDecl{} = True
-    checkDecl ClosedTypeFamDecl{} = True
-    checkDecl TypeInsDecl{} = True
-    checkDecl DataInsDecl{} = True
-    checkDecl GDataInsDecl{} = True
-    checkDecl _ = False
+    checkBare :: HsDecl GhcPs -> Bool
+    checkBare TyClD{} = True   -- class / data / type / family decls
+    checkBare InstD{}  = True  -- instance / deriving-instance decls
+    checkBare SigD{}   = True  -- type signatures
+    checkBare DerivD{} = True  -- standalone deriving
+    checkBare AnnD{}   = True  -- {-# ANN #-} pragmas (test annotations)
+    checkBare ForD{}   = True  -- foreign import / export
+    checkBare RuleD{}  = True  -- RULES pragmas
+    checkBare _        = False
 
--- | apply a mutating function on a piece of code one at a time
--- like somewhere (from so)
+    checkLocated :: LHsDecl GhcPs -> Bool
+    checkLocated (L _ d) = checkBare d
+
+-- | Apply a mutating function on a piece of code exactly once at the first
+-- matching site found in a depth-first traversal.  Skips sub-trees rooted at
+-- structural or declarative nodes (see 'isSkippedDecl') to avoid generating
+-- non-compilable mutants.
 once :: MonadPlus m => GenericM m -> GenericM m
 once f x = f x `mplus` (if isSkippedDecl x then mzero else gmapMo (once f) x)
 
--- | Filter out identity ops (where source == target).
--- The applicability check (traversal) is deferred to 'once' in 'mutate',
--- which returns an empty list for ops that do not match any AST node.
--- This removes the duplicate AST traversal that the old relevance-probe pass performed.
-relevantOps :: (Data a, Eq a) => a -> [(MuVar, MuOp)] -> [(MuVar, MuOp)]
-relevantOps _ oplst = filter (not . same . snd) oplst
-
+-- | Filter out identity operations (where @before === after@ by 'ppr').
+-- The applicability check is deferred to 'once' in 'mutate', which returns an
+-- empty list for operators that do not match any AST node.
+relevantOps :: (Data a) => a -> [(MuVar, MuOp)] -> [(MuVar, MuOp)]
+relevantOps _ = filter (not . same . snd)

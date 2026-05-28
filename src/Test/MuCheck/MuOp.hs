@@ -1,6 +1,8 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Mutation operators
 module Test.MuCheck.MuOp (
@@ -12,185 +14,190 @@ module Test.MuCheck.MuOp (
     mkMpMuOp,
     same,
     Module_,
-    Name_,
-    QName_,
-    QOp_,
-    Exp_,
+    Expr_,
     Decl_,
-    Literal_,
-    GuardedRhs_,
     Stmt_,
     Alt_,
     Rhs_,
-    Annotation_,
+    GuardedRhs_,   -- exported for use as a helper type in Mutation.hs
+    MuNode,
+    CanTransfer (..),
     getSpan,
 ) where
 
 import Control.Monad (MonadPlus, mzero)
 import qualified Data.Generics as G
 
-import Language.Haskell.Exts (Alt, Annotated (..), Annotation, Decl, Exp, GuardedRhs, Literal, Module, Name, Pretty (), QName, QOp, Rhs, SrcSpanInfo (..), Stmt, prettyPrint, srcSpanEnd, srcSpanStart)
+import GHC.Hs
+import GHC.Parser.Annotation ()
+import GHC.Types.SrcLoc
+    ( GenLocated (..), SrcSpan (..)
+    , srcLocLine, srcLocCol
+    , realSrcSpanStart, realSrcSpanEnd
+    )
+import GHC.Utils.Outputable (Outputable, showSDocUnsafe, ppr)
+import Language.Haskell.GHC.ExactPrint.Transform (transferEntryDP)
 
--- | SrcSpanInfo wrapper
-type Module_ = Module SrcSpanInfo
+-- ---------------------------------------------------------------------------
+-- Type aliases
 
--- | SrcSpanInfo wrapper
-type Name_ = Name SrcSpanInfo
+-- | The bare parsed module (inside Located; used as the mutation target)
+type Module_ = HsModule GhcPs
 
--- | SrcSpanInfo wrapper
-type QName_ = QName SrcSpanInfo
+-- | A located Haskell expression
+type Expr_ = LHsExpr GhcPs
 
--- | SrcSpanInfo wrapper
-type QOp_ = QOp SrcSpanInfo
+-- | A located Haskell declaration
+type Decl_ = LHsDecl GhcPs
 
--- | SrcSpanInfo wrapper
-type Exp_ = Exp SrcSpanInfo
+-- | A located statement in a @do@-block
+type Stmt_ = ExprLStmt GhcPs
 
--- | SrcSpanInfo wrapper
-type Decl_ = Decl SrcSpanInfo
+-- | A located case alternative / function match
+type Alt_ = LMatch GhcPs (LHsExpr GhcPs)
 
--- | SrcSpanInfo wrapper
-type Literal_ = Literal SrcSpanInfo
+-- | A guarded right-hand side group (not located; sits inside a @Match@)
+type Rhs_ = GRHSs GhcPs (LHsExpr GhcPs)
 
--- | SrcSpanInfo wrapper
-type GuardedRhs_ = GuardedRhs SrcSpanInfo
+-- | A single located guard (@GRHS@)
+type GuardedRhs_ = LGRHS GhcPs (LHsExpr GhcPs)
 
--- | SrcSpanInfo wrapper
-type Stmt_ = Stmt SrcSpanInfo
+-- ---------------------------------------------------------------------------
+-- Node identity and annotation repair
 
--- | SrcSpanInfo wrapper
-type Alt_ = Alt SrcSpanInfo
+{- | Typeclass that captures the ability to transfer an entry delta from one
+located node to another.  All 'MuOp' node types are @GenLocated (EpAnn t) a@
+for some @'G.Typeable' t@, which makes the transfer possible via
+'transferEntryDP'.
+-}
+class CanTransfer a where
+    -- | Copy the leading-whitespace delta from @z@ (original, in the AST) to
+    -- @y@ (synthetic replacement), so that 'exactPrint' preserves layout.
+    transferEntry :: a -> a -> a
 
--- | SrcSpanInfo wrapper
-type Rhs_ = Rhs SrcSpanInfo
+instance G.Typeable t => CanTransfer (GenLocated (EpAnn t) a) where
+    transferEntry = transferEntryDP
 
--- | SrcSpanInfo wrapper
-type Annotation_ = Annotation SrcSpanInfo
+{- | Constraint alias for everything a node type needs to participate in
+mutation: generics traversal (@Typeable@), source-location access (@HasLoc@),
+annotation repair (@CanTransfer@), and pretty-printing (@Outputable@).
+-}
+type MuNode a = (G.Typeable a, HasLoc a, CanTransfer a, Outputable a)
 
--- | MuOp constructor used to specify mutation transformation
+-- ---------------------------------------------------------------------------
+-- MuOp type
+
+-- | A mutation operation: a before/after pair of the same node type.
+-- Guard mutations use 'A' (the parent 'Alt_') because 'GRHS' lacks an
+-- 'Outputable' instance, making the whole-match replacement the simplest
+-- strategy that works with the 'MuNode' constraint.
 data MuOp
-    = N (Name_, Name_)
-    | QN (QName_, QName_)
-    | QO (QOp_, QOp_)
-    | E (Exp_, Exp_)
-    | D (Decl_, Decl_)
-    | L (Literal_, Literal_)
-    | G (GuardedRhs_, GuardedRhs_)
-    | S (Stmt_, Stmt_)
-    | A (Alt_, Alt_)
-    | R (Rhs_, Rhs_)
-    deriving (Eq)
+    = E (Expr_,  Expr_)
+    | D (Decl_,  Decl_)
+    | A (Alt_,   Alt_)
+    | S (Stmt_,  Stmt_)
 
--- | Apply the given function on the tuple inside MuOp
-apply :: (forall a. (Eq a, G.Typeable a, Show a, Pretty a) => (a, a) -> c) -> MuOp -> c
-apply f (N m) = f m
-apply f (QN m) = f m
-apply f (QO m) = f m
+-- | Dispatch a rank-2 function over the typed pair inside a 'MuOp'.
+apply :: (forall a. MuNode a => (a, a) -> c) -> MuOp -> c
 apply f (E m) = f m
 apply f (D m) = f m
-apply f (L m) = f m
-apply f (G m) = f m
-apply f (S m) = f m
 apply f (A m) = f m
-apply f (R m) = f m
+apply f (S m) = f m
 
--- How do I get the Annotated (a SrcSpanInfo) on apply's signature?
+-- ---------------------------------------------------------------------------
+-- Span extraction
 
--- | getSpan retrieve the span as a tuple
+-- | Extract the source span of the /before/ node as a @(startLine, startCol,
+-- endLine, endCol)@ tuple, used by 'Test.MuCheck.TestAdapter.Mutant'.
 getSpan :: MuOp -> (Int, Int, Int, Int)
-getSpan m = (startLine, startCol, endLine, endCol)
+getSpan = apply go
   where
-    (endLine, endCol) = srcSpanEnd lspan
-    (startLine, startCol) = srcSpanStart lspan
-    getSpan' (N (a, _)) = ann a
-    getSpan' (QN (a, _)) = ann a
-    getSpan' (QO (a, _)) = ann a
-    getSpan' (E (a, _)) = ann a
-    getSpan' (D (a, _)) = ann a
-    getSpan' (L (a, _)) = ann a
-    getSpan' (G (a, _)) = ann a
-    getSpan' (S (a, _)) = ann a
-    getSpan' (A (a, _)) = ann a
-    getSpan' (R (a, _)) = ann a
-    lspan = srcInfoSpan $ getSpan' m
+    go :: MuNode a => (a, a) -> (Int, Int, Int, Int)
+    go (a, _) = case getHasLoc a of
+        RealSrcSpan rss _ ->
+            let s = realSrcSpanStart rss
+                e = realSrcSpanEnd rss
+            in (srcLocLine s, srcLocCol s, srcLocLine e, srcLocCol e)
+        UnhelpfulSpan _ -> (0, 0, 0, 0)
 
-{- | The function `same` applies on a `MuOp` determining if transformation is
-between same values.
+-- ---------------------------------------------------------------------------
+-- Identity check
+
+{- | @'same' op@ is @True@ when the /before/ and /after/ nodes serialise to the
+same string — i.e., the mutation is a no-op and should be discarded.
+Uses 'ppr' so no @Eq@ instance on AST nodes is required.
 -}
 same :: MuOp -> Bool
-same = apply $ uncurry (==)
+same = apply $ \(a, b) ->
+    showSDocUnsafe (ppr a) == showSDocUnsafe (ppr b)
 
--- | A wrapper over mkMp
+-- ---------------------------------------------------------------------------
+-- Core combinators
+
+{- | Replace a specific node occurrence.
+
+Matching is by source location (@'getHasLoc'@) rather than by value equality,
+because GHC\'s AST types do not derive @Eq@.  Once a match is found,
+'transferEntry' copies the original node\'s leading-whitespace delta onto the
+replacement so that 'exactPrint' preserves layout.
+-}
+(~~>) :: (MonadPlus m, MuNode a) => a -> a -> a -> m a
+x ~~> y = \z ->
+    if getHasLoc x == getHasLoc z
+    then return (transferEntry z y)
+    else mzero
+
+-- | Lift a 'MuOp' into a generic one-site transformation.
 mkMpMuOp :: (MonadPlus m, G.Typeable a) => MuOp -> a -> m a
 mkMpMuOp = apply $ G.mkMp . uncurry (~~>)
 
--- | Show a specified mutation
-showM :: (Show a1, Show a, Pretty a, Pretty a1) => (a, a1) -> String
-showM (s, t) = "{\n" ++ prettyPrint s ++ "\n} ==> {\n" ++ prettyPrint t ++ "\n}"
+-- | Show a single mutation as @{ before } ==> { after }@.
+showM :: MuNode a => (a, a) -> String
+showM (s, t) =
+    "{\n" ++ showSDocUnsafe (ppr s) ++ "\n} ==> {\n" ++ showSDocUnsafe (ppr t) ++ "\n}"
 
--- | MuOp instance for Show
 instance Show MuOp where
     show = apply showM
 
--- | Mutation operation representing translation from one fn to another fn.
+-- ---------------------------------------------------------------------------
+-- Mutable class and pair-building operators
+
+{- | A node type whose values can be paired into a 'MuOp'.
+Each instance corresponds to one 'MuOp' constructor.
+-}
 class Mutable a where
     (==>) :: a -> a -> MuOp
 
-{- | The function `==>*` pairs up the given element with all elements of the
-second list, and applies `==>` on them.
--}
-(==>*) :: (Mutable a) => a -> [a] -> [MuOp]
-(==>*) x lst = map (x ==>) lst
+-- | Pair one element with every element in the list.
+(==>*) :: Mutable a => a -> [a] -> [MuOp]
+x ==>* lst = map (x ==>) lst
 
-{- | The function `*==>*` pairs up all elements of first list with all elements
-of second list and applies `==>` between them.
--}
-(*==>*) :: (Mutable a) => [a] -> [a] -> [MuOp]
+-- | Pair every element of the first list with every element of the second.
+(*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
 xs *==>* ys = concatMap (==>* ys) xs
 
-{- | The function `~~>` accepts two values, and returns a function
-that if given a value equal to first, returns second
-we handle x ~~> x separately
--}
-(~~>) :: (MonadPlus m, Eq a) => a -> a -> a -> m a
-x ~~> y = \z -> if z == x then return y else mzero
+-- Instances use the fully-expanded concrete types (not the type-family
+-- aliases) because GHC prohibits type-family applications in instance heads
+-- even with FlexibleInstances.
 
--- | Name instance for Mutable
-instance Mutable Name_ where
-    (==>) = (N .) . (,)
-
--- | QName instance for Mutable
-instance Mutable QName_ where
-    (==>) = (QN .) . (,)
-
--- | QOp instance for Mutable
-instance Mutable QOp_ where
-    (==>) = (QO .) . (,)
-
--- | Exp instance for Mutable
-instance Mutable Exp_ where
+-- | 'Expr_' = 'LocatedA' ('HsExpr' 'GhcPs')
+instance Mutable (LocatedA (HsExpr GhcPs)) where
     (==>) = (E .) . (,)
 
--- | Exp instance for Mutable
-instance Mutable Decl_ where
+-- | 'Decl_' = 'LocatedA' ('HsDecl' 'GhcPs')
+instance Mutable (LocatedA (HsDecl GhcPs)) where
     (==>) = (D .) . (,)
 
--- | Literal instance for Mutable
-instance Mutable Literal_ where
-    (==>) = (L .) . (,)
+-- For the nested instances we must also expand LHsExpr GhcPs → LocatedA (HsExpr GhcPs)
+-- because LHsExpr is itself a type-family alias (XRec GhcPs).
 
--- | GuardedRhs instance for Mutable
-instance Mutable GuardedRhs_ where
-    (==>) = (G .) . (,)
-
--- | Stmt instance for Mutable
-instance Mutable Stmt_ where
-    (==>) = (S .) . (,)
-
--- | Alt instance for Mutable
-instance Mutable Alt_ where
+-- | 'Alt_' = 'LocatedA' ('Match' 'GhcPs' ('LocatedA' ('HsExpr' 'GhcPs')))
+instance Mutable (LocatedA (Match GhcPs (LocatedA (HsExpr GhcPs)))) where
     (==>) = (A .) . (,)
 
--- | Rhs instance for Mutable
-instance Mutable Rhs_ where
-    (==>) = (R .) . (,)
+-- | 'Stmt_' = 'LocatedA' ('StmtLR' 'GhcPs' 'GhcPs' ('LocatedA' ('HsExpr' 'GhcPs')))
+instance Mutable (LocatedA (StmtLR GhcPs GhcPs (LocatedA (HsExpr GhcPs)))) where
+    (==>) = (S .) . (,)
+
+-- Note: GuardedRhs_ / LGRHS GhcPs has no Outputable instance so it cannot
+-- be used as a MuOp constructor.  Guard mutations are handled via Alt_ (A).

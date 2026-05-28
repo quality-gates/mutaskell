@@ -230,7 +230,8 @@ resolveTimeout opts file modFile testNames =
 dryRun :: FilePath -> IO ()
 dryRun file = do
   src <- readFile file
-  case getASTFromStr src of
+  result <- getASTFromStr src
+  case result of
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right ast -> do
       let mutants = genMutantsFromAST defaultConfig ast

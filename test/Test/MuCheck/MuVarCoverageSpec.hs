@@ -9,7 +9,6 @@ import Test.MuCheck.Mutation
 import qualified Test.MuCheck.MutationSpec.Helpers as H
 
 -- | Minimal source snippets that each trigger a specific mutator.
--- Each must be a well-formed Haskell module parseable by haskell-src-exts.
 
 patternSrc :: String
 patternSrc = [e|
@@ -161,49 +160,72 @@ f x = x > 0
 
 spec :: Spec
 spec = describe "MuVar coverage" $ do
-  it "pattern-match produces at least one mutant" $
-    selectFnMatches (H.ast patternSrc) `shouldSatisfy` (not . null)
-  it "literal-values produces at least one mutant" $
-    selectLiteralOps (H.ast literalSrc) `shouldSatisfy` (not . null)
-  it "functions produces at least one mutant" $
-    selectFunctionOps (muOp defaultConfig) (H.ast functionSrc) `shouldSatisfy` (not . null)
-  it "negate-if-else produces at least one mutant" $
-    selectIfElseBoolNegOps (H.ast ifElseSrc) `shouldSatisfy` (not . null)
-  it "negate-guards produces at least one mutant" $
-    selectGuardedBoolNegOps (H.ast guardSrc) `shouldSatisfy` (not . null)
-  it "remove-not produces at least one mutant" $
-    selectRemoveNotOps (H.ast notSrc) `shouldSatisfy` (not . null)
-  it "remove-negation produces at least one mutant" $
-    selectRemoveNegationOps (H.ast negSrc) `shouldSatisfy` (not . null)
-  it "case-alt-remove produces at least one mutant" $
-    selectCaseAltRemoveOps (H.ast caseAltSrc) `shouldSatisfy` (not . null)
-  it "case-default-remove produces at least one mutant" $
-    selectCaseDefaultRemoveOps (H.ast caseDefaultSrc) `shouldSatisfy` (not . null)
-  it "remove-stmt produces at least one mutant" $
-    selectRemoveStmtOps (H.ast stmtSrc) `shouldSatisfy` (not . null)
-  it "remove-let-binding produces at least one mutant" $
-    selectRemoveLetBindingOps (H.ast letSrc) `shouldSatisfy` (not . null)
-  it "remove-where-binding produces at least one mutant" $
-    selectRemoveWhereBindingOps (H.ast whereSrc) `shouldSatisfy` (not . null)
-  it "remove-self-assign produces at least one mutant" $
-    selectRemoveSelfAssignOps (H.ast selfAssignSrc) `shouldSatisfy` (not . null)
-  it "negate-literal produces at least one mutant" $
-    selectNegateLiteralOps (H.ast negLitSrc) `shouldSatisfy` (not . null)
-  it "string-literal produces at least one mutant" $
-    selectStringLiteralOps (H.ast stringLitSrc) `shouldSatisfy` (not . null)
-  it "bool-operand produces at least one mutant" $
-    selectBoolOperandOps (H.ast boolOpSrc) `shouldSatisfy` (not . null)
-  it "flip-maybe produces at least one mutant" $
-    selectFlipMaybeOps (H.ast flipMaybeSrc) `shouldSatisfy` (not . null)
-  it "flip-either produces at least one mutant" $
-    selectFlipEitherOps (H.ast flipEitherSrc) `shouldSatisfy` (not . null)
-  it "remove-forkIO produces at least one mutant" $
-    selectRemoveForkIOOps (H.ast forkIOSrc) `shouldSatisfy` (not . null)
-  it "bracket-degenerate produces at least one mutant" $
-    selectBracketDegenerateOps (H.ast bracketSrc) `shouldSatisfy` (not . null)
-  it "error-guard produces at least one mutant" $
-    selectErrorGuardOps (H.ast errorGuardSrc) `shouldSatisfy` (not . null)
-  it "replace-mutable-arg produces at least one mutant" $
-    selectReplaceMutableArgOps (H.ast mutableArgSrc) `shouldSatisfy` (not . null)
-  it "zero-return produces at least one mutant" $
-    selectZeroReturnOps (H.ast zeroReturnSrc) `shouldSatisfy` (not . null)
+  it "pattern-match produces at least one mutant" $ do
+    ast <- H.ast patternSrc
+    selectFnMatches ast `shouldSatisfy` (not . null)
+  it "literal-values produces at least one mutant" $ do
+    ast <- H.ast literalSrc
+    selectLiteralOps ast `shouldSatisfy` (not . null)
+  it "functions produces at least one mutant" $ do
+    ast <- H.ast functionSrc
+    selectFunctionOps (muOp defaultConfig) ast `shouldSatisfy` (not . null)
+  it "negate-if-else produces at least one mutant" $ do
+    ast <- H.ast ifElseSrc
+    selectIfElseBoolNegOps ast `shouldSatisfy` (not . null)
+  it "negate-guards produces at least one mutant" $ do
+    ast <- H.ast guardSrc
+    selectGuardedBoolNegOps ast `shouldSatisfy` (not . null)
+  it "remove-not produces at least one mutant" $ do
+    ast <- H.ast notSrc
+    selectRemoveNotOps ast `shouldSatisfy` (not . null)
+  it "remove-negation produces at least one mutant" $ do
+    ast <- H.ast negSrc
+    selectRemoveNegationOps ast `shouldSatisfy` (not . null)
+  it "case-alt-remove produces at least one mutant" $ do
+    ast <- H.ast caseAltSrc
+    selectCaseAltRemoveOps ast `shouldSatisfy` (not . null)
+  it "case-default-remove produces at least one mutant" $ do
+    ast <- H.ast caseDefaultSrc
+    selectCaseDefaultRemoveOps ast `shouldSatisfy` (not . null)
+  it "remove-stmt produces at least one mutant" $ do
+    ast <- H.ast stmtSrc
+    selectRemoveStmtOps ast `shouldSatisfy` (not . null)
+  it "remove-let-binding produces at least one mutant" $ do
+    ast <- H.ast letSrc
+    selectRemoveLetBindingOps ast `shouldSatisfy` (not . null)
+  it "remove-where-binding produces at least one mutant" $ do
+    ast <- H.ast whereSrc
+    selectRemoveWhereBindingOps ast `shouldSatisfy` (not . null)
+  it "remove-self-assign produces at least one mutant" $ do
+    ast <- H.ast selfAssignSrc
+    selectRemoveSelfAssignOps ast `shouldSatisfy` (not . null)
+  it "negate-literal produces at least one mutant" $ do
+    ast <- H.ast negLitSrc
+    selectNegateLiteralOps ast `shouldSatisfy` (not . null)
+  it "string-literal produces at least one mutant" $ do
+    ast <- H.ast stringLitSrc
+    selectStringLiteralOps ast `shouldSatisfy` (not . null)
+  it "bool-operand produces at least one mutant" $ do
+    ast <- H.ast boolOpSrc
+    selectBoolOperandOps ast `shouldSatisfy` (not . null)
+  it "flip-maybe produces at least one mutant" $ do
+    ast <- H.ast flipMaybeSrc
+    selectFlipMaybeOps ast `shouldSatisfy` (not . null)
+  it "flip-either produces at least one mutant" $ do
+    ast <- H.ast flipEitherSrc
+    selectFlipEitherOps ast `shouldSatisfy` (not . null)
+  it "remove-forkIO produces at least one mutant" $ do
+    ast <- H.ast forkIOSrc
+    selectRemoveForkIOOps ast `shouldSatisfy` (not . null)
+  it "bracket-degenerate produces at least one mutant" $ do
+    ast <- H.ast bracketSrc
+    selectBracketDegenerateOps ast `shouldSatisfy` (not . null)
+  it "error-guard produces at least one mutant" $ do
+    ast <- H.ast errorGuardSrc
+    selectErrorGuardOps ast `shouldSatisfy` (not . null)
+  it "replace-mutable-arg produces at least one mutant" $ do
+    ast <- H.ast mutableArgSrc
+    selectReplaceMutableArgOps ast `shouldSatisfy` (not . null)
+  it "zero-return produces at least one mutant" $ do
+    ast <- H.ast zeroReturnSrc
+    selectZeroReturnOps ast `shouldSatisfy` (not . null)

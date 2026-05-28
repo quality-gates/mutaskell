@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                MuCheck
-version:             0.5.2
+version:             0.5.3
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
@@ -17,10 +17,10 @@ author:              Duc Lee <ledu@onid.oregonstate.edu>,
 maintainer:          jon@jonbaldie.com
 category:            Testing
 extra-doc-files:     changes.md
--- Active CI (mutation.yml) only verifies GHC 9.8.2; the broader matrix in
+-- Active CI (mutation.yml) verifies GHC 9.12.1; the broader matrix in
 -- haskell-ci.yml is disabled (if: false) because it violates the 5-minute
--- CI budget.  9.2–9.8 compatibility is aspirational pending a nightly matrix.
-tested-with:         GHC ==9.8.2
+-- CI budget.  ghc-exactprint >= 1.12 requires GHC 9.12+.
+tested-with:         GHC ==9.12.1
 
 source-repository    head
   type:              git
@@ -29,11 +29,12 @@ source-repository    head
 source-repository    this
   type:              git
   location:          https://github.com/jonbaldie/mucheck.git
-  tag:               0.5.2
+  tag:               0.5.3
 
 common dependencies
   build-depends:    base >=4 && <5,
-                    haskell-src-exts >=1.23,
+                    ghc >= 9.12 && < 9.13,
+                    ghc-exactprint >= 1.12 && < 1.13,
                     syb >= 0.4.0,
                     time >= 1.4.0.1,
                     hint >= 0.3.1.0,

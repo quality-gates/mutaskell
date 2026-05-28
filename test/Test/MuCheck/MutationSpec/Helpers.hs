@@ -3,10 +3,10 @@
 module Test.MuCheck.MutationSpec.Helpers where
 
 import Here
-import Language.Haskell.Exts
 import Test.MuCheck.Mutation
-import Test.MuCheck.Utils.Helpers
+import Test.MuCheck.MuOp (Module_, Decl_)
 
+_myprop :: String
 _myprop =
     [e|
 module Prop where
@@ -22,6 +22,7 @@ myProp1 xs = myFn [] == 0
 myProp2 xs = myFn [1,2,3] == 3
 |]
 
+_myprop_noann :: String
 _myprop_noann =
     [e|
 module Prop where
@@ -31,12 +32,7 @@ myFn [] = 0
 myFn (x:xs) = 1 + myFn xs
 |]
 
-ast s = case getASTFromStr s of
-    Right a -> a
-    Left err -> error $ "Test AST parse failure: " ++ err
-decl = getDecl
-matches (FunBind l ms) = ms
-
+_qc :: String
 _qc =
     [e|
 module Examples.QuickCheckTest where
@@ -57,6 +53,7 @@ revProp xs = qsort xs == qsort (reverse xs)
 modelProp xs = qsort xs == sort xs
 |]
 
+_fullqc :: String
 _fullqc =
     [e|
 module Examples.QuickCheckTest where
@@ -78,3 +75,15 @@ revProp xs = qsort xs == qsort (reverse xs)
 {-# ANN modelProp "Test" #-}
 modelProp xs = qsort xs == sort xs
 |]
+
+-- | Parse a Haskell source string into an AST for test use.
+-- Calls 'error' on parse failure so test failures are visible.
+ast :: String -> IO Module_
+ast s = do
+    result <- getASTFromStr s
+    case result of
+        Right a  -> return a
+        Left err -> error $ "Test AST parse failure: " ++ err
+
+decl :: Module_ -> [Decl_]
+decl = getDecl

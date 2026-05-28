@@ -108,15 +108,11 @@ MuCheck currently supports:
 
 ### Language Extensions
 
-MuCheck enables several language extensions by default to ensure it can parse modern Haskell code:
-
-*   `ScopedTypeVariables`
-*   `MultiParamTypeClasses`
-*   `FunctionalDependencies`
-*   `FlexibleInstances`
-*   `FlexibleContexts`
-*   `TypeFamilies`
-*   `GADTs`
+MuCheck uses the actual GHC parser (via `ghc` + `ghc-exactprint`) so it
+supports **all** GHC language extensions out of the box — `LambdaCase`,
+`TypeFamilies`, `GADTs`, `LinearTypes`, `OverloadedStrings`, and anything else
+GHC 9.12 accepts.  There is no extension whitelist; if GHC can parse your
+source, MuCheck can mutate it.
 
 ### Command-Line Interface
 

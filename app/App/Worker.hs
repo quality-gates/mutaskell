@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Subprocess-based parallel mutant evaluation.
 -- hint is not thread-safe; each worker is a separate process.
 module App.Worker
@@ -12,6 +13,9 @@ import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
 import Control.Concurrent.QSem (newQSem, waitQSem, signalQSem)
 import Control.Exception (IOException, try)
 import Control.Monad (forM)
+import Data.Aeson (encode, decode, object, (.=), withObject, (.:), (.:?))
+import Data.Aeson.Types (parseMaybe, Parser)
+import qualified Data.ByteString.Lazy.Char8 as BL
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.Environment (getExecutablePath)
 import System.Exit (ExitCode(..))
@@ -66,36 +70,46 @@ evalOneWorker exe tmpDir baseArgs mutant = do
     ExitFailure code ->
       return $ MSumError mutant ("worker: subprocess exited with code " ++ show code) []
 
--- | Serialize a 'MutantSummary' to the line-based worker IPC format.
+-- | Serialize a 'MutantSummary' to a self-contained JSON object.
+-- A single extra newline inside a diff or test output cannot corrupt the
+-- deserialiser since JSON handles embedded newlines safely.
 -- Does not serialize the 'Mutant' body; the parent already holds that.
 workerSerialize :: MutantSummary -> String
-workerSerialize ms =
-  let (tag, logS, err) = case ms of
-        MSumKilled  _ l   -> ("killed",  l, "")
-        MSumAlive   _ l   -> ("alive",   l, "")
-        MSumError   _ e l -> ("error",   l, e)
-        MSumSkipped _ l   -> ("skipped", l, "")
-        MSumOther   _ l   -> ("other",   l, "")
-      logPaths = [p | Summary p <- logS]
-  in unlines ([tag, err, show (length logPaths)] ++ logPaths)
+workerSerialize ms = BL.unpack $ encode $ object
+    [ "version"   .= (1 :: Int)
+    , "result"    .= tag
+    , "error"     .= err
+    , "summaries" .= logPaths
+    ]
+  where
+    (tag, err, logS) = case ms of
+      MSumKilled  _ l   -> ("killed"  :: String, "" :: String, l)
+      MSumAlive   _ l   -> ("alive",   "",  l)
+      MSumError   _ e l -> ("error",   e,   l)
+      MSumSkipped _ l   -> ("skipped", "",  l)
+      MSumOther   _ l   -> ("other",   "",  l)
+    logPaths = [p | Summary p <- logS]
 
--- | Deserialize a 'MutantSummary' from the worker IPC format.
+-- | Deserialize a 'MutantSummary' from the JSON worker IPC format.
 -- Uses the supplied 'Mutant' (which the parent already holds) for the body.
 workerDeserialize :: Mutant -> String -> MutantSummary
 workerDeserialize mutant txt =
-  case lines txt of
-    (tag : err : logCountStr : rest) ->
-      case reads logCountStr :: [(Int, String)] of
-        [(n, "")] ->
-          let logS = map Summary (take n rest)
-          in case tag of
-               "killed"  -> MSumKilled  mutant logS
-               "alive"   -> MSumAlive   mutant logS
-               "error"   -> MSumError   mutant err logS
-               "skipped" -> MSumSkipped mutant logS
-               _         -> MSumOther   mutant logS
-        _ -> MSumError mutant "worker: parse error in result file" []
-    _ -> MSumError mutant "worker: parse error in result file" []
+  case decode (BL.pack txt) >>= parseMaybe parseResult of
+    Nothing -> MSumError mutant "worker: JSON parse/schema error in result file" []
+    Just ms -> ms
+  where
+    parseResult = withObject "WorkerResult" $ \o -> do
+      _ <- (o .:? "version" :: Parser (Maybe Int))
+      result    <- o .: "result"
+      err       <- o .: "error"
+      summaries <- o .: "summaries"
+      let logS = map Summary summaries
+      return $ case (result :: String) of
+        "killed"  -> MSumKilled  mutant logS
+        "alive"   -> MSumAlive   mutant logS
+        "error"   -> MSumError   mutant err logS
+        "skipped" -> MSumSkipped mutant logS
+        _         -> MSumOther   mutant logS
 
 -- | Remove flags that must not be forwarded to worker subprocesses.
 filterWorkerArgs :: [String] -> [String]

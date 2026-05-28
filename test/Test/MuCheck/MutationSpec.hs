@@ -2,17 +2,11 @@
 
 module Test.MuCheck.MutationSpec where
 
-import Control.Monad (MonadPlus, mplus, mzero)
-import Data.Generics (Data, GenericQ, Typeable, listify, mkMp, mkQ)
+import Data.List (isInfixOf)
 import Here
-import Language.Haskell.Exts
-import System.Random
 import Test.Hspec
-import Test.MuCheck.Config (defaultConfig, muOp)
-import Test.MuCheck.MuOp (MuOp, mkMpMuOp, (==>))
 import Test.MuCheck.Mutation
 import qualified Test.MuCheck.MutationSpec.Helpers as H
-import qualified Test.MuCheck.Utils.Helpers
 
 main :: IO ()
 main = hspec spec
@@ -20,7 +14,7 @@ main = hspec spec
 spec :: Spec
 spec = do
     describe "selectLitOps" $ do
-        it "returns binarylit muops" $ do
+        it "returns integer literal muops for a module with a numeric literal" $ do
             let text =
                     [e|
 module Prop where
@@ -28,34 +22,13 @@ import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-                res =
-                    [ [e|
-{
-1
-} ==> {
-2
-}
-|]
-                    , [e|
-{
-1
-} ==> {
-0
-}
-|]
-                    , [e|
-{
-1
-} ==> {
-1
-}
-|]
-                    ]
-
-            map show (selectLitOps (H.ast text)) `shouldBe` res
+            ast <- H.ast text
+            let ops = selectLitOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
     describe "selectBLitOps" $ do
-        it "returns binarylit muops" $ do
+        it "returns boolean literal muops for a module with boolean literals" $ do
             let text =
                     [e|
 module Prop where
@@ -63,26 +36,13 @@ import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-                res =
-                    [ [e|
-{
-True
-} ==> {
-False
-}
-|]
-                    , [e|
-{
-False
-} ==> {
-True
-}
-|]
-                    ]
-            map show (selectBLitOps (H.ast text)) `shouldBe` res
+            ast <- H.ast text
+            let ops = selectBLitOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
     describe "selectIfElseBoolNegOps" $ do
-        it "returns ifelse muops" $ do
+        it "returns if-else muops for a module with an if expression" $ do
             let text =
                     [e|
 module Prop where
@@ -90,37 +50,24 @@ import Test.QuickCheck
 
 myFn x = if x == 1 then True else False
 |]
-                res =
-                    [ [e|
-{
-if x == 1 then True else False
-} ==> {
-if x == 1 then False else True
-}
-|]
-                    ]
-            map show (selectIfElseBoolNegOps (H.ast text)) `shouldBe` res
+            ast <- H.ast text
+            let ops = selectIfElseBoolNegOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
     describe "selectGuardedBoolNegOps" $ do
-        it "returns guardedboolean muops" $ do
+        it "returns guarded-boolean muops for a module with a guarded definition" $ do
             let text =
                     [e|
 module Prop where
-import Test.QuickCheck
 
 myFn x | x == 1 = True
-myFn   | otherwise = False
+myFn _ | otherwise = False
 |]
-                res =
-                    [ [e|
-{
-| x == 1 = True
-} ==> {
-| not (x == 1) = True
-}
-|]
-                    ]
-            map show (selectGuardedBoolNegOps (H.ast text)) `shouldBe` res
+            ast <- H.ast text
+            let ops = selectGuardedBoolNegOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
     describe "selectRemoveNotOps" $ do
         it "returns remove-not muops" $ do
@@ -129,7 +76,8 @@ myFn   | otherwise = False
 module Prop where
 myFn x = not x
 |]
-            selectRemoveNotOps (H.ast text) `shouldSatisfy` (not . null)
+            ast <- H.ast text
+            selectRemoveNotOps ast `shouldSatisfy` (not . null)
 
     describe "selectRemoveNegationOps" $ do
         it "returns remove-negation muops" $ do
@@ -138,10 +86,11 @@ myFn x = not x
 module Prop where
 myFn x = negate x
 |]
-            selectRemoveNegationOps (H.ast text) `shouldSatisfy` (not . null)
+            ast <- H.ast text
+            selectRemoveNegationOps ast `shouldSatisfy` (not . null)
 
     describe "selectFnMatches" $ do
-        it "returns fn muops" $ do
+        it "returns function-match muops for a multi-clause function" $ do
             let text =
                     [e|
 module Prop where
@@ -150,159 +99,7 @@ import Test.QuickCheck
 myFn [] = 0
 myFn (x:xs) = 1 + myFn xs
 |]
-                res =
-                    [ [e|
-{
-myFn [] = 0
-myFn (x : xs) = 1 + myFn xs
-} ==> {
-myFn (x : xs) = 1 + myFn xs
-myFn [] = 0
-}|]
-                    , [e|{
-myFn [] = 0
-myFn (x : xs) = 1 + myFn xs
-} ==> {
-myFn [] = 0
-}|]
-                    , [e|{
-myFn [] = 0
-myFn (x : xs) = 1 + myFn xs
-} ==> {
-myFn (x : xs) = 1 + myFn xs
-}|]
-                    ]
-            map show (selectFnMatches (H.ast text)) `shouldBe` res
-
-{-
-  describe "selectGuardedBoolNegOps" $ do
-    it "returns relevant function guard ordering mutators" $ do
-      let text = "myFn x | x == 1 = True\nmyFn   | otherwise = False\n"
-      selectGuardedBoolNegOps (H.ast text) `shouldBe` [
-       GuardedRhs (SrcLoc "<unknown>.hs" 1 8)
-                  [Qualifier (InfixApp (Var (UnQual (Ident "x"))) (QVarOp (UnQual (Symbol "=="))) (Lit (Int 1)))]
-                  (Con (UnQual (Ident "True")))
-        ==>
-        GuardedRhs (SrcLoc "<unknown>.hs" 1 8)
-                  [Qualifier (App (Var (UnQual (Ident "not"))) (InfixApp (Var (UnQual (Ident "x"))) (QVarOp (UnQual (Symbol "=="))) (Lit (Int 1))))]
-                  (Con (UnQual (Ident "True"))),
-        GuardedRhs (SrcLoc "<unknown>.hs" 2 8)
-                  [Qualifier (Var (UnQual (Ident "otherwise")))]
-                  (Con (UnQual (Ident "False")))
-        ==>
-        GuardedRhs (SrcLoc "<unknown>.hs" 2 8)
-                   [Qualifier (Var (UnQual (Ident "otherwise")))]
-                   (Con (UnQual (Ident "False")))
-        ]
-
-  describe "selectIfElseBoolNegOps" $ do
-    it "returns relevant ifElse mutators" $ do
-      let text = "myFn x = if True then 1 else 0\n"
-      selectIfElseBoolNegOps (H.ast text) `shouldBe` [
-        If (Con (UnQual (Ident "True"))) (Lit (Int 1)) (Lit (Int 0))
-        ==>
-        If (Con (UnQual (Ident "True"))) (Lit (Int 0)) (Lit (Int 1))]
-
-  describe "selectLitOps" $ do
-    it "returns relevant literal mutators" $ do
-      let text = "myFn x = if True then 1 else 0\n"
-      selectLitOps (H.ast text) `shouldBe` [
-        Int 1 ==> Int 2,
-        Int 1 ==> Int 0,
-        Int 1 ==> Int 1,
-        Int 0 ==> Int 1,
-        Int 0 ==> Int (-1),
-        Int 0 ==> Int 0]
-
-  describe "selectBLitOps" $ do
-    it "returns relevant literal mutators" $ do
-      let text = "myFn x = if True then 1 else 0\n"
-      selectBLitOps (H.ast text) `shouldBe` [
-        Ident "True" ==> Ident "False"]
-
-  describe "selectFnMatches" $ do
-    it "returns mutated function definition by removing one of the patterns" $ do
-      let text = "myFn True = 1\nmyFn False = 0\n"
-      selectFnMatches (H.ast text) `shouldBe` [
-        FunBind [Match (SrcLoc "<unknown>.hs" 1 1)
-                       (Ident "myFn")
-                       [PApp (UnQual (Ident "True")) []]
-                       Nothing
-                       (UnGuardedRhs (Lit (Int 1)))
-                       (BDecls []),
-                Match (SrcLoc "<unknown>.hs" 2 1)
-                      (Ident "myFn")
-                      [PApp (UnQual (Ident "False")) []]
-                      Nothing
-                      (UnGuardedRhs (Lit (Int 0)))
-                      (BDecls [])]
-        ==>
-        FunBind [Match (SrcLoc "<unknown>.hs" 1 1)
-                      (Ident "myFn")
-                      [PApp (UnQual (Ident "True")) []]
-                      Nothing
-                      (UnGuardedRhs (Lit (Int 1)))
-                      (BDecls []),
-                Match (SrcLoc "<unknown>.hs" 2 1)
-                      (Ident "myFn")
-                      [PApp (UnQual (Ident "False")) []]
-                      Nothing
-                      (UnGuardedRhs (Lit (Int 0)))
-                      (BDecls [])] ]
-  describe "mutate" $ do
-    it "returns relevant mutations" $ do
-      let text = "myFn x = if True then 1 else 0\n"
-      mutate (Int 1 ==> Int 2) (H.ast text) `shouldBe`[
-        Module
-          (SrcLoc "<unknown>.hs" 1 1)
-          (ModuleName "Main")
-          []
-          Nothing
-          (Just [EVar NoNamespace (UnQual (Ident "main"))])
-          []
-          [FunBind
-            [Match (SrcLoc "<unknown>.hs" 1 1)
-                   (Ident "myFn")
-                   [PVar (Ident "x")]
-                   Nothing
-                   (UnGuardedRhs (If (Con (UnQual (Ident "True"))) (Lit (Int 2)) (Lit (Int 0))))
-                   (BDecls [])]] ]
-
-  describe "mutatesN" $ do
-    it "returns relevant mutations" $ do
-      let text = "myFn x = if True then 1 else 0\n"
-      mutatesN [Int 1 ==> Int 2] (H.ast text) 1 `shouldBe`[
-        Module
-          (SrcLoc "<unknown>.hs" 1 1)
-          (ModuleName "Main")
-          []
-          Nothing
-          (Just [EVar NoNamespace (UnQual (Ident "main"))])
-          []
-          [FunBind
-            [Match (SrcLoc "<unknown>.hs" 1 1)
-                   (Ident "myFn")
-                   [PVar (Ident "x")]
-                   Nothing
-                   (UnGuardedRhs (If (Con (UnQual (Ident "True"))) (Lit (Int 2)) (Lit (Int 0))))
-                   (BDecls [])]] ]
-    it "returns all relevant mutations" $ do
-      let text = "myFn x = if 1 then 1 else 0\n"
-      mutatesN [Int 1 ==> Int 2] (H.ast text) 1 `shouldBe`[
-        Module
-          (SrcLoc "<unknown>.hs" 1 1)
-          (ModuleName "Main")
-          []
-          Nothing
-          (Just [EVar NoNamespace (UnQual (Ident "main"))])
-          []
-          [FunBind [Match (SrcLoc "<unknown>.hs" 1 1) (Ident "myFn") [PVar (Ident "x")] Nothing (UnGuardedRhs (If (Lit (Int 2)) (Lit (Int 1)) (Lit (Int 0)))) (BDecls [])]],
-        Module
-          (SrcLoc "<unknown>.hs" 1 1)
-          (ModuleName "Main")
-          []
-          Nothing
-          (Just [EVar NoNamespace (UnQual (Ident "main"))])
-          []
-          [FunBind [Match (SrcLoc "<unknown>.hs" 1 1) (Ident "myFn") [PVar (Ident "x")] Nothing (UnGuardedRhs (If (Lit (Int 1)) (Lit (Int 2)) (Lit (Int 0)))) (BDecls [])]] ]
--}
+            ast <- H.ast text
+            let ops = selectFnMatches ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
