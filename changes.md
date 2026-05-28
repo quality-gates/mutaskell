@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.4.19]
+  * Add `--workers N` flag: evaluate mutants concurrently using N subprocess workers; hint is not thread-safe so each worker is a fresh process; output is synchronized through the parent to prevent interleaved lines
+
 ## [0.4.18]
   * Fixed: HPC module name lookup to correctly handle package/target prefixes
   * Fixed: HPC .mix file loading robustness for flattened .hpc directories (common in CI)

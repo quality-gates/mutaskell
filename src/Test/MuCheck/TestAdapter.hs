@@ -14,7 +14,7 @@ data (Summarizable a) => InterpreterOutput a = Io {_io :: Either I.InterpreterEr
 
 -- | Holding mutant information
 data Mutant = Mutant {_mutant :: String, _mtype :: MuVar, _mspan :: Span}
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 -- | Convert a tuple to a mutant
 toMutant :: (MuVar, Span, String) -> Mutant
@@ -25,7 +25,7 @@ type TestStr = String
 
 -- | Summary of test run
 newtype Summary = Summary String
-  deriving (Show)
+  deriving (Show, Read)
 
 -- | Interface to be implemented by a test framework
 class (Typeable s) => Summarizable s where

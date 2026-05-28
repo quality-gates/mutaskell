@@ -1,26 +1,27 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import Control.Concurrent (forkIO, killThread, threadDelay)
+import Control.Concurrent (forkIO, killThread, threadDelay, newEmptyMVar, putMVar, takeMVar)
+import Control.Concurrent.QSem (newQSem, waitQSem, signalQSem)
 import Control.Exception (IOException, try)
-import Control.Monad (unless, when, forM_)
+import Control.Monad (forM, unless, when, forM_)
 import Data.Char (isSpace)
 import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.List (group, intercalate, isInfixOf, isPrefixOf, isSuffixOf, nub, sort, sortBy, stripPrefix)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
-import System.Directory (listDirectory)
-import System.Environment (getArgs)
+import System.Directory (listDirectory, removeFile, getTemporaryDirectory)
+import System.Environment (getArgs, getExecutablePath)
 import System.Exit (ExitCode(..), exitWith)
 import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
-import System.Process (readProcess)
+import System.Process (createProcess, proc, waitForProcess, readProcess)
 
 import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
-import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
+import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants, summaryFromMutantSummaries)
 import Test.MuCheck.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
-import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
+import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summary(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Tix (spanStartLine)
 import Test.MuCheck.Utils.Print
@@ -65,6 +66,8 @@ data Opts = Opts
   , optIgnoreLines  :: [String]
   , optSkipWithoutTest :: Bool
   , optExcludeDirs  :: [String]
+  , optWorkers      :: Int
+  , optWorkerOutput :: Maybe FilePath
   }
 
 defaultOpts :: Opts
@@ -106,6 +109,8 @@ defaultOpts = Opts
   , optIgnoreLines  = []
   , optSkipWithoutTest = False
   , optExcludeDirs  = []
+  , optWorkers      = 1
+  , optWorkerOutput = Nothing
   }
 
 knownConfigKeys :: [String]
@@ -114,7 +119,7 @@ knownConfigKeys =
   , "max_mutants", "json_output", "html_output"
   , "disable_mutators", "enable_mutators"
   , "ignore_source_lines", "skip_without_test"
-  , "exclude_dirs"
+  , "exclude_dirs", "workers"
   ]
 
 -- | Load config and return either an error string or a transformer.
@@ -182,6 +187,9 @@ applyYamlConfig pairs opts = foldl applyPair opts pairs
       | otherwise                       = o
     applyPair o ("exclude_dirs", v) =
       o { optExcludeDirs = optExcludeDirs o ++ parseYamlList v }
+    applyPair o ("workers", v) = case (reads v, optWorkers o) of
+      ([(i, "")], 1) -> o { optWorkers = i }
+      _              -> o
     applyPair o _ = o
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
@@ -275,6 +283,13 @@ parseOptsFrom base = go base
     go _    ("--test-args"      : [])   = Left "--test-args requires an argument"
     go opts ("--test-args" : a  : rest) = go opts { optTestArgs = optTestArgs opts ++ [a] } rest
     go opts ("--coverage"       : rest) = go opts { optCoverage = True } rest
+    go _    ("--workers"        : [])   = Left "--workers requires an integer argument"
+    go opts ("--workers" : n    : rest) =
+      case reads n of
+        [(i, "")] -> go opts { optWorkers = i } rest
+        _         -> Left $ "--workers requires an integer argument, got: " ++ n
+    go _    ("--worker-output"   : [])   = Left "--worker-output requires a file path argument"
+    go opts ("--worker-output" : f : rest) = go opts { optWorkerOutput = Just f } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -363,7 +378,8 @@ runOpts opts
               MSumError   _ _ _ -> (k,   a,   e+1, sk)
               MSumSkipped _ _   -> (k,   a,   e,   sk+1)
               MSumOther   _ _   -> (k+1, a,   e,   sk)
-            suppressProgress = optQuiet opts || optSilent opts
+            suppressProgress = optQuiet opts || optSilent opts || workerMode
+            workerMode = optWorkerOutput opts /= Nothing
             mcallback = if suppressProgress || total == 0 then Nothing else Just progressCallback
         let progressLoop = do
               (k,a,e,sk) <- readIORef progressRef
@@ -377,7 +393,12 @@ runOpts opts
         mtid <- if suppressProgress || total == 0
           then return Nothing
           else fmap Just (forkIO progressLoop)
-        (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
+        (fsum', tsum) <-
+          if optWorkers opts > 1
+            then do
+              origArgs <- getArgs
+              runWithWorkers (optWorkers opts) origArgs finalMutants progressCallback
+            else evaluateMutants 1 timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
         case mtid of
           Nothing  -> return ()
           Just tid -> do
@@ -391,6 +412,14 @@ runOpts opts
               ++ " error=" ++ show e ++ " skip=" ++ show sk ++ "   "
             hPutStrLn stderr ""
             hFlush stderr
+        -- Worker subprocess mode: write the single MutantSummary to a file and exit.
+        case optWorkerOutput opts of
+          Just outFile -> do
+            case tsum of
+              (ms : _) -> writeFile outFile (workerSerialize ms)
+              []       -> return ()  -- parent will detect missing file as an error
+            exitWith ExitSuccess
+          Nothing -> return ()
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
@@ -409,6 +438,90 @@ runOpts opts
 -- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
 isSingleMutantMode :: Opts -> Bool
 isSingleMutantMode = maybe False (const True) . optRunMutantId
+
+-- | Run mutant evaluation using N parallel worker subprocesses.
+-- Each worker is a fresh mucheck process that evaluates a single mutant via
+-- @--run-mutant-id@ and writes its 'MutantSummary' to a temp file.
+-- hint is not thread-safe; process-level isolation provides safety.
+runWithWorkers :: Int -> [String] -> [Mutant] -> (MutantSummary -> IO ()) -> IO (MAnalysisSummary, [MutantSummary])
+runWithWorkers numWorkers origArgs mutants callback = do
+  exe    <- getExecutablePath
+  tmpDir <- getTemporaryDirectory
+  let baseArgs = filterWorkerArgs origArgs
+  sem    <- newQSem numWorkers
+  -- Launch one managing thread per mutant; semaphore limits concurrent workers.
+  resultVars <- forM mutants $ \mutant -> do
+    var <- newEmptyMVar
+    _ <- forkIO $ do
+      waitQSem sem
+      result <- evalOneWorker exe tmpDir baseArgs mutant
+      callback result
+      putMVar var result
+      signalQSem sem
+    return var
+  summaries <- mapM takeMVar resultVars
+  return (summaryFromMutantSummaries summaries, summaries)
+
+-- | Evaluate a single mutant by spawning a fresh mucheck subprocess.
+evalOneWorker :: FilePath -> FilePath -> [String] -> Mutant -> IO MutantSummary
+evalOneWorker exe tmpDir baseArgs mutant = do
+  let mid        = hash (_mutant mutant)
+      resultFile = tmpDir ++ "/mucheck-worker-" ++ mid ++ ".txt"
+      childArgs  = ["--run-mutant-id", mid, "--worker-output", resultFile] ++ baseArgs
+  (_, _, _, ph) <- createProcess (proc exe childArgs)
+  ec <- waitForProcess ph
+  case ec of
+    ExitSuccess -> do
+      eContent <- try $ do
+        str <- readFile resultFile
+        let n = length str  -- force strict read before we delete
+        n `seq` return str
+      _ <- try (removeFile resultFile) :: IO (Either IOException ())
+      case eContent of
+        Left  ioerr ->
+          return $ MSumError mutant ("worker: read error: " ++ show (ioerr :: IOException)) []
+        Right content -> return $ workerDeserialize mutant content
+    ExitFailure code ->
+      return $ MSumError mutant ("worker: subprocess exited with code " ++ show code) []
+
+-- | Serialize a 'MutantSummary' to the simple line-based worker IPC format.
+-- Does not serialize the 'Mutant' body; the parent already holds that.
+workerSerialize :: MutantSummary -> String
+workerSerialize ms =
+  let (tag, logS, err) = case ms of
+        MSumKilled  _ l   -> ("killed",  l, "")
+        MSumAlive   _ l   -> ("alive",   l, "")
+        MSumError   _ e l -> ("error",   l, e)
+        MSumSkipped _ l   -> ("skipped", l, "")
+        MSumOther   _ l   -> ("other",   l, "")
+      logPaths = [p | Summary p <- logS]
+  in unlines ([tag, err, show (length logPaths)] ++ logPaths)
+
+-- | Deserialize a 'MutantSummary' from the worker IPC format.
+-- Uses the supplied 'Mutant' (which the parent already holds) for the body.
+workerDeserialize :: Mutant -> String -> MutantSummary
+workerDeserialize mutant txt =
+  case lines txt of
+    (tag : err : logCountStr : rest) ->
+      case reads logCountStr :: [(Int, String)] of
+        [(n, "")] ->
+          let logS = map Summary (take n rest)
+          in case tag of
+               "killed"  -> MSumKilled  mutant logS
+               "alive"   -> MSumAlive   mutant logS
+               "error"   -> MSumError   mutant err logS
+               "skipped" -> MSumSkipped mutant logS
+               _         -> MSumOther   mutant logS
+        _ -> MSumError mutant "worker: parse error in result file" []
+    _ -> MSumError mutant "worker: parse error in result file" []
+
+-- | Remove flags that must not be forwarded to worker subprocesses.
+filterWorkerArgs :: [String] -> [String]
+filterWorkerArgs []                             = []
+filterWorkerArgs ("--workers"      : _ : rest)  = filterWorkerArgs rest
+filterWorkerArgs ("--run-mutant-id": _ : rest)  = filterWorkerArgs rest
+filterWorkerArgs ("--worker-output": _ : rest)  = filterWorkerArgs rest
+filterWorkerArgs (x                : rest)       = x : filterWorkerArgs rest
 
 -- | Resolve the per-mutant timeout in microseconds.
 -- If --timeout-coefficient is set, measure baseline runtime and scale it.
@@ -1038,6 +1151,7 @@ help = putStrLn $ showAS
   , "  --logger-github FILE        Write GitHub Actions annotations for escaped mutants to FILE"
   , "  --logger-gitlab FILE        Write GitLab Code Quality JSON for escaped mutants to FILE"
   , "  --logger-agentic-json FILE  Write per-mutant JSON for LLM consumption to FILE"
+  , "  --workers N                 Number of parallel worker processes (default: 1)"
   , ""
   , "CONFIG FILE (.mucheck.yaml, auto-loaded from project root):"
   , "  min_msi: 80               Minimum required MSI (0-100)"
@@ -1047,6 +1161,7 @@ help = putStrLn $ showAS
   , "  disable_mutators: [a, b]  Mutator names to skip"
   , "  enable_mutators: [a, b]   Restrict to named mutators"
   , "  exclude_dirs: [a, b]      Skip target if its path starts with any listed prefix"
+  , "  workers: 4                Number of parallel worker processes"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"

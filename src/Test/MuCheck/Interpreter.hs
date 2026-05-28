@@ -4,7 +4,7 @@
 {- | The Interpreter module is responible for invoking the Hint interpreter to
 evaluate mutants.
 -}
-module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary (..), isSkippedSummary) where
+module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, summaryFromMutantSummaries, MutantSummary (..), isSkippedSummary) where
 
 import Control.Exception (IOException, try)
 import Control.Monad (when)
@@ -29,16 +29,32 @@ data MutantSummary = MSumError Mutant String [Summary]         -- ^ Interpreter 
                    | MSumAlive Mutant [Summary]                -- ^ The mutant was alive
                    | MSumKilled Mutant [Summary]               -- ^ The mutant was killed
                    | MSumOther Mutant [Summary]                -- ^ Undetermined - we will treat it as killed as it is not a success.
-                   deriving (Show)
+                   deriving (Show, Read)
 
 -- | True when the summary represents a non-compilable (skipped) mutant.
 isSkippedSummary :: MutantSummary -> Bool
 isSkippedSummary (MSumSkipped _ _) = True
 isSkippedSummary _                 = False
 
+-- | Build an 'MAnalysisSummary' directly from a list of per-mutant results.
+-- Use this when results were collected outside the normal 'evaluateMutants' call
+-- (e.g. from parallel worker subprocesses).
+summaryFromMutantSummaries :: [MutantSummary] -> MAnalysisSummary
+summaryFromMutantSummaries sums = MAnalysisSummary
+  { _maCoveredNumMutants = -1
+  , _maNumMutants        = length sums
+  , _maAlive             = length [() | MSumAlive   _ _   <- sums]
+  , _maKilled            = length [() | MSumKilled  _ _   <- sums]
+                         + length [() | MSumOther   _ _   <- sums]
+  , _maErrors            = length [() | MSumError   _ _ _ <- sums]
+  , _maSkipped           = length [() | MSumSkipped _ _   <- sums]
+  }
+
 -- | Given the list of tests suites to check, run the test suite on mutants.
 evaluateMutants ::
     (Show b, Summarizable b, TRun a b) =>
+    -- | Number of parallel worker processes
+    Int ->
     -- | Optional timeout in microseconds
     Maybe Int ->
     -- | Optional directory to keep mutant files in (Nothing = system temp, deleted after)
@@ -55,7 +71,7 @@ evaluateMutants ::
     [TestStr] ->
     -- | Returns a tuple of full run summary and individual mutant summary
     IO (MAnalysisSummary, [MutantSummary])
-evaluateMutants mtimeout keepDir extraArgs mcallback m mutants tests = do
+evaluateMutants _numWorkers mtimeout keepDir extraArgs mcallback m mutants tests = do
     mutantDir <- resolveMutantDir keepDir
     let doDelete = keepDir == Nothing
         evalOne mutant = do
