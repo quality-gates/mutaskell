@@ -28,12 +28,14 @@ spec = describe "integration" $ do
         case result of
             Left err ->
                 expectationFailure $ "mucheck returned an error: " ++ err
+                    ++ " (projDir=" ++ projDir ++ ")"
             Right (summary, _mutantSummaries) -> do
                 _maNumMutants summary `shouldSatisfy` (> 0)
                 -- Include a diagnostic breakdown in the failure message so that
                 -- CI logs make the classification visible without needing to
                 -- change the assertion semantics.
-                let diag = "killed=" ++ show (_maKilled summary)
+                let diag = "projDir=" ++ projDir
+                         ++ " killed=" ++ show (_maKilled summary)
                          ++ " alive=" ++ show (_maAlive summary)
                          ++ " errors=" ++ show (_maErrors summary)
                          ++ " skipped=" ++ show (_maSkipped summary)
