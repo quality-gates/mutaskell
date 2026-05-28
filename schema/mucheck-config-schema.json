@@ -67,6 +67,11 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "List of path prefixes (relative to project root); skip mutation if the target file path starts with any listed prefix."
+    },
+    "workers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of parallel subprocess workers (default 1). Overridden by the --workers CLI flag."
     }
   }
 }
