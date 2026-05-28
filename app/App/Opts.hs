@@ -20,6 +20,7 @@ import Data.Char (isSpace)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import Options.Applicative
+import Options.Applicative.Help.Pretty (Doc, vsep, pretty)
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Yaml as Yaml
@@ -360,19 +361,24 @@ optsParserInfo base = info (optsParser base <**> helper)
     ( fullDesc
     <> progDesc "Mutation testing for Haskell source files"
     <> header "mucheck - automated mutation testing"
-    <> footer (unlines
-        [ "Mutator names (for --disable / --enable):"
-        , "  pattern-match  literal-values  functions"
-        , "  negate-if-else  negate-guards  remove-not  remove-negation"
-        , "  Trailing '*' is a prefix wildcard, e.g. 'other:*'"
-        , ""
-        , "Exit codes:"
-        , "  0  Tests ran; no quality gate triggered"
-        , "  2  Bad arguments"
-        , "  3  Pre-flight failure (--noop: tests fail on original source)"
-        , "  4  Escaped mutants (--fail-on-escaped)"
-        , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
-        ]) )
+    <> footerDoc (Just footerText) )
+
+footerText :: Doc
+footerText = vsep (map pretty
+    [ "Mutator names (for --disable / --enable):"
+    , "  pattern-match  literal-values  functions"
+    , "  negate-if-else  negate-guards  remove-not  remove-negation"
+    , "  other:remove-stmt  other:negate-literal  other:case-alt-remove  ..."
+    , "  (run --dry-run FILE to see all mutators active for a given source file)"
+    , "  Trailing '*' is a prefix wildcard, e.g. 'other:*' disables all other:* mutators"
+    , ""
+    , "Exit codes:"
+    , "  0  Tests ran; no quality gate triggered"
+    , "  2  Bad arguments"
+    , "  3  Pre-flight failure (--noop: tests fail on original source)"
+    , "  4  Escaped mutants (--fail-on-escaped)"
+    , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
+    ])
 
 -- | Parse CLI args into 'Opts', starting from 'defaultOpts'.
 parseOpts :: [String] -> Either String Opts
