@@ -114,7 +114,7 @@ getSpan m = (startLine, startCol, endLine, endCol)
     getSpan' (R (a, _)) = ann a
     lspan = srcInfoSpan $ getSpan' m
 
-{- | The function `same` applies on a `MuOP` determining if transformation is
+{- | The function `same` applies on a `MuOp` determining if transformation is
 between same values.
 -}
 same :: MuOp -> Bool

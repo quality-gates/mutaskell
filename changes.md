@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.23]
+  * Fixed: `evalTest` now discovers the `.ghc.environment.*` file in the current directory and passes it to `unsafeRunInterpreterWithArgs` via `-package-env`; on GHC 9.8+ the GHC API no longer reads this file automatically, causing hint to report `WontCompile` for every mutant that imported a project-local package (the entire integration test suite was producing 0 kills); this restores correct behaviour across all supported GHC versions
+  * Fixed: `evalMutant` now writes each mutant to a path matching its module name (e.g. `<tmpdir>/<hash>/Examples/AssertCheckTest.hs` for `module Examples.AssertCheckTest`) so that GHC can load it correctly via hint regardless of whether the version enforces file-path/module-name correspondence; previously all mutants were `WontCompile`-skipped on GHC 9.8.2 in CI
+  * Fixed: `allTests` now combines both `{-# ANN #-}` annotation-based and naming-convention-based (`prop_*`, `test_*`, `spec_*`) test discovery rather than treating conventions as a fallback; a module that mixes both styles no longer silently drops convention-named tests from evaluation
+  * Fixed: `getMix` in `Test.MuCheck.Tix` now returns `IO (Either String Mix)` instead of calling `error`; a missing `.mix` file prints `"Coverage error: cannot find <module> in .hpc — is the test suite built with -fhpc?"` to stderr and exits with code 2
+  * Fixed: `--worker-output` is confirmed absent from the user-facing help text (`mucheck -h`); it remains parseable for internal subprocess IPC use only
+  * Fixed: both `--logger-json` and `--logger-agentic-json` outputs confirmed to use a consistent 0–1 float scale for `msi`; added a README section documenting the `--logger-json` output format with a JSON example
+  * Changed: `Examples/AssertCheckTest.hs` updated to demonstrate naming-convention auto-discovery (`test_*` and `prop_*` prefixes) alongside the legacy `{-# ANN #-}` annotation; `Examples/Main.hs` updated accordingly
+  * Fixed: `test/Spec.hs` cleaned up — removed dead manual `main`/`spec` wiring that conflicted with the active `hspec-discover` pragma; added a comment explaining that new `*Spec.hs` files are picked up automatically
+  * Added: `test/Test/MuCheck/IntegrationSpec.hs` — end-to-end test that calls the `mucheck` library function on `Examples/AssertCheckTest.hs` and asserts kills > 0 and count consistency; run selectively with `--test-option=--match --test-option="/integration/"`
+  * Added: extended `Test.MuCheck.CLISpec` with 18 tests covering flag round-trips, bad-argument error messages, and config-file override behaviour
+  * Fixed: reached 100% Haddock coverage across all modules; addressed missing documentation in `AssertCheck`, `AssertCheckAdapter`, and `Print`; fixed stale `testSummaryFn` and `MuOP` references in docstrings
+
 ## [0.4.22]
   * Fixed: passing both `--enable` and `--disable` together now exits with code 2 and a clear error message instead of silently letting `--enable` win
   * Changed: extracted `Opts`, `parseOptsFrom`, and related config functions into a new `App.Opts` module so the test suite can exercise CLI parsing directly

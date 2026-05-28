@@ -9,11 +9,13 @@ module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTe
 import Control.Exception (IOException, try)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
+import Data.Char (isAlphaNum)
 import Data.Either (partitionEithers)
-import Data.List (partition)
+import Data.List (isPrefixOf, partition)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import System.Directory (createDirectoryIfMissing, removeFile)
+import qualified Language.Haskell.Interpreter.Unsafe as IU
+import System.Directory (createDirectoryIfMissing, getCurrentDirectory, listDirectory, removeDirectoryRecursive)
 import System.Environment (withArgs)
 import System.IO.Temp (getCanonicalTemporaryDirectory)
 import System.Timeout (timeout)
@@ -93,8 +95,32 @@ resolveMutantDir :: Maybe FilePath -> IO FilePath
 resolveMutantDir (Just dir) = createDirectoryIfMissing True dir >> return dir
 resolveMutantDir Nothing    = getCanonicalTemporaryDirectory
 
+-- | Extract the module name from the first line of a Haskell source string.
+-- Returns @\"Main\"@ if no @module@ declaration is found.
+extractModuleName :: String -> String
+extractModuleName src =
+    case dropWhile (not . ("module " `isPrefixOf`)) (lines src) of
+        []    -> "Main"
+        (l:_) -> let rest = drop (length "module ") l
+                     name = takeWhile (\c -> isAlphaNum c || c == '.') rest
+                 in if null name then "Main" else name
+
+-- | Convert a dotted module name to a relative file path.
+-- E.g. @\"Examples.AssertCheckTest\"@ becomes @\"Examples\/AssertCheckTest.hs\"@.
+moduleNameToPath :: String -> FilePath
+moduleNameToPath modName = map dotToSlash modName ++ ".hs"
+  where dotToSlash '.' = '/'
+        dotToSlash c   = c
+
+-- | Return the directory portion of a file path (everything up to the last @\/@).
+-- Returns @\".\"@ for paths without a directory component.
+parentDir :: FilePath -> FilePath
+parentDir p = case reverse (dropWhile (/= '/') (reverse p)) of
+    []  -> "."
+    dir -> init dir  -- drop trailing slash
+
 -- | The `summarizeResults` function evaluates the results of a test run
--- using the supplied `isSuccess` and `testSummaryFn` functions from the adapters
+-- using the supplied `isSuccess` and `summarize_` functions from the adapters
 summarizeResults :: (Summarizable s, TRun a s) =>
      a                                                            -- ^ The module to be evaluated
   -> [TestStr]                                                    -- ^ Tests we used to run analysis
@@ -131,18 +157,25 @@ evalMutant ::
     -- | Returns the result of test runs
     IO [InterpreterOutput t]
 evalMutant mtimeout doDelete mutantDir extraArgs tests Mutant{..} = do
-    let mutantFile = mutantDir ++ "/" ++ hash _mutant ++ ".hs"
+    -- Write the mutant file to a path matching its module name so that GHC
+    -- (via hint) can load it regardless of whether it enforces the
+    -- file-path/module-name correspondence (behaviour that varies by GHC
+    -- version).  A per-mutant hash subdirectory keeps concurrent mutants
+    -- for the same module from colliding.
+    let hashDir    = mutantDir ++ "/" ++ hash _mutant
+        modRelPath = moduleNameToPath (extractModuleName _mutant)
+        mutantFile = hashDir ++ "/" ++ modRelPath
         logF       = mutantFile ++ ".log"
 
     say mutantFile
 
+    createDirectoryIfMissing True (parentDir mutantFile)
     writeResult <- try (writeFile mutantFile _mutant) :: IO (Either IOException ())
     result <- case writeResult of
         Left err -> return [Io{_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
         Right () -> stopFast (evalTest mtimeout extraArgs mutantFile logF) tests
     when doDelete $ do
-        _ <- try (removeFile mutantFile) :: IO (Either IOException ())
-        _ <- try (removeFile logF)       :: IO (Either IOException ())
+        _ <- try (removeDirectoryRecursive hashDir) :: IO (Either IOException ())
         return ()
     return result
 
@@ -195,7 +228,15 @@ evalTest ::
     -- | Returns the output of given test run
     IO (InterpreterOutput a)
 evalTest mtimeout extraArgs mutantFile logF test = do
-    let runAction = withArgs extraArgs $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+    -- On GHC 9.8+ the GHC API does not automatically read the
+    -- .ghc.environment.* file written by `cabal build
+    -- --write-ghc-environment-files=always`.  Detect the file in the current
+    -- working directory and pass it explicitly via `-package-env` so that
+    -- hint can find packages registered only in the local package database
+    -- (e.g. the MuCheck library itself when the test suite runs it inline).
+    pkgEnvArgs <- findPkgEnvArgs
+    let runAction = withArgs extraArgs $ catchOutput logF $
+                        IU.unsafeRunInterpreterWithArgs pkgEnvArgs (evalMethod mutantFile test)
     mval <- case mtimeout of
         Nothing -> Just <$> runAction
         Just t -> timeout t runAction
@@ -203,6 +244,19 @@ evalTest mtimeout extraArgs mutantFile logF test = do
             Nothing -> Left (I.UnknownError "Timeout occurred")
             Just v -> v
     return Io{_io = val, _ioLog = logF}
+
+-- | Detect any @.ghc.environment.*@ file in the current directory and return
+-- the corresponding @[\"-package-env\", \<file\>]@ arguments for
+-- 'I.runInterpreterWithArgs'.  Returns @[]@ when no environment file is found
+-- (e.g. in a plain @ghc@ or @runhaskell@ invocation without cabal).
+findPkgEnvArgs :: IO [String]
+findPkgEnvArgs = do
+    cwd   <- getCurrentDirectory
+    files <- listDirectory cwd
+    let envFiles = filter (".ghc.environment." `isPrefixOf`) files
+    case envFiles of
+        (f:_) -> return ["-package-env", cwd ++ "/" ++ f]
+        []    -> return []
 
 {- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 

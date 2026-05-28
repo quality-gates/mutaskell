@@ -62,6 +62,7 @@ redirectToHandle f tmph = do
     hDuplicateTo stderr_dup stderr
     return res
 
+-- | Conditionally print a message if MuDEBUG is set
 say :: String -> IO ()
 say str = do
     isdebug <- lookupEnv "MuDEBUG"

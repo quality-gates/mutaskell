@@ -64,11 +64,14 @@ make hpcex
 
 Currently `MuCheck` is restricted to running mutation analysis on a single
 module at a time. In order for it to work, the module being tested should
-contain the tests also. Further the tests should be annotated with
-```
-{-# ANN <function name> "Test" #-}
-```
-If you have supporting functions, they should be annotated with "TestSupport".
+contain the tests also.
+
+MuCheck discovers test functions in two ways:
+
+1. **Naming convention**: Functions whose names start with `prop_`, `test_`, or `spec_` are picked up automatically.
+2. **Annotation**: Any function annotated with `{-# ANN <name> "Test" #-}` is treated as a test. Use this as an opt-in override for names that do not follow a convention.
+
+If you have supporting functions that should not be mutated, annotate them with `{-# ANN <name> "TestSupport" #-}`.
 This allows MuCheck to find the tests to run, and also to figure out which of
 the functions to leave alone while mutating.
 
@@ -144,6 +147,24 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `-tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
+
+### JSON logger output
+
+The `--logger-json FILE` flag writes a compact JSON summary after each run. The `msi` and `covered_code_msi` fields are always reported on a **0–1 scale** (not as percentages):
+
+```json
+{
+  "total": 42,
+  "killed": 30,
+  "alive": 10,
+  "skipped": 2,
+  "errors": 0,
+  "msi": 0.75,
+  "covered_code_msi": 0.80
+}
+```
+
+`covered_code_msi` is `null` when no `-tix` file is provided. The `--logger-agentic-json` output uses the same 0–1 scale for `msi` in its `summary` object.
 
 ### Config file
 

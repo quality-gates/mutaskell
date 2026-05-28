@@ -19,6 +19,7 @@ instance Summarizable AssertCheckSummary where
     isFailure A.AssertSuccess = False
     isOther _ = False
 
+-- | A run of AssertCheck, wrapping the test function name
 newtype AssertCheckRun = AssertCheckRun String
 
 instance TRun AssertCheckRun AssertCheckSummary where

@@ -83,9 +83,11 @@ genMutantsWith config filename tix = do
         -- We have a choice here. We could allow users to specify test specific
         -- coverage rather than a single coverage. This can further reduce the
         -- mutants.
-        c <- getUnCoveredPatches tix modul
+        ec <- getUnCoveredPatches tix modul
         -- check if the mutants span is within any of the covered spans.
-        return $ Right $ case c of
+        case ec of
+          Left err -> return $ Left err
+          Right c  -> return $ Right $ case c of
             Nothing -> (-1, mutants)
             Just v -> (length mutants, removeUncovered v mutants)
 
@@ -327,12 +329,11 @@ getAllTests :: String -> IO (Either String [String])
 getAllTests modname = allTests <$> readFile modname
 
 -- | Given module source, return all marked tests.
--- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
+-- Returns both annotated tests and those discovered by naming conventions.
 allTests :: String -> Either String [String]
 allTests modsrc = do
   ast <- getASTFromStr modsrc
-  let byAnn = getAnn ast "Test"
-  return $ if null byAnn then autoDiscoverTestNames ast else byAnn
+  return $ nub $ getAnn ast "Test" ++ autoDiscoverTestNames ast
 
 -- | The name of a function
 functionName :: Decl_ -> String

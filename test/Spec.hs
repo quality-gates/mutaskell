@@ -1,18 +1,11 @@
+-- | Test entry point.
+--
+-- hspec-discover automatically generates the 'main' function from this file at
+-- compile time (via the @-F -pgmF hspec-discover@ pragma below).  It scans all
+-- directories on the @hs-source-dirs@ path for files whose name ends in
+-- @Spec.hs@ and wires them into a single 'hspec' run.
+--
+-- To add a new test module, create a file named @FooSpec.hs@ anywhere under
+-- @test/@ that exports a @spec :: Spec@ value.  hspec-discover picks it up
+-- automatically — no changes to this file are needed.
 {-# OPTIONS_GHC -F -pgmF hspec-discover #-}
-
-import Test.Hspec
-
-import qualified Debug046Spec
-import qualified Test.MuCheck.Mutation
-import qualified Test.MuCheck.Utils.Common
-import qualified Test.MuCheck.Utils.Print
-
-main :: IO ()
-main = hspec spec
-
-spec :: Spec
-spec = do
-    describe "Common" Test.MuCheck.Utils.CommonSpec.spec
-    describe "Print" Test.MuCheck.Utils.PrintSpec.spec
-    describe "Mutation" Test.MuCheck.MutationSpec.spec
-    describe "Debug046" Debug046Spec.spec
