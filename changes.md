@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.13]
+  * Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, descriptions, context lines, and MSI summary for LLM consumption
+  * Add `--git-diff-lines` flag: restrict mutations to lines changed relative to `--git-diff-base` (requires `--git-diff-base`)
+  * Add `--keep-mutants <dir>` flag: write mutant files to a named directory and preserve them after evaluation
+  * Write mutant files to the system temp directory by default (instead of `.mutants/` in the project); clean up after each evaluation
+  * Cache the parsed AST in `genMutantsWith` to avoid double-parsing the source file
+  * Add 22 MuVar coverage tests ensuring each mutator produces at least one mutant on a minimal canonical input
+  * Enable GitHub Pages for Haddock documentation deployment
+
 ## [0.4.12]
   * Add `--logger-github <file>` flag: write GitHub Actions `::warning` annotations for escaped mutants
   * Add `--logger-gitlab <file>` flag: write a GitLab Code Quality JSON artifact for escaped mutants

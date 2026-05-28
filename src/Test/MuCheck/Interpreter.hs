@@ -7,13 +7,15 @@ evaluate mutants.
 module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary (..), isSkippedSummary) where
 
 import Control.Exception (IOException, try)
+import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import Data.Either (partitionEithers)
 import Data.List (partition)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, removeFile)
 import System.Environment (withArgs)
+import System.IO.Temp (getCanonicalTemporaryDirectory)
 import System.Timeout (timeout)
 
 import Test.MuCheck.AnalysisSummary
@@ -39,6 +41,8 @@ evaluateMutants ::
     (Show b, Summarizable b, TRun a b) =>
     -- | Optional timeout in microseconds
     Maybe Int ->
+    -- | Optional directory to keep mutant files in (Nothing = system temp, deleted after)
+    Maybe FilePath ->
     -- | The module to be evaluated
     a ->
     -- | The mutants to be evaluated
@@ -47,11 +51,19 @@ evaluateMutants ::
     [TestStr] ->
     -- | Returns a tuple of full run summary and individual mutant summary
     IO (MAnalysisSummary, [MutantSummary])
-evaluateMutants mtimeout m mutants tests = do
-    results <- mapM (evalMutant mtimeout tests) mutants -- [InterpreterOutput t]
+evaluateMutants mtimeout keepDir m mutants tests = do
+    mutantDir <- resolveMutantDir keepDir
+    let doDelete = keepDir == Nothing
+    results <- mapM (evalMutant mtimeout doDelete mutantDir tests) mutants
     let singleTestSummaries = zipWith (curry (summarizeResults m tests)) mutants results
         ma = fullSummary m tests results
     return (ma, singleTestSummaries)
+
+-- | Compute the directory to write mutant files into.
+-- If a keep-dir is provided, use it; otherwise use the system temp dir.
+resolveMutantDir :: Maybe FilePath -> IO FilePath
+resolveMutantDir (Just dir) = createDirectoryIfMissing True dir >> return dir
+resolveMutantDir Nothing    = getCanonicalTemporaryDirectory
 
 -- | The `summarizeResults` function evaluates the results of a test run
 -- using the supplied `isSuccess` and `testSummaryFn` functions from the adapters
@@ -78,24 +90,31 @@ evalMutant ::
     (Typeable t, Summarizable t) =>
     -- | Optional timeout
     Maybe Int ->
+    -- | Whether to delete the mutant file after evaluation
+    Bool ->
+    -- | Directory to write the mutant file into
+    FilePath ->
     -- | The tests to be used
     [TestStr] ->
     -- | Mutant being tested
     Mutant ->
     -- | Returns the result of test runs
     IO [InterpreterOutput t]
-evalMutant mtimeout tests Mutant{..} = do
-    createDirectoryIfMissing True ".mutants"
-    let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
+evalMutant mtimeout doDelete mutantDir tests Mutant{..} = do
+    let mutantFile = mutantDir ++ "/" ++ hash _mutant ++ ".hs"
+        logF       = mutantFile ++ ".log"
 
     say mutantFile
 
     writeResult <- try (writeFile mutantFile _mutant) :: IO (Either IOException ())
-    case writeResult of
+    result <- case writeResult of
         Left err -> return [Io{_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
-        Right () -> do
-            let logF = mutantFile ++ ".log"
-            stopFast (evalTest mtimeout mutantFile logF) tests
+        Right () -> stopFast (evalTest mtimeout mutantFile logF) tests
+    when doDelete $ do
+        _ <- try (removeFile mutantFile) :: IO (Either IOException ())
+        _ <- try (removeFile logF)       :: IO (Either IOException ())
+        return ()
+    return result
 
 {- | Stop mutant runs at the first sign of problems (invalid mutants or test
 failure).
