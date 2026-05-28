@@ -669,8 +669,13 @@ selectCaseDefaultRemoveOps m = caseAltDefault m ++ guardDefault m
 selectRemoveStmtOps :: Module_ -> [MuOp]
 selectRemoveStmtOps m = selectValOps isDo convert m
   where
+    -- List comprehensions (ListComp / MonadComp) have a mandatory LastStmt as
+    -- their final statement; removing any statement with the isValidDo check
+    -- can strip that LastStmt, producing a bodyless comprehension that makes
+    -- GHC's pprComp panic.  Only match proper do/mdo blocks.
     isDo :: LHsExpr GhcPs -> Bool
-    isDo (L _ (HsDo _ _ _)) = True
+    isDo (L _ (HsDo _ (DoExpr _)  _)) = True
+    isDo (L _ (HsDo _ (MDoExpr _) _)) = True
     isDo _ = False
 
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
