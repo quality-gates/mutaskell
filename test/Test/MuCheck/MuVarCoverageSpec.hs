@@ -151,6 +151,13 @@ module M where
 f ref = readIORef ref
 |]
 
+zeroReturnSrc :: String
+zeroReturnSrc = [e|
+module M where
+f :: Int -> Bool
+f x = x > 0
+|]
+
 spec :: Spec
 spec = describe "MuVar coverage" $ do
   it "pattern-match produces at least one mutant" $
@@ -197,3 +204,5 @@ spec = describe "MuVar coverage" $ do
     selectErrorGuardOps (getASTFromStr errorGuardSrc) `shouldSatisfy` (not . null)
   it "replace-mutable-arg produces at least one mutant" $
     selectReplaceMutableArgOps (getASTFromStr mutableArgSrc) `shouldSatisfy` (not . null)
+  it "zero-return produces at least one mutant" $
+    selectZeroReturnOps (getASTFromStr zeroReturnSrc) `shouldSatisfy` (not . null)

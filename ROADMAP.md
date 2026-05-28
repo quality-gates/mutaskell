@@ -4,7 +4,7 @@
 - [x] Add a `remove-stmt` mutator: remove one statement at a time from `do`-blocks, skipping result-binding statements where removal would produce invalid syntax
 - [x] Add a `remove-let-binding` mutator: remove individual bindings from `let...in` expressions and do-block `let` groups
 - [x] Add a `remove-where-binding` mutator: remove individual bindings from `where` clauses
-- [ ] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists, `()` for unit); use GHC type information rather than guessing by constructor name
+- [x] Add a `zero-return` mutator: replace the RHS of each function match with the zero value for its declared return type (`False` for Bool, `0` for Num, `""` for String, `Nothing` for Maybe a, `[]` for lists); uses type signatures from the parsed AST rather than full GHC type inference
 - [x] Add a `remove-negation` mutator: replace `negate x` and prefix `-x` with `x`
 - [x] Add a `remove-self-assign` mutator: remove `let x = x` bindings and `x <- return x` do-statements
 - [x] Add a `negate-literal` mutator: replace positive numeric literals with their negation (`42 → negate 42`, `3.14 → negate 3.14`); tests sign-handling that `remove-negation` cannot reach because the original source has no existing negation; Haskell analogue of go-mutesting's `numbers/float-negate`
@@ -92,7 +92,7 @@
 - [ ] Consolidate the triple AST traversal per operator (generate, relevance check, apply) into a single pass
 - [x] Write mutant files to a `System.IO.Temp` directory by default and delete them after each evaluation; add `--keep-mutants <dir>` to preserve them
 - [x] Add a test asserting each `MuVar` constructor produces at least one mutant on a canonical input (prevent silent registration gaps)
-- [ ] Add tests for the coverage-filtering code path (`removeUncovered`, `getUnCoveredPatches`) to prevent regressions in HPC-guided mutation
+- [x] Add tests for the coverage-filtering code path (`removeUncovered`, `getUnCoveredPatches`) to prevent regressions in HPC-guided mutation
 - [ ] Add an Hspec test adapter: run `hspec` programmatically and classify a non-empty failure list as a kill
 - [ ] Add a Tasty test adapter: parse ingredient output to classify pass vs fail
 - [ ] Add a QuickCheck test adapter: wrap `quickCheckResult` and treat `Failure` as kill, `GaveUp` as `MSumOther`

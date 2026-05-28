@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.17]
+  * Add `zero-return` mutator: replace each function match body with the zero value for its declared return type; applies to functions with a type signature in the same module (`Bool` → `False`, `Int`/`Integer` → `0`, `Double`/`Float` → `0.0`, `String` → `""`, `[a]` → `[]`, `Maybe a` → `Nothing`, `IO a` → `return undefined`)
+  * Add 8 tests for `removeRedundantSpans` and `removeUncovered` (coverage-filtering code path)
+  * Add MuVar coverage test for `zero-return`
+
 ## [0.4.16]
   * Add `ignore_source_lines` config key: list of substrings; suppress mutations on source lines containing any substring
   * Add `skip_without_test` config key: when true, skip source modules with no test annotations and exit cleanly

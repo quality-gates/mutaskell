@@ -11,8 +11,9 @@ import Language.Haskell.Exts (
     Alt (Alt),
     Annotation (Ann),
     Binds (BDecls),
-    Decl (AnnPragma, FunBind, PatBind),
-    Exp (App, Case, Con, Do, If, InfixApp, Lambda, Let, Lit, NegApp, Var),
+    Decl (AnnPragma, FunBind, PatBind, TypeSig),
+    Exp (App, Case, Con, Do, If, InfixApp, Lambda, Let, List, Lit, NegApp, Var),
+    Type (TyApp, TyCon, TyFun, TyList),
     Extension (..),
     GuardedRhs (GuardedRhs),
     KnownExtension (..),
@@ -179,6 +180,7 @@ applicableOps config ast = relevantOps ast opsList
             , (MutateOther "bracket-degenerate", selectBracketDegenerateOps ast)
             , (MutateOther "error-guard", selectErrorGuardOps ast)
             , (MutateOther "replace-mutable-arg", selectReplaceMutableArgOps ast)
+            , (MutateOther "zero-return", selectZeroReturnOps ast)
             ]
 
 -- | Split declarations of the module to annotated and non annotated.
@@ -751,3 +753,32 @@ selectReplaceMutableArgOps m = selectValOps isMutableVar convert m
         convert :: Exp_ -> [Exp_]
         convert (Var l _) = [Var l (UnQual l (Ident l "undefined"))]
         convert _ = []
+
+-- | Replace each function match body with the zero value for the declared return type.
+-- Only applies to functions that have a type signature in the same module.
+selectZeroReturnOps :: Module_ -> [MuOp]
+selectZeroReturnOps (Module _ _ _ _ decls) =
+    [ rhs ==> UnGuardedRhs l_ zv
+    | FunBind _ matches <- decls
+    , Match _ name _ rhs _ <- matches
+    , Just retType <- [lookup (nameStr name) typeSigs]
+    , Just zv <- [typeZeroVal retType]
+    ]
+  where
+    typeSigs = [(nameStr n, returnType t) | TypeSig _ ns t <- decls, n <- ns]
+    nameStr (Ident _ s) = s
+    nameStr (Symbol _ s) = s
+    returnType (TyFun _ _ t) = returnType t
+    returnType t = t
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Bool")))    = Just $ Var l_ (UnQual l_ (Ident l_ "False"))
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Int")))     = Just $ Lit l_ (Int l_ 0 "0")
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Integer"))) = Just $ Lit l_ (Int l_ 0 "0")
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Double")))  = Just $ Lit l_ (Frac l_ 0 "0.0")
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "Float")))   = Just $ Lit l_ (Frac l_ 0 "0.0")
+    typeZeroVal (TyCon _ (UnQual _ (Ident _ "String")))  = Just $ Lit l_ (String l_ "" "\"\"")
+    typeZeroVal (TyList _ _)                              = Just $ List l_ []
+    typeZeroVal (TyApp _ (TyCon _ (UnQual _ (Ident _ "Maybe"))) _) = Just $ Var l_ (UnQual l_ (Ident l_ "Nothing"))
+    typeZeroVal (TyApp _ (TyCon _ (UnQual _ (Ident _ "IO"))) _) =
+      Just $ App l_ (Var l_ (UnQual l_ (Ident l_ "return"))) (Var l_ (UnQual l_ (Ident l_ "undefined")))
+    typeZeroVal _ = Nothing
+selectZeroReturnOps _ = []

@@ -442,6 +442,7 @@ mutatorDescription (MutateOther "remove-forkIO")   = "Remove forkIO/async/withAs
 mutatorDescription (MutateOther "bracket-degenerate") = "Replace bracket with acquire >>= action, removing cleanup"
 mutatorDescription (MutateOther "error-guard")     = "Replace exception handler with a no-op"
 mutatorDescription (MutateOther "replace-mutable-arg") = "Replace IORef/MVar/TVar argument with undefined"
+mutatorDescription (MutateOther "zero-return")     = "Replace function body with zero value for declared return type"
 mutatorDescription (MutateOther s)                 = "Apply mutator: " ++ s
 
 -- | Write a per-mutant agentic JSON file for LLM consumption.

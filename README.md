@@ -101,6 +101,7 @@ MuCheck currently supports:
 20. Resource bracket degeneration: `bracket acquire release action` → `acquire >>= action` (`bracket-degenerate`)
 21. Exception handler removal: `catch`, `handle`, `try` replaced with no-ops (`error-guard`)
 22. Mutable argument replacement: `IORef`/`MVar`/`TVar` replaced with `undefined` (`replace-mutable-arg`)
+23. Zero-return: replace each function match body with the zero value for its declared return type — `False`, `0`, `""`, `Nothing`, `[]`, or `return undefined` for IO (`zero-return`)
 
 ### Language Extensions
 
