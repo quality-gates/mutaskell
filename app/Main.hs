@@ -32,6 +32,7 @@ import Control.Monad (unless, when)
 import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.Maybe (fromMaybe)
 import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
+import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (listDirectory)
@@ -46,7 +47,6 @@ import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
 import Test.MuCheck.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
 import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
-import Test.MuCheck.Utils.Print
 
 
 -- | Search for a .tix file in the current directory for --coverage auto-discovery.
@@ -59,22 +59,25 @@ findTixFile = do
       (f:_) -> Just f
       []    -> Nothing
 
+-- | Scan args for a --config value without a full parse.
+extractConfigArg :: [String] -> Maybe FilePath
+extractConfigArg ("--config" : v : _) = Just v
+extractConfigArg (_ : rest)            = extractConfigArg rest
+extractConfigArg []                    = Nothing
+
 main :: IO ()
 main = do
   args <- getArgs
-  case args of
-    ("-h" : _) -> help
-    _          -> case parseOpts args of
-      Left err      -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
-      Right cliOpts -> do
-        eConfigFn <- loadConfig (optConfig cliOpts)
-        case eConfigFn of
-          Left err -> do putStrLn $ "Config error: " ++ err; exitWith (ExitFailure 2)
-          Right configFn -> do
-            let baseOpts = configFn defaultOpts
-            case parseOptsFrom baseOpts args of
-              Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
-              Right opts -> runOpts opts
+  let configPath = extractConfigArg args
+  eConfigFn <- loadConfig configPath
+  case eConfigFn of
+    Left err -> do putStrLn $ "Config error: " ++ err; exitWith (ExitFailure 2)
+    Right configFn -> do
+      let baseOpts = configFn defaultOpts
+      opts <- execParser (optsParserInfo baseOpts)
+      case validateOpts opts of
+        Left err        -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
+        Right validOpts -> runOpts validOpts
 
 runOpts :: Opts -> IO ()
 runOpts opts
@@ -245,72 +248,3 @@ dryRun file = do
       putStrLn $ "  " ++ pad "Total" ++ show total
       putStrLn "(upper bound; identical mutations are deduplicated before evaluation)"
 
-help :: IO ()
-help = putStrLn $ showAS
-  [ "Usage: mucheck [FLAGS] FILE"
-  , ""
-  , "FLAGS:"
-  , "  -h                          Print this help"
-  , "  --dry-run                   Show mutation counts by type without evaluating"
-  , "  --noop                      Verify tests pass on unmodified source first (exit 3 on failure)"
-  , "  --quiet                     Show only surviving mutants; suppress killed/error output"
-  , "  --verbose                   Print full mutant source and test output during evaluation"
-  , "  --debug                     Print stable IDs and raw interpreter diagnostics"
-  , "  --no-diffs                  Suppress per-mutant unified diff output"
-  , "  --fail-on-escaped           Exit with code 4 if any mutant survives"
-  , "  --min-msi PCT               Exit with code 5 if MSI is below PCT percent"
-  , "  --min-covered-msi PCT       Exit with code 5 if covered-code MSI is below PCT (requires -tix)"
-  , "  --ignore-msi-with-no-mutations  Pass quality gates when no mutations are generated"
-  , "  --disable NAME              Skip mutants of the named type (repeatable)"
-  , "  --enable  NAME              Run only mutants of the named type (repeatable)"
-  , "  --output-statuses CHARS     Show only result types matching chars: k=killed a=alive e=error s=skip"
-  , "  -tix FILE                   HPC coverage file for coverage-guided mutation"
-  , "  --coverage                  Auto-discover a .tix file in the current directory"
-  , "  --timeout N                 Per-mutant timeout in seconds"
-  , "  --timeout-coefficient N     Set timeout to N × measured baseline test-suite runtime"
-  , "  --test-args ARG             Pass ARG to the test runner (repeatable)"
-  , "  --config FILE               Load config from FILE instead of .mucheck.yaml"
-  , "  --baseline FILE             Skip mutants whose ID appears in FILE from a previous run"
-  , "  --update-baseline FILE      Write surviving mutant IDs to FILE after the run"
-  , "  --blacklist FILE            Suppress mutations whose ID appears in FILE"
-  , "  --run-mutant-id ID          Evaluate only the mutant with the given stable ID"
-  , "  --git-diff-base REF         Skip mutation if file is not in 'git diff --name-only REF'"
-  , "  --git-diff-lines            Restrict mutants to changed lines (requires --git-diff-base)"
-  , "  --keep-mutants DIR          Write mutant files to DIR and keep them after evaluation"
-  , "  --logger-json FILE          Write a compact JSON run summary to FILE"
-  , "  --logger-html FILE          Write a standalone HTML mutation report to FILE"
-  , "  --logger-github FILE        Write GitHub Actions annotations for escaped mutants to FILE"
-  , "  --logger-gitlab FILE        Write GitLab Code Quality JSON for escaped mutants to FILE"
-  , "  --logger-agentic-json FILE  Write per-mutant JSON for LLM consumption to FILE"
-  , "  --workers N                 Number of parallel worker processes (default: 1)"
-  , ""
-  , "CONFIG FILE (.mucheck.yaml, auto-loaded from project root):"
-  , "  min_msi: 80               Minimum required MSI (0-100)"
-  , "  min_covered_msi: 80       Minimum required covered-code MSI"
-  , "  timeout: 30               Per-mutant timeout in seconds"
-  , "  quiet: true               Suppress killed/error output"
-  , "  disable_mutators: [a, b]  Mutator names to skip"
-  , "  enable_mutators: [a, b]   Restrict to named mutators"
-  , "  exclude_dirs: [a, b]      Skip target if its path starts with any listed prefix"
-  , "  workers: 4                Number of parallel worker processes"
-  , ""
-  , "MUTATOR NAMES (for --disable / --enable):"
-  , "  pattern-match             Function pattern-match permutation and removal"
-  , "  literal-values            Integer, float, char, string, and boolean literals"
-  , "  functions                 Operator and function substitution"
-  , "  negate-if-else            Swap if-then and if-else branches"
-  , "  negate-guards             Wrap guard conditions in 'not'"
-  , "  remove-not                Strip 'not' from negated sub-expressions"
-  , "  remove-negation           Strip 'negate' and prefix '-' from expressions"
-  , "  Trailing '*' is a prefix wildcard, e.g. 'other:*'"
-  , ""
-  , "EXIT CODES:"
-  , "  0  Tests ran; no quality gate triggered"
-  , "  2  Bad arguments"
-  , "  3  Pre-flight failure (--noop: tests fail on original source)"
-  , "  4  Escaped mutants (--fail-on-escaped)"
-  , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
-  , ""
-  , "E.g.:"
-  , "  mucheck [--dry-run] [-tix file.tix] Examples/AssertCheckTest.hs"
-  ]

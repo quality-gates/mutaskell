@@ -34,7 +34,7 @@ cabal run --enable-coverage exe:sample-test
 We are now ready to run mucheck, let us run it.
 
 ```
-cabal run mucheck -- -tix sample-test.tix Examples/AssertCheckTest.hs
+cabal run mucheck -- --tix sample-test.tix Examples/AssertCheckTest.hs
 ```
 
 This results (after a sufficiently large time) in
@@ -126,7 +126,7 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
 *   `--fail-on-escaped`: Exit with code 4 if any mutant survives.
 *   `--min-msi PCT`: Exit with code 5 if overall MSI is below PCT percent.
-*   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent (requires `-tix`).
+*   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent (requires `--tix`).
 *   `--ignore-msi-with-no-mutations`: Treat MSI quality gates as passed when no mutable constructs are found.
 *   `--disable NAME` / `--enable NAME`: Skip or run only mutants of the named type (repeatable).
 *   `--quiet`: Suppress output for killed and errored mutants; show only alive mutants.
@@ -145,7 +145,7 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--logger-agentic-json FILE`: Write per-mutant JSON with stable IDs, descriptions, context, and MSI summary for LLM consumption.
 *   `--logger-html FILE`: Write a standalone HTML mutation report to FILE with per-mutant diffs, source context, and a colour-coded summary.
 *   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
-*   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `-tix FILE`.
+*   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
 
 ### JSON logger output
@@ -164,7 +164,7 @@ The `--logger-json FILE` flag writes a compact JSON summary after each run. The 
 }
 ```
 
-`covered_code_msi` is `null` when no `-tix` file is provided. The `--logger-agentic-json` output uses the same 0–1 scale for `msi` in its `summary` object.
+`covered_code_msi` is `null` when no `--tix` file is provided. The `--logger-agentic-json` output uses the same 0–1 scale for `msi` in its `summary` object.
 
 ### Config file
 
@@ -174,7 +174,7 @@ MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags
 # .mucheck.yaml — example config; unknown keys are rejected with an error
 # JSON Schema: schema/mucheck-config-schema.json
 min_msi: 80                       # Minimum required MSI (0–100); exit 5 if below
-min_covered_msi: 80               # Minimum required covered-code MSI (requires -tix)
+min_covered_msi: 80               # Minimum required covered-code MSI (requires --tix)
 timeout: 30                       # Per-mutant timeout in seconds
 max_mutants: 200                  # Cap the total number of sampled mutants
 quiet: true                       # Suppress killed/error output; show only survivors

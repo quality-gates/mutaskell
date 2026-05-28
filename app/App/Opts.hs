@@ -1,10 +1,10 @@
-{-# LANGUAGE RecordWildCards #-}
 -- | CLI option types, parser, and config loader for mucheck.
 -- Extracted into its own module so the spec test-suite can import and test
 -- 'parseOptsFrom' without pulling in the full 'Main' module.
 module App.Opts
   ( Opts(..)
   , defaultOpts
+  , optsParserInfo
   , parseOpts
   , parseOptsFrom
   , validateOpts
@@ -19,6 +19,7 @@ module App.Opts
 import Control.Exception (IOException, try)
 import Data.Char (isSpace)
 import Data.List (intercalate)
+import Options.Applicative
 
 -- | All command-line options for a mucheck run.
 data Opts = Opts
@@ -209,6 +210,163 @@ splitOn c s  = map (dropWhile isSpace . reverse . dropWhile isSpace . reverse) $
       | x == c    = acc : go xs ""
       | otherwise = go xs (acc ++ [x])
 
+-- | optparse-applicative parser for all CLI options, parameterised by a base
+-- 'Opts' that supplies defaults (typically from a config file).
+optsParser :: Opts -> Parser Opts
+optsParser base = Opts
+    <$> argument str
+          ( metavar "FILE"
+          <> help "Haskell source file to mutate" )
+    <*> strOption
+          ( long "tix" <> metavar "FILE"
+          <> value (optTix base)
+          <> help "HPC coverage file for coverage-guided mutation" )
+    <*> flag (optDryRun base) True
+          ( long "dry-run"
+          <> help "Show mutation counts by type without evaluating" )
+    <*> flag (optNoop base) True
+          ( long "noop"
+          <> help "Verify tests pass on unmodified source first (exit 3 on failure)" )
+    <*> flag (optFailOnEscape base) True
+          ( long "fail-on-escaped"
+          <> help "Exit with code 4 if any mutant survives" )
+    <*> option (Just <$> auto)
+          ( long "min-msi" <> metavar "PCT"
+          <> value (optMinMsi base)
+          <> help "Exit with code 5 if MSI is below PCT percent" )
+    <*> option (Just <$> auto)
+          ( long "min-covered-msi" <> metavar "PCT"
+          <> value (optMinCoveredMsi base)
+          <> help "Exit with code 5 if covered-code MSI is below PCT (requires --tix)" )
+    <*> ((optDisable base ++) <$> many
+          ( strOption
+            ( long "disable" <> metavar "NAME"
+            <> help "Skip mutants of the named type (repeatable)" )))
+    <*> ((optEnable base ++) <$> many
+          ( strOption
+            ( long "enable" <> metavar "NAME"
+            <> help "Run only mutants of the named type (repeatable)" )))
+    <*> option (Just <$> str)
+          ( long "config" <> metavar "FILE"
+          <> value (optConfig base)
+          <> help "Load config from FILE instead of .mucheck.yaml" )
+    <*> flag (optQuiet base) True
+          ( long "quiet"
+          <> help "Show only surviving mutants; suppress killed/error output" )
+    <*> flag (optVerbose base) True
+          ( long "verbose"
+          <> help "Print full mutant source and test output during evaluation" )
+    <*> flag (optDebug base) True
+          ( long "debug"
+          <> help "Print stable IDs and raw interpreter diagnostics" )
+    <*> flag (optNoDiffs base) True
+          ( long "no-diffs"
+          <> help "Suppress per-mutant unified diff output" )
+    <*> flag (optIgnoreMsiNoMutations base) True
+          ( long "ignore-msi-with-no-mutations"
+          <> help "Pass quality gates when no mutations are generated" )
+    <*> option (Just <$> str)
+          ( long "output-statuses" <> metavar "CHARS"
+          <> value (optOutputStatuses base)
+          <> help "Show only result types matching chars: k=killed a=alive e=error s=skip" )
+    <*> option (Just <$> auto)
+          ( long "timeout" <> metavar "N"
+          <> value (optTimeout base)
+          <> help "Per-mutant timeout in seconds" )
+    <*> option (Just <$> str)
+          ( long "logger-json" <> metavar "FILE"
+          <> value (optLoggerJson base)
+          <> help "Write a compact JSON run summary to FILE" )
+    <*> option (Just <$> str)
+          ( long "baseline" <> metavar "FILE"
+          <> value (optBaseline base)
+          <> help "Skip mutants whose ID appears in FILE from a previous run" )
+    <*> option (Just <$> str)
+          ( long "update-baseline" <> metavar "FILE"
+          <> value (optUpdateBaseline base)
+          <> help "Write surviving mutant IDs to FILE after the run" )
+    <*> option (Just <$> str)
+          ( long "blacklist" <> metavar "FILE"
+          <> value (optBlacklist base)
+          <> help "Suppress mutations whose ID appears in FILE" )
+    <*> option (Just <$> str)
+          ( long "run-mutant-id" <> metavar "ID"
+          <> value (optRunMutantId base)
+          <> help "Evaluate only the mutant with the given stable ID"
+          <> internal )
+    <*> option (Just <$> str)
+          ( long "logger-github" <> metavar "FILE"
+          <> value (optLoggerGithub base)
+          <> help "Write GitHub Actions annotations for escaped mutants to FILE" )
+    <*> option (Just <$> str)
+          ( long "logger-gitlab" <> metavar "FILE"
+          <> value (optLoggerGitlab base)
+          <> help "Write GitLab Code Quality JSON for escaped mutants to FILE" )
+    <*> option (Just <$> auto)
+          ( long "timeout-coefficient" <> metavar "N"
+          <> value (optTimeoutCoef base)
+          <> help "Set timeout to N x measured baseline test-suite runtime" )
+    <*> option (Just <$> str)
+          ( long "git-diff-base" <> metavar "REF"
+          <> value (optGitDiffBase base)
+          <> help "Skip mutation if file is not in 'git diff --name-only REF'" )
+    <*> flag (optGitDiffLines base) True
+          ( long "git-diff-lines"
+          <> help "Restrict mutants to changed lines (requires --git-diff-base)" )
+    <*> option (Just <$> str)
+          ( long "keep-mutants" <> metavar "DIR"
+          <> value (optKeepMutants base)
+          <> help "Write mutant files to DIR and keep them after evaluation" )
+    <*> option (Just <$> str)
+          ( long "logger-agentic-json" <> metavar "FILE"
+          <> value (optLoggerAgenticJson base)
+          <> help "Write per-mutant JSON for LLM consumption to FILE" )
+    <*> option (Just <$> str)
+          ( long "logger-html" <> metavar "FILE"
+          <> value (optLoggerHtml base)
+          <> help "Write a standalone HTML mutation report to FILE" )
+    <*> ((optTestArgs base ++) <$> many
+          ( strOption
+            ( long "test-args" <> metavar "ARG"
+            <> help "Pass ARG to the test runner (repeatable)" )))
+    <*> flag (optCoverage base) True
+          ( long "coverage"
+          <> help "Auto-discover a .tix file in the current directory" )
+    <*> pure (optSilent base)
+    <*> pure (optMaxMutants base)
+    <*> pure (optIgnoreLines base)
+    <*> pure (optSkipWithoutTest base)
+    <*> pure (optExcludeDirs base)
+    <*> option auto
+          ( long "workers" <> metavar "N"
+          <> value (optWorkers base)
+          <> help "Number of parallel worker processes (default: 1)" )
+    <*> option (Just <$> str)
+          ( long "worker-output" <> metavar "FILE"
+          <> value (optWorkerOutput base)
+          <> internal )
+
+-- | 'ParserInfo' wrapping 'optsParser'.  Use with 'execParser' in 'Main' or
+-- 'execParserPure' in tests.
+optsParserInfo :: Opts -> ParserInfo Opts
+optsParserInfo base = info (optsParser base <**> helper)
+    ( fullDesc
+    <> progDesc "Mutation testing for Haskell source files"
+    <> header "mucheck - automated mutation testing"
+    <> footer (unlines
+        [ "Mutator names (for --disable / --enable):"
+        , "  pattern-match  literal-values  functions"
+        , "  negate-if-else  negate-guards  remove-not  remove-negation"
+        , "  Trailing '*' is a prefix wildcard, e.g. 'other:*'"
+        , ""
+        , "Exit codes:"
+        , "  0  Tests ran; no quality gate triggered"
+        , "  2  Bad arguments"
+        , "  3  Pre-flight failure (--noop: tests fail on original source)"
+        , "  4  Escaped mutants (--fail-on-escaped)"
+        , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
+        ]) )
+
 -- | Parse CLI args into 'Opts', starting from 'defaultOpts'.
 parseOpts :: [String] -> Either String Opts
 parseOpts = parseOptsFrom defaultOpts
@@ -216,86 +374,13 @@ parseOpts = parseOptsFrom defaultOpts
 -- | Parse CLI args into 'Opts', starting from a given base.
 -- Returns 'Left' with a human-readable error on bad input.
 parseOptsFrom :: Opts -> [String] -> Either String Opts
-parseOptsFrom base args = go base args >>= validateOpts
-  where
-    go opts ("--dry-run"         : rest) = go opts { optDryRun       = True } rest
-    go opts ("--noop"            : rest) = go opts { optNoop         = True } rest
-    go opts ("--fail-on-escaped" : rest) = go opts { optFailOnEscape = True } rest
-    go _    ("--min-msi"         : [])   = Left "--min-msi requires an integer argument"
-    go opts ("--min-msi" : n     : rest) =
-      case reads n of
-        [(i, "")] -> go opts { optMinMsi = Just i } rest
-        _         -> Left $ "--min-msi requires an integer argument, got: " ++ n
-    go _    ("--min-covered-msi" : [])   = Left "--min-covered-msi requires an integer argument"
-    go opts ("--min-covered-msi" : n : rest) =
-      case reads n of
-        [(i, "")] -> go opts { optMinCoveredMsi = Just i } rest
-        _         -> Left $ "--min-covered-msi requires an integer argument, got: " ++ n
-    go _    ("-tix"              : [])   = Left "-tix requires a file path argument"
-    go opts ("-tix" : tix        : rest) = go opts { optTix = tix } rest
-    go _    ("--disable"         : [])   = Left "--disable requires a name argument"
-    go _    ("--disable" : "*"   : _)    = Left "--disable: bare '*' not allowed; use a prefix like 'functions/*'"
-    go opts ("--disable" : n     : rest) = go opts { optDisable = n : optDisable opts } rest
-    go _    ("--enable"          : [])   = Left "--enable requires a name argument"
-    go _    ("--enable"  : "*"   : _)    = Left "--enable: bare '*' not allowed; use a prefix like 'functions/*'"
-    go opts ("--enable"  : n     : rest) = go opts { optEnable = n : optEnable opts } rest
-    go _    ("--config"          : [])   = Left "--config requires a file path argument"
-    go opts ("--config"  : file  : rest) = go opts { optConfig = Just file } rest
-    go opts ("--quiet"           : rest) = go opts { optQuiet = True } rest
-    go opts ("--verbose"         : rest) = go opts { optVerbose = True } rest
-    go opts ("--debug"           : rest) = go opts { optDebug = True } rest
-    go opts ("--no-diffs"        : rest) = go opts { optNoDiffs = True } rest
-    go opts ("--ignore-msi-with-no-mutations" : rest) = go opts { optIgnoreMsiNoMutations = True } rest
-    go _    ("--output-statuses" : [])   = Left "--output-statuses requires a string argument"
-    go opts ("--output-statuses" : chars : rest) = go opts { optOutputStatuses = Just chars } rest
-    go _    ("--timeout"         : [])   = Left "--timeout requires an integer argument"
-    go opts ("--timeout" : n     : rest) =
-      case reads n of
-        [(i, "")] -> go opts { optTimeout = Just i } rest
-        _         -> Left $ "--timeout requires an integer argument, got: " ++ n
-    go _    ("--logger-json"     : [])   = Left "--logger-json requires a file path argument"
-    go opts ("--logger-json" : f : rest) = go opts { optLoggerJson = Just f } rest
-    go _    ("--baseline"        : [])   = Left "--baseline requires a file path argument"
-    go opts ("--baseline" : f    : rest) = go opts { optBaseline = Just f } rest
-    go _    ("--update-baseline" : [])   = Left "--update-baseline requires a file path argument"
-    go opts ("--update-baseline" : f : rest) = go opts { optUpdateBaseline = Just f } rest
-    go _    ("--blacklist"       : [])   = Left "--blacklist requires a file path argument"
-    go opts ("--blacklist" : f   : rest) = go opts { optBlacklist = Just f } rest
-    go _    ("--run-mutant-id"   : [])   = Left "--run-mutant-id requires an ID argument"
-    go opts ("--run-mutant-id" : i : rest) = go opts { optRunMutantId = Just i } rest
-    go _    ("--logger-github"   : [])   = Left "--logger-github requires a file path argument"
-    go opts ("--logger-github" : f : rest) = go opts { optLoggerGithub = Just f } rest
-    go _    ("--logger-gitlab"   : [])   = Left "--logger-gitlab requires a file path argument"
-    go opts ("--logger-gitlab" : f : rest) = go opts { optLoggerGitlab = Just f } rest
-    go _    ("--timeout-coefficient" : []) = Left "--timeout-coefficient requires a number argument"
-    go opts ("--timeout-coefficient" : n : rest) =
-      case reads n of
-        [(d, "")] -> go opts { optTimeoutCoef = Just d } rest
-        _         -> Left $ "--timeout-coefficient requires a number, got: " ++ n
-    go _    ("--git-diff-base"   : [])   = Left "--git-diff-base requires a ref argument"
-    go opts ("--git-diff-base" : r : rest) = go opts { optGitDiffBase = Just r } rest
-    go opts ("--git-diff-lines"  : rest) = go opts { optGitDiffLines = True } rest
-    go _    ("--keep-mutants"    : [])   = Left "--keep-mutants requires a directory argument"
-    go opts ("--keep-mutants" : d : rest) = go opts { optKeepMutants = Just d } rest
-    go _    ("--logger-agentic-json" : []) = Left "--logger-agentic-json requires a file path argument"
-    go opts ("--logger-agentic-json" : f : rest) = go opts { optLoggerAgenticJson = Just f } rest
-    go _    ("--logger-html"    : [])   = Left "--logger-html requires a file path argument"
-    go opts ("--logger-html" : f : rest) = go opts { optLoggerHtml = Just f } rest
-    go _    ("--test-args"      : [])   = Left "--test-args requires an argument"
-    go opts ("--test-args" : a  : rest) = go opts { optTestArgs = optTestArgs opts ++ [a] } rest
-    go opts ("--coverage"       : rest) = go opts { optCoverage = True } rest
-    go _    ("--workers"        : [])   = Left "--workers requires an integer argument"
-    go opts ("--workers" : n    : rest) =
-      case reads n of
-        [(i, "")] -> go opts { optWorkers = i } rest
-        _         -> Left $ "--workers requires an integer argument, got: " ++ n
-    go _    ("--worker-output"   : [])   = Left "--worker-output requires a file path argument"
-    go opts ("--worker-output" : f : rest) = go opts { optWorkerOutput = Just f } rest
-    go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
-    go opts (file                : _)    = Right opts { optFile = file }
-    go _    []                           = Left "Need a file argument"
+parseOptsFrom base args =
+    case execParserPure defaultPrefs (optsParserInfo base) args of
+        Success opts        -> validateOpts opts
+        Failure f           -> Left $ fst (renderFailure f "mucheck")
+        CompletionInvoked _ -> Left "completion requested"
 
--- | Post-parse validation: reject combinations of flags that are mutually exclusive.
+-- | Post-parse validation: reject mutually exclusive flag combinations.
 validateOpts :: Opts -> Either String Opts
 validateOpts opts
   | not (null (optEnable opts)) && not (null (optDisable opts))

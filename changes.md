@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.1]
+  * Changed: replaced the hand-rolled `parseOpts`/`parseOptsFrom` CLI parser with `optparse-applicative`; the binary now generates `--help` output automatically and reports flag errors in the standard format; shell completion scripts are available via `--bash-completion-script` / `--zsh-completion-script`
+  * Changed: the HPC coverage flag is now `--tix FILE` (was `-tix FILE`); update any scripts or CI configs that used the old single-dash form
+  * Changed: `main` now uses `execParser` directly; the two-pass arg scanning is replaced with a lightweight `extractConfigArg` pre-scan for `--config`; the hand-rolled `help` function is removed in favour of optparse-applicative auto-generated help
+
 ## [0.5.0]
   * Changed: `tested-with` in `MuCheck.cabal` narrowed to `GHC ==9.8.2`; the broader matrix in `haskell-ci.yml` is disabled (`if: false`) because it exceeds the five-minute CI budget; broader compatibility is aspirational
   * Removed: `GenerationMode` type (`FirstOrderOnly`/`FirstAndHigherOrder`) and `genMode` field from `Config`; the field was never consulted by `programMutantsWith` (which always used `mutatesN` with order 1); removes dead code and simplifies the `Config` record
