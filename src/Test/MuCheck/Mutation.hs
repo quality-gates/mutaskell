@@ -329,12 +329,11 @@ getAllTests :: String -> IO (Either String [String])
 getAllTests modname = allTests <$> readFile modname
 
 -- | Given module source, return all marked tests.
--- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
+-- Returns both annotated tests and those discovered by naming conventions.
 allTests :: String -> Either String [String]
 allTests modsrc = do
   ast <- getASTFromStr modsrc
-  let byAnn = getAnn ast "Test"
-  return $ if null byAnn then autoDiscoverTestNames ast else byAnn
+  return $ nub $ getAnn ast "Test" ++ autoDiscoverTestNames ast
 
 -- | The name of a function
 functionName :: Decl_ -> String

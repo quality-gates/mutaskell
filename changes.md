@@ -1,6 +1,7 @@
 # Changelog
 
 ## [0.4.23]
+  * Fixed: `allTests` now combines both `{-# ANN #-}` annotation-based and naming-convention-based (`prop_*`, `test_*`, `spec_*`) test discovery rather than treating conventions as a fallback; a module that mixes both styles no longer silently drops convention-named tests from evaluation
   * Fixed: `getMix` in `Test.MuCheck.Tix` now returns `IO (Either String Mix)` instead of calling `error`; a missing `.mix` file prints `"Coverage error: cannot find <module> in .hpc — is the test suite built with -fhpc?"` to stderr and exits with code 2
   * Fixed: `--worker-output` is confirmed absent from the user-facing help text (`mucheck -h`); it remains parseable for internal subprocess IPC use only
   * Fixed: both `--logger-json` and `--logger-agentic-json` outputs confirmed to use a consistent 0–1 float scale for `msi`; added a README section documenting the `--logger-json` output format with a JSON example
