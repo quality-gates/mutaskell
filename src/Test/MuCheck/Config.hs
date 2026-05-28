@@ -1,13 +1,7 @@
-{-# LANGUAGE MultiWayIf #-}
-
 -- | Configuration module
 module Test.MuCheck.Config where
 
--- | The knob controlling if we want first order mutation.
-data GenerationMode
-    = FirstOrderOnly
-    | FirstAndHigherOrder
-    deriving (Eq, Show, Read)
+import Data.List (isPrefixOf, stripPrefix)
 
 {- | For function mutations, whether the function is a symbol or an identifier
 for example,`head` is an identifier while `==` is a symbol.
@@ -100,9 +94,6 @@ data Config = Config
       doNegateGuards :: Rational
     , -- \| Maximum number of mutants to generate.
       maxNumMutants :: Int
-    , -- \| Generation mode, can be traditional (firstOrder) and
-      -- higher order (higher order is experimental)
-      genMode :: GenerationMode
     }
     deriving (Show, Read)
 
@@ -124,7 +115,6 @@ defaultConfig =
         , doNegateIfElse = 1.0
         , doNegateGuards = 1.0
         , maxNumMutants = 300
-        , genMode = FirstOrderOnly
         }
 
 -- | Enumeration of different variants of mutations
@@ -153,9 +143,41 @@ treated differently. For MutateOther, if the string is empty, then it is
 matched against any other MutateOther.
 -}
 similar :: MuVar -> MuVar -> Bool
-similar (MutateOther a) (MutateOther b) =
-    if
-        | null a -> True
-        | null b -> True
-        | otherwise -> a == b
+similar (MutateOther a) (MutateOther b) = null a || null b || a == b
 similar x y = x == y
+
+-- | Convert a 'MuVar' to its canonical user-facing name used by @--disable@\/@--enable@.
+showMuVar :: MuVar -> String
+showMuVar MutatePatternMatch              = "pattern-match"
+showMuVar MutateValues                    = "literal-values"
+showMuVar MutateFunctions                 = "functions"
+showMuVar MutateNegateIfElse              = "negate-if-else"
+showMuVar MutateNegateGuards              = "negate-guards"
+showMuVar (MutateOther "remove-not")      = "remove-not"
+showMuVar (MutateOther "remove-negation") = "remove-negation"
+showMuVar (MutateOther s)                 = if null s then "other" else "other:" ++ s
+
+-- | Parse a canonical mutator name (as produced by 'showMuVar') back to 'MuVar'.
+-- Returns 'Nothing' for unrecognised strings.
+-- Accepts trailing-@*@ wildcard patterns via 'matchesMuVarPat'.
+-- Round-trips with 'showMuVar': @parseMuVar (showMuVar x) == Just x@.
+parseMuVar :: String -> Maybe MuVar
+parseMuVar "pattern-match"   = Just MutatePatternMatch
+parseMuVar "literal-values"  = Just MutateValues
+parseMuVar "functions"       = Just MutateFunctions
+parseMuVar "negate-if-else"  = Just MutateNegateIfElse
+parseMuVar "negate-guards"   = Just MutateNegateGuards
+parseMuVar "remove-not"      = Just (MutateOther "remove-not")
+parseMuVar "remove-negation" = Just (MutateOther "remove-negation")
+parseMuVar "other"           = Just (MutateOther "")
+parseMuVar s
+  | Just rest <- stripPrefix "other:" s = Just (MutateOther rest)
+parseMuVar _ = Nothing
+
+-- | Match a user-supplied pattern (possibly with trailing @*@) against a 'MuVar' name.
+matchesMuVarPat :: String -> MuVar -> Bool
+matchesMuVarPat pat v =
+  let name = showMuVar v
+  in case reverse pat of
+       ('*' : revPrefix) -> reverse revPrefix `isPrefixOf` name
+       _                 -> pat == name

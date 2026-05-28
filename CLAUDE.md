@@ -52,7 +52,7 @@ Follow these steps in order when landing a change:
 4. **Update docs if needed** — if your change adds, removes, or renames a mutator, flag, config key, or user-facing behaviour, update `README.md` to match before committing.
 5. **Update changes.md** — add an entry describing what changed (Added / Fixed / Changed). Keep entries concise.
 6. **Commit and push** — fix forward only. No `--force-push` and no `--amend` on published commits. If a hook or check fails, fix it in a new commit. **The `master` branch has push protection — all changes must land via a PR.**
-7. **Watch CI** — wait for the Actions run to go green before merging. Run `gh pr checks <number>` to confirm every workflow passes; do not merge if any is red.
+7. **Watch CI** — wait for the Actions run to go green before merging. Run `gh pr checks <number>` to confirm every workflow passes; do not merge if any is red. Also check for inline code-scanning comments (HLint posts findings as PR review comments); fix any warnings before merging. Use `gh api repos/jonbaldie/mucheck/pulls/<number>/comments --jq '.[].body'` to list them.
 8. **Merge to master** — squash or merge commit, then push master.
 9. **Tag and release** — pick the next semver tag. Update the `version:` field and `source-repository this` tag in `MuCheck.cabal` to match. Create a GitHub release: succinct style, plain English, list what changed.
 

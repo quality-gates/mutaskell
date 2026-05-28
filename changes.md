@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0]
+  * Changed: `tested-with` in `MuCheck.cabal` narrowed to `GHC ==9.8.2`; the broader matrix in `haskell-ci.yml` is disabled (`if: false`) because it exceeds the five-minute CI budget; broader compatibility is aspirational
+  * Removed: `GenerationMode` type (`FirstOrderOnly`/`FirstAndHigherOrder`) and `genMode` field from `Config`; the field was never consulted by `programMutantsWith` (which always used `mutatesN` with order 1); removes dead code and simplifies the `Config` record
+  * Added: `showMuVar`, `parseMuVar`, and `matchesMuVarPat` to `Test.MuCheck.Config`; library consumers can now convert `MuVar` values to/from strings and use the same pattern-matching logic as `--disable`/`--enable`; `parseMuVar` round-trips with `showMuVar`; `ConfigSpec` tests cover all constructors
+  * Fixed: filter-before-sample ordering in the mutant pipeline; all deterministic filters (`--disable`/`--enable`, annotations, baseline, blacklist, diff-lines, ignore-lines, `--run-mutant-id`) are now applied before sampling; previously filters ran on the already-sampled set so quota was spent on candidates that were subsequently discarded; `--max-mutants` is now also passed to `sampler` directly
+  * Changed: decomposed `app/Main.hs` into focused sub-modules: `App.Filter` (filter stages), `App.Output` (loggers and terminal output), `App.Worker` (subprocess parallelism and IPC), `App.Exit` (exit-code policy); `Main.hs` itself now contains only `main`, `runOpts`, `noopCheck`, `resolveTimeout`, `dryRun`, and `help`
+  * Changed: removed the redundant once-based applicability probe from `relevantOps` in `Test.MuCheck.Utils.Syb`; the probe traversed the AST O(n_ops) extra times to check if each operator could fire, but `mutate` already handles non-applicable ops by returning an empty list; reduces the per-run traversal count by ~n_ops
+
 ## [0.4.23]
   * Fixed: `evalTest` now discovers the `.ghc.environment.*` file in the current directory and passes it to `unsafeRunInterpreterWithArgs` via `-package-env`; on GHC 9.8+ the GHC API no longer reads this file automatically, causing hint to report `WontCompile` for every mutant that imported a project-local package (the entire integration test suite was producing 0 kills); this restores correct behaviour across all supported GHC versions
   * Fixed: `evalMutant` now writes each mutant to a path matching its module name (e.g. `<tmpdir>/<hash>/Examples/AssertCheckTest.hs` for `module Examples.AssertCheckTest`) so that GHC can load it correctly via hint regardless of whether the version enforces file-path/module-name correspondence; previously all mutants were `WontCompile`-skipped on GHC 9.8.2 in CI
