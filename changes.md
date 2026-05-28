@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.23]
+  * Fixed: `getMix` in `Test.MuCheck.Tix` now returns `IO (Either String Mix)` instead of calling `error`; a missing `.mix` file prints `"Coverage error: cannot find <module> in .hpc — is the test suite built with -fhpc?"` to stderr and exits with code 2
+  * Fixed: `--worker-output` is confirmed absent from the user-facing help text (`mucheck -h`); it remains parseable for internal subprocess IPC use only
+  * Fixed: both `--logger-json` and `--logger-agentic-json` outputs confirmed to use a consistent 0–1 float scale for `msi`; added a README section documenting the `--logger-json` output format with a JSON example
+  * Changed: `Examples/AssertCheckTest.hs` updated to demonstrate naming-convention auto-discovery (`test_*` and `prop_*` prefixes) alongside the legacy `{-# ANN #-}` annotation; `Examples/Main.hs` updated accordingly
+  * Fixed: `test/Spec.hs` cleaned up — removed dead manual `main`/`spec` wiring that conflicted with the active `hspec-discover` pragma; added a comment explaining that new `*Spec.hs` files are picked up automatically
+  * Added: `test/Test/MuCheck/IntegrationSpec.hs` — end-to-end test that calls the `mucheck` library function on `Examples/AssertCheckTest.hs` and asserts kills > 0 and count consistency; run selectively with `--test-option=--match --test-option="/integration/"`
+  * Added: extended `Test.MuCheck.CLISpec` with 18 tests covering flag round-trips, bad-argument error messages, and config-file override behaviour
+
 ## [0.4.22]
   * Fixed: passing both `--enable` and `--disable` together now exits with code 2 and a clear error message instead of silently letting `--enable` win
   * Changed: extracted `Opts`, `parseOptsFrom`, and related config functions into a new `App.Opts` module so the test suite can exercise CLI parsing directly

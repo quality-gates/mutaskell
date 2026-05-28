@@ -145,6 +145,24 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `-tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
 
+### JSON logger output
+
+The `--logger-json FILE` flag writes a compact JSON summary after each run. The `msi` and `covered_code_msi` fields are always reported on a **0–1 scale** (not as percentages):
+
+```json
+{
+  "total": 42,
+  "killed": 30,
+  "alive": 10,
+  "skipped": 2,
+  "errors": 0,
+  "msi": 0.75,
+  "covered_code_msi": 0.80
+}
+```
+
+`covered_code_msi` is `null` when no `-tix` file is provided. The `--logger-agentic-json` output uses the same 0–1 scale for `msi` in its `summary` object.
+
 ### Config file
 
 MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:

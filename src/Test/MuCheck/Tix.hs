@@ -56,14 +56,15 @@ parseTix path = do
         Nothing -> return []
         Just (Tix tms) -> return tms
 
--- | Read the corresponding Mix file to a TixModule
-getMix :: TixModule -> IO Mix
+-- | Read the corresponding Mix file to a TixModule.
+-- Returns 'Left' with a user-readable message if the .mix file cannot be found.
+getMix :: TixModule -> IO (Either String Mix)
 getMix tm = do
     let name = tixModuleName tm
     -- Try reading with original name
     res <- tryReadMix [".hpc"] (Right tm)
     case res of
-        Just m -> return m
+        Just m -> return (Right m)
         Nothing -> do
             -- Try stripping package prefix (everything before first slash)
             let strippedName = case break (== '/') name of
@@ -71,32 +72,41 @@ getMix tm = do
                     (_, s) -> drop 1 s
             res2 <- tryReadMix [".hpc"] (Left strippedName)
             case res2 of
-                Just m -> return m
-                Nothing -> error $ "mucheck: can not find " ++ name ++ " (or " ++ strippedName ++ ") in .hpc"
+                Just m -> return (Right m)
+                Nothing -> return $ Left $
+                    "Coverage error: cannot find " ++ name
+                    ++ " (or " ++ strippedName ++ ") in .hpc"
+                    ++ " — is the test suite built with -fhpc?"
 
 -- | Helper to try reading a mix file without crashing
 tryReadMix :: [FilePath] -> Either String TixModule -> IO (Maybe Mix)
 tryReadMix fp target = (Just <$> readMix fp target) `catch` (\(_ :: SomeException) -> return Nothing)
 
--- | return the tix and mix information
-getMixedTix :: String -> IO [(String, [(Span, TCovered)])]
+-- | return the tix and mix information, or a 'Left' error if any .mix file is missing.
+getMixedTix :: String -> IO (Either String [(String, [(Span, TCovered)])])
 getMixedTix file = do
     tms <- parseTix file
-    mixs <- mapM getMix tms
-    let names = map tixModuleName tms
-    return $ zipWith3 mixTix names mixs tms
+    eResults <- mapM getMix tms
+    case sequence eResults of
+        Left err -> return (Left err)
+        Right mixs -> do
+            let names = map tixModuleName tms
+            return $ Right $ zipWith3 mixTix names mixs tms
 
 {- | getUnCoveredPatches returns the largest parts of the program that are not
-covered.
+covered.  Returns 'Left' with a user-readable error if a .mix file is missing.
 -}
-getUnCoveredPatches :: String -> String -> IO (Maybe [Span])
+getUnCoveredPatches :: String -> String -> IO (Either String (Maybe [Span]))
 getUnCoveredPatches file name = do
-    val <- getMixedTix file
-    let modSpan = getNamedModule name val
-        uncovSpan = filter (not . isCovered . snd) modSpan
-    return $ case val of
-        [] -> Nothing
-        _ -> Just $ removeRedundantSpans $ map fst uncovSpan
+    eVal <- getMixedTix file
+    case eVal of
+        Left err -> return (Left err)
+        Right val ->
+            let modSpan = getNamedModule name val
+                uncovSpan = filter (not . isCovered . snd) modSpan
+            in return $ Right $ case val of
+                [] -> Nothing
+                _ -> Just $ removeRedundantSpans $ map fst uncovSpan
 
 -- | Get the span and covering information of the given module
 getNamedModule :: String -> [(String, [(Span, TCovered)])] -> [(Span, TCovered)]

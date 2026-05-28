@@ -98,7 +98,7 @@ runOpts opts
                else return (optTix opts)
         res <- genMutants (getName modFile) tix
         (len, mutants) <- case res of
-          Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
+          Left err -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
           Right r -> return r
         smutants        <- sampler defaultConfig mutants
         let capMutants ms = case optMaxMutants opts of
