@@ -148,15 +148,17 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:
 
 ```yaml
-min_msi: 80           # Minimum required MSI (0–100)
-min_covered_msi: 80   # Minimum required covered-code MSI
-timeout: 30           # Per-mutant timeout in seconds
-quiet: true           # Suppress killed/error output
-disable_mutators:     # Mutator names to skip
-  - literal-values
-  - negate-if-else
-enable_mutators:      # Restrict to these mutators only
-  - functions
+# .mucheck.yaml — example config; unknown keys are rejected with an error
+min_msi: 80                  # Minimum required MSI (0–100); exit 5 if below
+min_covered_msi: 80          # Minimum required covered-code MSI (requires -tix)
+timeout: 30                  # Per-mutant timeout in seconds
+max_mutants: 200             # Cap the total number of sampled mutants
+quiet: true                  # Suppress killed/error output; show only survivors
+silent_mode: true            # Print only the final summary line; no per-mutant output
+json_output: mucheck.json    # Always write a JSON summary here after every run
+html_output: mucheck.html    # Always write an HTML report here after every run
+disable_mutators: [literal-values, negate-if-else]  # Mutators to skip
+enable_mutators: [functions]                         # Restrict to these mutators only
 ```
 
 

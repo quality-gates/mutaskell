@@ -60,6 +60,8 @@ data Opts = Opts
   , optLoggerHtml   :: Maybe FilePath
   , optTestArgs     :: [String]
   , optCoverage     :: Bool
+  , optSilent       :: Bool
+  , optMaxMutants   :: Maybe Int
   }
 
 defaultOpts :: Opts
@@ -96,17 +98,32 @@ defaultOpts = Opts
   , optLoggerHtml   = Nothing
   , optTestArgs     = []
   , optCoverage     = False
+  , optSilent       = False
+  , optMaxMutants   = Nothing
   }
 
--- | Load config from the given path (or .mucheck.yaml) and return a transformer.
+knownConfigKeys :: [String]
+knownConfigKeys =
+  [ "min_msi", "min_covered_msi", "timeout", "quiet", "silent_mode"
+  , "max_mutants", "json_output", "html_output"
+  , "disable_mutators", "enable_mutators"
+  ]
+
+-- | Load config and return either an error string or a transformer.
 -- Applied to defaultOpts before CLI parsing so CLI flags override config.
-loadConfig :: Maybe FilePath -> IO (Opts -> Opts)
+loadConfig :: Maybe FilePath -> IO (Either String (Opts -> Opts))
 loadConfig mPath = do
   let path = case mPath of { Just p -> p; Nothing -> ".mucheck.yaml" }
   result <- try (readFile path) :: IO (Either IOException String)
   case result of
-    Left _        -> return id
-    Right contents -> return $ applyYamlConfig (parseYamlKV contents)
+    Left _        -> return (Right id)
+    Right contents ->
+      let pairs = parseYamlKV contents
+          unknowns = filter (\(k,_) -> k `notElem` knownConfigKeys) pairs
+      in case unknowns of
+           ((k,_):_) -> return (Left $ "Unknown config key: " ++ k
+                                  ++ ". Known keys: " ++ intercalate ", " knownConfigKeys)
+           []        -> return (Right (applyYamlConfig pairs))
 
 parseYamlKV :: String -> [(String, String)]
 parseYamlKV = concatMap parseLine . filter (not . skip) . lines
@@ -131,14 +148,27 @@ applyYamlConfig pairs opts = foldl applyPair opts pairs
     applyPair o ("timeout", v) = case (reads v, optTimeout o) of
       ([(i,"")], Nothing) -> o { optTimeout = Just i }
       _                   -> o
+    applyPair o ("max_mutants", v) = case (reads v, optMaxMutants o) of
+      ([(i,"")], Nothing) -> o { optMaxMutants = Just i }
+      _                   -> o
     applyPair o ("quiet", v)
       | v `elem` ["true","True","yes"] = o { optQuiet = True }
       | otherwise                       = o
+    applyPair o ("silent_mode", v)
+      | v `elem` ["true","True","yes"] = o { optSilent = True }
+      | otherwise                       = o
+    applyPair o ("json_output", v) = case optLoggerJson o of
+      Nothing -> o { optLoggerJson = Just (trim v) }
+      Just _  -> o
+    applyPair o ("html_output", v) = case optLoggerHtml o of
+      Nothing -> o { optLoggerHtml = Just (trim v) }
+      Just _  -> o
     applyPair o ("disable_mutators", v) =
       o { optDisable = optDisable o ++ parseYamlList v }
     applyPair o ("enable_mutators", v) =
       o { optEnable = optEnable o ++ parseYamlList v }
     applyPair o _ = o
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 parseYamlList :: String -> [String]
 parseYamlList s = case dropWhile isSpace s of
@@ -257,11 +287,14 @@ main = do
     _          -> case parseOpts args of
       Left err      -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
       Right cliOpts -> do
-        configFn <- loadConfig (optConfig cliOpts)
-        let baseOpts = configFn defaultOpts
-        case parseOptsFrom baseOpts args of
-          Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
-          Right opts -> runOpts opts
+        eConfigFn <- loadConfig (optConfig cliOpts)
+        case eConfigFn of
+          Left err -> do putStrLn $ "Config error: " ++ err; exitWith (ExitFailure 2)
+          Right configFn -> do
+            let baseOpts = configFn defaultOpts
+            case parseOptsFrom baseOpts args of
+              Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
+              Right opts -> runOpts opts
 
 runOpts :: Opts -> IO ()
 runOpts opts
@@ -285,7 +318,10 @@ runOpts opts
                else return (optTix opts)
         (len, mutants) <- genMutants (getName modFile) tix
         smutants        <- sampler defaultConfig mutants
-        let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
+        let capMutants ms = case optMaxMutants opts of
+              Just n  -> take n ms
+              Nothing -> ms
+            filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) (capMutants smutants)
             filtered1 = applyAnnotations anns filtered0
         filtered2 <- applyBaseline  (optBaseline opts)  filtered1
         filtered3 <- applyBlacklist (optBlacklist opts) filtered2
@@ -302,7 +338,8 @@ runOpts opts
               MSumError   _ _ _ -> (k,   a,   e+1, sk)
               MSumSkipped _ _   -> (k,   a,   e,   sk+1)
               MSumOther   _ _   -> (k+1, a,   e,   sk)
-            mcallback = if optQuiet opts || total == 0 then Nothing else Just progressCallback
+            suppressProgress = optQuiet opts || optSilent opts
+            mcallback = if suppressProgress || total == 0 then Nothing else Just progressCallback
         let progressLoop = do
               (k,a,e,sk) <- readIORef progressRef
               let done = k + a + e + sk
@@ -312,7 +349,7 @@ runOpts opts
               hFlush stderr
               threadDelay 200000
               progressLoop
-        mtid <- if optQuiet opts || total == 0
+        mtid <- if suppressProgress || total == 0
           then return Nothing
           else fmap Just (forkIO progressLoop)
         (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
@@ -322,10 +359,10 @@ runOpts opts
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
-        printMutantDetails opts origSrc tsum
+        unless (optSilent opts) $ printMutantDetails opts origSrc tsum
         unless (isSingleMutantMode opts) $ do
           print msum
-          printMutatorBreakdown opts tsum
+          unless (optSilent opts) $ printMutatorBreakdown opts tsum
           writeJsonLogger opts msum
           writeGithubLogger opts (optFile opts) tsum
           writeGitlabLogger opts (optFile opts) tsum

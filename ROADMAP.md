@@ -60,16 +60,16 @@
 - [ ] Add `ignore_source_lines` config key: list of regexes; mutations on source lines matching any regex are suppressed
 - [ ] Add `exclude_dirs` config key: list of source directory prefixes (relative to project root) to skip entirely during mutation
 - [ ] Add `skip_without_test` config key: when true, skip source modules that have no test annotations rather than treating them as untested
-- [ ] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
-- [ ] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
-- [ ] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
+- [x] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
+- [x] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
+- [x] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
 - [x] Add `min_msi` config key: persistent equivalent of `--min-msi`; minimum required MSI (0–100); 0 means no gate; overridden by the CLI flag
 - [x] Add `min_covered_msi` config key: persistent equivalent of `--min-covered-msi`; minimum required covered-code MSI (0–100); 0 means no gate
-- [ ] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
+- [x] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
 - [x] Add `timeout` config key, overridden by the `--timeout` CLI flag; `workers` remains pending subprocess implementation
-- [ ] Reject unknown keys in the config file with a clear error rather than silently ignoring them
+- [x] Reject unknown keys in the config file with a clear error rather than silently ignoring them
 - [ ] Publish a JSON Schema for the config file (`schema/config-schema.json`) with editor autocomplete support
-- [ ] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
+- [x] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
 - [x] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
 - [x] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
 - [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant

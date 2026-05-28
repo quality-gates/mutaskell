@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.15]
+  * Add `silent_mode` config key: print only the final summary line; suppress all per-mutant output and the mutator breakdown table
+  * Add `max_mutants` config key: cap the total number of sampled mutants before evaluation
+  * Add `json_output` config key: persistent path for JSON run summary, equivalent to `--logger-json` but set via config
+  * Add `html_output` config key: persistent path for HTML report, equivalent to `--logger-html` but set via config
+  * Reject unknown keys in the config file with a clear error message listing all known keys
+  * Add a complete `.mucheck.yaml` example to the README documenting all supported config keys
+
 ## [0.4.14]
   * Add `--logger-html <file>` flag: write a standalone HTML mutation report with per-mutant diffs, source context, and colour-coded status badges
   * Add `--test-args <arg>` flag: pass additional arguments to the test runner on every invocation (repeatable); forwarded via `withArgs`
