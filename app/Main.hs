@@ -203,9 +203,15 @@ noopCheck file = do
         runTest :: String -> IO (InterpreterOutput AssertCheckSummary)
         runTest  = evalTest Nothing [] file logF
     results <- mapM runTest testStrs
-    let pass = all (\r -> case _io r of { Right out -> isSuccess out; Left _ -> False }) results
+    let firstError = foldr (\r acc -> case _io r of
+                                Left e  -> Just e
+                                Right _ -> acc) Nothing results
+        pass = all (\r -> case _io r of { Right out -> isSuccess out; Left _ -> False }) results
     unless pass $ do
       putStrLn "Pre-flight check failed: test suite does not pass on unmodified source"
+      case firstError of
+        Just e  -> hPutStrLn stderr $ "  Interpreter error: " ++ show e
+        Nothing -> return ()
       exitWith (ExitFailure 3)
 
 -- | Resolve the per-mutant timeout in microseconds.

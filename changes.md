@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+  * Fixed: `selectRemoveStmtOps` no longer applies to list comprehensions (`HsDo ListComp`); the previous `isValidDo` check incorrectly allowed removing the mandatory result `LastStmt` from a comprehension, leaving a body-less comprehension that triggered a GHC 9.12.1 `pprComp` panic; `isDo` is now restricted to `DoExpr`/`MDoExpr` only
+  * Fixed: `--noop` pre-flight failure now prints the actual interpreter error to stderr so users can diagnose test format problems (e.g. wrong return type, missing imports) instead of receiving only the generic "test suite does not pass" message
+  * Fixed: `--help` footer now uses `footerDoc`/`vsep` so mutator names and exit codes render as structured lines instead of a single reflowed paragraph
+
 ## [0.5.3]
   * Fixed: replaced the line-based worker IPC protocol (`workerSerialize`/`workerDeserialize`) with a self-contained JSON object; a single extra newline inside a mutant diff or test output could corrupt the line-based deserialiser; JSON handles embedded newlines safely; a `version` field is included for future schema evolution; verified correct results with `--workers 2` against `Examples/AssertCheckTest.hs`
   * Changed: migrated AST backend from `haskell-src-exts` to the GHC API (`ghc` + `ghc-exactprint >= 1.12`); the parser now uses GHC 9.12's actual parser so all language extensions (`LambdaCase`, `TypeFamilies`, `GADTs`, `LinearTypes`, etc.) are supported; previously any source using an unsupported extension was silently parsed as empty and produced zero mutants
