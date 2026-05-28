@@ -138,5 +138,25 @@ MuCheck supports several CLI flags for configuring mutation runs and output:
 *   `--git-diff-lines`: Restrict mutants to lines changed relative to `--git-diff-base` (requires `--git-diff-base`).
 *   `--keep-mutants DIR`: Write mutant files to DIR and keep them after evaluation (default: system temp, deleted after each evaluation).
 *   `--logger-agentic-json FILE`: Write per-mutant JSON with stable IDs, descriptions, context, and MSI summary for LLM consumption.
+*   `--logger-html FILE`: Write a standalone HTML mutation report to FILE with per-mutant diffs, source context, and a colour-coded summary.
+*   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
+*   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `-tix FILE`.
+*   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
+
+### Config file
+
+MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:
+
+```yaml
+min_msi: 80           # Minimum required MSI (0–100)
+min_covered_msi: 80   # Minimum required covered-code MSI
+timeout: 30           # Per-mutant timeout in seconds
+quiet: true           # Suppress killed/error output
+disable_mutators:     # Mutator names to skip
+  - literal-values
+  - negate-if-else
+enable_mutators:      # Restrict to these mutators only
+  - functions
+```
 
 

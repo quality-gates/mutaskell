@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.14]
+  * Add `--logger-html <file>` flag: write a standalone HTML mutation report with per-mutant diffs, source context, and colour-coded status badges
+  * Add `--test-args <arg>` flag: pass additional arguments to the test runner on every invocation (repeatable); forwarded via `withArgs`
+  * Add `--coverage` flag: auto-discover a `.tix` coverage file in the current directory without requiring `-tix FILE`
+  * Add YAML config file support: auto-load `.mucheck.yaml` from the project root; supported keys: `min_msi`, `min_covered_msi`, `timeout`, `quiet`, `disable_mutators`, `enable_mutators`; CLI flags override config values
+  * Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml`
+  * Print a live progress line to stderr during evaluation showing kill/alive/error/skip counts; suppressed in `--quiet` mode
+  * Add `evaluateMutants` optional per-mutant callback and `[String]` extra-args parameters to the library API
+  * Complete the help text: document all flags including `--quiet`, `--verbose`, `--debug`, `--no-diffs`, `--timeout`, `--min-covered-msi`, and `--output-statuses`
+
 ## [0.4.13]
   * Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, descriptions, context lines, and MSI summary for LLM consumption
   * Add `--git-diff-lines` flag: restrict mutations to lines changed relative to `--git-diff-base` (requires `--git-diff-base`)

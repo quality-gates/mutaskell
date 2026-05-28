@@ -1,22 +1,25 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
+import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when, forM_)
 import Data.Char (isSpace)
+import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.List (group, intercalate, isPrefixOf, isSuffixOf, nub, sort, sortBy, stripPrefix)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
+import System.Directory (listDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
-import System.IO (hPutStrLn, stderr)
+import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
 import System.Process (readProcess)
 
 import Test.MuCheck (sampler)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
 import Test.MuCheck.Config (MuVar(..), defaultConfig)
 import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.MuCheck.Mutation (genMutants, genMutantsForSrc, genMutantsFromAST, getASTFromStr, getAllTests)
+import Test.MuCheck.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
 import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter
 import Test.MuCheck.Tix (spanStartLine)
@@ -54,6 +57,9 @@ data Opts = Opts
   , optGitDiffLines :: Bool
   , optKeepMutants  :: Maybe FilePath
   , optLoggerAgenticJson :: Maybe FilePath
+  , optLoggerHtml   :: Maybe FilePath
+  , optTestArgs     :: [String]
+  , optCoverage     :: Bool
   }
 
 defaultOpts :: Opts
@@ -87,10 +93,76 @@ defaultOpts = Opts
   , optGitDiffLines = False
   , optKeepMutants  = Nothing
   , optLoggerAgenticJson = Nothing
+  , optLoggerHtml   = Nothing
+  , optTestArgs     = []
+  , optCoverage     = False
   }
 
+-- | Load config from the given path (or .mucheck.yaml) and return a transformer.
+-- Applied to defaultOpts before CLI parsing so CLI flags override config.
+loadConfig :: Maybe FilePath -> IO (Opts -> Opts)
+loadConfig mPath = do
+  let path = case mPath of { Just p -> p; Nothing -> ".mucheck.yaml" }
+  result <- try (readFile path) :: IO (Either IOException String)
+  case result of
+    Left _        -> return id
+    Right contents -> return $ applyYamlConfig (parseYamlKV contents)
+
+parseYamlKV :: String -> [(String, String)]
+parseYamlKV = concatMap parseLine . filter (not . skip) . lines
+  where
+    skip s = case dropWhile isSpace s of { [] -> True; (c:_) -> c == '#' }
+    parseLine s = case break (== ':') s of
+      (k, ':' : v) ->
+        let k' = trim k; v' = dropWhile isSpace v
+        in if null k' then [] else [(k', v')]
+      _ -> []
+    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+applyYamlConfig :: [(String, String)] -> Opts -> Opts
+applyYamlConfig pairs opts = foldl applyPair opts pairs
+  where
+    applyPair o ("min_msi", v) = case (reads v, optMinMsi o) of
+      ([(i,"")], Nothing) -> o { optMinMsi = Just i }
+      _                   -> o
+    applyPair o ("min_covered_msi", v) = case (reads v, optMinCoveredMsi o) of
+      ([(i,"")], Nothing) -> o { optMinCoveredMsi = Just i }
+      _                   -> o
+    applyPair o ("timeout", v) = case (reads v, optTimeout o) of
+      ([(i,"")], Nothing) -> o { optTimeout = Just i }
+      _                   -> o
+    applyPair o ("quiet", v)
+      | v `elem` ["true","True","yes"] = o { optQuiet = True }
+      | otherwise                       = o
+    applyPair o ("disable_mutators", v) =
+      o { optDisable = optDisable o ++ parseYamlList v }
+    applyPair o ("enable_mutators", v) =
+      o { optEnable = optEnable o ++ parseYamlList v }
+    applyPair o _ = o
+
+parseYamlList :: String -> [String]
+parseYamlList s = case dropWhile isSpace s of
+  ('[' : rest) ->
+    let inner = takeWhile (/= ']') rest
+    in map trim (splitOn ',' inner)
+  s' -> let t = trim s' in if null t then [] else [t]
+  where trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+-- | Search for a .tix file in the current directory for --coverage auto-discovery.
+findTixFile :: IO (Maybe FilePath)
+findTixFile = do
+  result <- try (listDirectory ".") :: IO (Either IOException [FilePath])
+  case result of
+    Left _   -> return Nothing
+    Right fs -> return $ case filter (".tix" `isSuffixOf`) fs of
+      (f:_) -> Just f
+      []    -> Nothing
+
 parseOpts :: [String] -> Either String Opts
-parseOpts = go defaultOpts
+parseOpts = parseOptsFrom defaultOpts
+
+parseOptsFrom :: Opts -> [String] -> Either String Opts
+parseOptsFrom base = go base
   where
     go opts ("--dry-run"         : rest) = go opts { optDryRun       = True } rest
     go opts ("--noop"            : rest) = go opts { optNoop         = True } rest
@@ -153,6 +225,11 @@ parseOpts = go defaultOpts
     go opts ("--keep-mutants" : d : rest) = go opts { optKeepMutants = Just d } rest
     go _    ("--logger-agentic-json" : []) = Left "--logger-agentic-json requires a file path argument"
     go opts ("--logger-agentic-json" : f : rest) = go opts { optLoggerAgenticJson = Just f } rest
+    go _    ("--logger-html"    : [])   = Left "--logger-html requires a file path argument"
+    go opts ("--logger-html" : f : rest) = go opts { optLoggerHtml = Just f } rest
+    go _    ("--test-args"      : [])   = Left "--test-args requires an argument"
+    go opts ("--test-args" : a  : rest) = go opts { optTestArgs = optTestArgs opts ++ [a] } rest
+    go opts ("--coverage"       : rest) = go opts { optCoverage = True } rest
     go _    (arg@('-' : _)       : _)    = Left $ "Unknown flag: " ++ arg
     go opts (file                : _)    = Right opts { optFile = file }
     go _    []                           = Left "Need a file argument"
@@ -178,8 +255,13 @@ main = do
   case args of
     ("-h" : _) -> help
     _          -> case parseOpts args of
-      Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
-      Right opts -> runOpts opts
+      Left err      -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
+      Right cliOpts -> do
+        configFn <- loadConfig (optConfig cliOpts)
+        let baseOpts = configFn defaultOpts
+        case parseOptsFrom baseOpts args of
+          Left err   -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
+          Right opts -> runOpts opts
 
 runOpts :: Opts -> IO ()
 runOpts opts
@@ -194,7 +276,14 @@ runOpts opts
         origSrc <- readFile (optFile opts)
         let modFile  = toRun (optFile opts) :: AssertCheckRun
             anns     = parseAnnotations origSrc
-        (len, mutants) <- genMutants (getName modFile) (optTix opts)
+        tix <- if optCoverage opts && null (optTix opts)
+               then do
+                 mf <- findTixFile
+                 case mf of
+                   Just f  -> hPutStrLn stderr ("Coverage: using " ++ f) >> return f
+                   Nothing -> hPutStrLn stderr "Coverage: no .tix file found; proceeding without" >> return ""
+               else return (optTix opts)
+        (len, mutants) <- genMutants (getName modFile) tix
         smutants        <- sampler defaultConfig mutants
         let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) smutants
             filtered1 = applyAnnotations anns filtered0
@@ -205,7 +294,31 @@ runOpts opts
             tests        = map (genTest modFile)
         testNames <- getAllTests (getName modFile)
         timeoutUs <- resolveTimeout opts (optFile opts) modFile testNames
-        (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) modFile finalMutants (tests testNames)
+        let total = length finalMutants
+        progressRef <- newIORef (0 :: Int, 0 :: Int, 0 :: Int, 0 :: Int)
+        let progressCallback ms = modifyIORef' progressRef $ \(k,a,e,sk) -> case ms of
+              MSumKilled  _ _   -> (k+1, a,   e,   sk)
+              MSumAlive   _ _   -> (k,   a+1, e,   sk)
+              MSumError   _ _ _ -> (k,   a,   e+1, sk)
+              MSumSkipped _ _   -> (k,   a,   e,   sk+1)
+              MSumOther   _ _   -> (k+1, a,   e,   sk)
+            mcallback = if optQuiet opts || total == 0 then Nothing else Just progressCallback
+        let progressLoop = do
+              (k,a,e,sk) <- readIORef progressRef
+              let done = k + a + e + sk
+              hPutStr stderr $ "\rProgress: [" ++ show done ++ "/" ++ show total ++ "]"
+                ++ " killed=" ++ show k ++ " alive=" ++ show a
+                ++ " error=" ++ show e ++ " skip=" ++ show sk ++ "   "
+              hFlush stderr
+              threadDelay 200000
+              progressLoop
+        mtid <- if optQuiet opts || total == 0
+          then return Nothing
+          else fmap Just (forkIO progressLoop)
+        (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
+        case mtid of
+          Nothing  -> return ()
+          Just tid -> killThread tid >> hPutStrLn stderr ""
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
@@ -217,6 +330,7 @@ runOpts opts
           writeGithubLogger opts (optFile opts) tsum
           writeGitlabLogger opts (optFile opts) tsum
           writeAgenticJsonLogger opts (optFile opts) origSrc tsum msum
+          writeHtmlLogger opts (optFile opts) origSrc tsum msum
           writeUpdateBaseline opts tsum
           applyExitPolicy opts msum
 
@@ -235,7 +349,7 @@ resolveTimeout opts file modFile testNames =
       let testStrs = map (genTest modFile) testNames
           logF = ".mucheck-baseline-timing.log"
           runOne :: String -> IO (InterpreterOutput AssertCheckSummary)
-          runOne = evalTest Nothing file logF
+          runOne = evalTest Nothing [] file logF
       t0 <- getCurrentTime
       _ <- mapM runOne testStrs
       t1 <- getCurrentTime
@@ -335,6 +449,92 @@ writeAgenticJsonLogger opts file origSrc tsum msum = case optLoggerAgenticJson o
                (if null entries then "" else "\n") ++
                "  ],\n" ++ summaryJson ++ "\n}\n"
     writeFile path json
+
+-- | Write a standalone HTML mutation report.
+writeHtmlLogger :: Opts -> FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> IO ()
+writeHtmlLogger opts file origSrc tsum msum = case optLoggerHtml opts of
+  Nothing   -> return ()
+  Just path -> writeFile path (buildHtmlReport file origSrc tsum msum)
+
+buildHtmlReport :: FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> String
+buildHtmlReport file origSrc tsum msum =
+  let MAnalysisSummary{..} = msum
+      noerrors = _maNumMutants - _maErrors
+      msiPct :: Int
+      msiPct = if noerrors > 0 then _maKilled * 100 `div` noerrors else 0
+      esc = concatMap escChar
+      escChar '<' = "&lt;"; escChar '>' = "&gt;"
+      escChar '&' = "&amp;"; escChar '"' = "&quot;"
+      escChar c   = [c]
+      statusClass (MSumKilled  _ _)   = "killed"  :: String
+      statusClass (MSumAlive   _ _)   = "alive"
+      statusClass (MSumError   _ _ _) = "error"
+      statusClass (MSumSkipped _ _)   = "skipped"
+      statusClass (MSumOther   _ _)   = "other"
+      statusLabel (MSumKilled  _ _)   = "KILLED"  :: String
+      statusLabel (MSumAlive   _ _)   = "ALIVE"
+      statusLabel (MSumError   _ _ _) = "ERROR"
+      statusLabel (MSumSkipped _ _)   = "SKIPPED"
+      statusLabel (MSumOther   _ _)   = "OTHER"
+      mutOf (MSumKilled  m _)   = m; mutOf (MSumAlive   m _)   = m
+      mutOf (MSumError   m _ _) = m; mutOf (MSumSkipped m _)   = m
+      mutOf (MSumOther   m _)   = m
+      oLines = lines origSrc
+      ctxWin = 3 :: Int
+      contextRows m =
+        let sl    = spanStartLine (_mspan m)
+            start = max 1 (sl - ctxWin)
+            end   = min (length oLines) (sl + ctxWin)
+            nums  = [start..end]
+            lns   = drop (start - 1) (take end oLines)
+        in concatMap (\(i,l) ->
+              "<tr" ++ (if i == sl then " class=\"hl\"" else "") ++ ">"
+              ++ "<td class=\"ln\">" ++ show i ++ "</td>"
+              ++ "<td><code>" ++ esc l ++ "</code></td></tr>")
+           (zip nums lns)
+      diffBlock m =
+        let d = unifiedDiff origSrc (_mutant m)
+        in if null d then "<em>no diff</em>"
+           else "<pre class=\"diff\">" ++ esc d ++ "</pre>"
+      entryHtml s =
+        let m  = mutOf s
+            sc = statusClass s
+            sl = statusLabel s
+            mid = hash (_mutant m)
+        in "<div class=\"mutant " ++ sc ++ "\">"
+           ++ "<div class=\"mh\"><span class=\"st " ++ sc ++ "\">" ++ sl ++ "</span>"
+           ++ " <span class=\"mv\">" ++ esc (showMuVar (_mtype m)) ++ "</span>"
+           ++ " <span class=\"id\">ID:" ++ esc mid ++ "</span></div>"
+           ++ "<div class=\"ctx\"><table>" ++ contextRows m ++ "</table></div>"
+           ++ "<div class=\"df\">" ++ diffBlock m ++ "</div></div>\n"
+      css = concat
+        [ "body{font-family:monospace;margin:20px}"
+        , ".sum{background:#f5f5f5;padding:12px;border-radius:4px;margin-bottom:16px}"
+        , ".mutant{border:1px solid #ddd;margin-bottom:12px;border-radius:4px;overflow:hidden}"
+        , ".mh{padding:6px 10px;display:flex;gap:12px;align-items:center}"
+        , ".killed .mh{background:#d4edda}.alive .mh{background:#f8d7da}"
+        , ".error .mh{background:#fff3cd}.skipped .mh{background:#e2e3e5}"
+        , ".st{padding:2px 6px;border-radius:3px;font-size:.85em;font-weight:bold}"
+        , ".st.killed{background:#28a745;color:#fff}.st.alive{background:#dc3545;color:#fff}"
+        , ".st.error{background:#ffc107;color:#000}.st.skipped{background:#6c757d;color:#fff}"
+        , ".id{color:#666;font-size:.8em}.mv{font-weight:bold}"
+        , ".ctx table{border-collapse:collapse;width:100%;padding:4px 8px}"
+        , ".ctx td{padding:1px 6px;font-size:.85em}.ln{color:#999;text-align:right;border-right:1px solid #eee}"
+        , ".hl td{background:#fffde7}"
+        , ".df pre{margin:0;padding:6px 10px;background:#f8f8f8;font-size:.85em;overflow-x:auto}"
+        ]
+  in "<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">"
+     ++ "<title>MuCheck: " ++ esc file ++ "</title>"
+     ++ "<style>" ++ css ++ "</style></head><body>"
+     ++ "<h1>Mutation Report: " ++ esc file ++ "</h1>"
+     ++ "<div class=\"sum\"><strong>MSI:</strong> " ++ show msiPct ++ "% &nbsp; "
+     ++ "<strong>Total:</strong> " ++ show _maNumMutants ++ " &nbsp; "
+     ++ "<strong>Killed:</strong> " ++ show _maKilled ++ " &nbsp; "
+     ++ "<strong>Alive:</strong> " ++ show _maAlive ++ " &nbsp; "
+     ++ "<strong>Skipped:</strong> " ++ show _maSkipped ++ " &nbsp; "
+     ++ "<strong>Errors:</strong> " ++ show _maErrors ++ "</div>"
+     ++ concatMap entryHtml tsum
+     ++ "</body></html>\n"
 
 -- | Return True if --git-diff-base is not set, or if the file appears in the diff.
 checkGitDiff :: FilePath -> Maybe String -> IO Bool
@@ -542,7 +742,7 @@ noopCheck file = do
     let testStrs = map (genTest (toRun file :: AssertCheckRun)) tests
         logF     = ".mucheck-noop.log"
         runTest :: String -> IO (InterpreterOutput AssertCheckSummary)
-        runTest  = evalTest Nothing file logF
+        runTest  = evalTest Nothing [] file logF
     results <- mapM runTest testStrs
     let pass = all (\r -> case _io r of { Right out -> isSuccess out; Left _ -> False }) results
     unless pass $ do
@@ -722,26 +922,46 @@ help = putStrLn $ showAS
   [ "Usage: mucheck [FLAGS] FILE"
   , ""
   , "FLAGS:"
-  , "  -h                        Print this help"
-  , "  --dry-run                 Show mutation counts by type without evaluating"
-  , "  --noop                    Verify tests pass on unmodified source first (exit 3 on failure)"
-  , "  --fail-on-escaped         Exit with code 4 if any mutant survives"
-  , "  --min-msi PCT             Exit with code 5 if MSI is below PCT percent"
-  , "  --disable NAME            Skip mutants of the named type (repeatable)"
-  , "  --enable  NAME            Run only mutants of the named type (repeatable)"
-  , "  -tix FILE                 HPC coverage file for coverage-guided mutation"
-  , "  --logger-json FILE        Write a compact JSON run summary to FILE"
-  , "  --baseline FILE           Skip mutants whose ID appears in FILE from a previous run"
-  , "  --update-baseline FILE    Write surviving mutant IDs to FILE after the run"
-  , "  --blacklist FILE          Suppress mutations whose ID appears in FILE (false-positive exclusions)"
-  , "  --run-mutant-id ID        Evaluate only the mutant with the given stable ID; no aggregate summary"
-  , "  --logger-github FILE      Write GitHub Actions annotations for escaped mutants to FILE"
-  , "  --logger-gitlab FILE      Write GitLab Code Quality JSON for escaped mutants to FILE"
-  , "  --timeout-coefficient N   Set per-mutant timeout to N × measured baseline test-suite runtime"
-  , "  --git-diff-base REF       Skip mutation if the source file is not in 'git diff --name-only REF'"
-  , "  --git-diff-lines          Restrict mutants to changed lines (requires --git-diff-base)"
-  , "  --keep-mutants DIR        Write mutant files to DIR and keep them after evaluation"
-  , "  --logger-agentic-json FILE  Write per-mutant JSON with descriptions and context for LLM consumption"
+  , "  -h                          Print this help"
+  , "  --dry-run                   Show mutation counts by type without evaluating"
+  , "  --noop                      Verify tests pass on unmodified source first (exit 3 on failure)"
+  , "  --quiet                     Show only surviving mutants; suppress killed/error output"
+  , "  --verbose                   Print full mutant source and test output during evaluation"
+  , "  --debug                     Print stable IDs and raw interpreter diagnostics"
+  , "  --no-diffs                  Suppress per-mutant unified diff output"
+  , "  --fail-on-escaped           Exit with code 4 if any mutant survives"
+  , "  --min-msi PCT               Exit with code 5 if MSI is below PCT percent"
+  , "  --min-covered-msi PCT       Exit with code 5 if covered-code MSI is below PCT (requires -tix)"
+  , "  --ignore-msi-with-no-mutations  Pass quality gates when no mutations are generated"
+  , "  --disable NAME              Skip mutants of the named type (repeatable)"
+  , "  --enable  NAME              Run only mutants of the named type (repeatable)"
+  , "  --output-statuses CHARS     Show only result types matching chars: k=killed a=alive e=error s=skip"
+  , "  -tix FILE                   HPC coverage file for coverage-guided mutation"
+  , "  --coverage                  Auto-discover a .tix file in the current directory"
+  , "  --timeout N                 Per-mutant timeout in seconds"
+  , "  --timeout-coefficient N     Set timeout to N × measured baseline test-suite runtime"
+  , "  --test-args ARG             Pass ARG to the test runner (repeatable)"
+  , "  --config FILE               Load config from FILE instead of .mucheck.yaml"
+  , "  --baseline FILE             Skip mutants whose ID appears in FILE from a previous run"
+  , "  --update-baseline FILE      Write surviving mutant IDs to FILE after the run"
+  , "  --blacklist FILE            Suppress mutations whose ID appears in FILE"
+  , "  --run-mutant-id ID          Evaluate only the mutant with the given stable ID"
+  , "  --git-diff-base REF         Skip mutation if file is not in 'git diff --name-only REF'"
+  , "  --git-diff-lines            Restrict mutants to changed lines (requires --git-diff-base)"
+  , "  --keep-mutants DIR          Write mutant files to DIR and keep them after evaluation"
+  , "  --logger-json FILE          Write a compact JSON run summary to FILE"
+  , "  --logger-html FILE          Write a standalone HTML mutation report to FILE"
+  , "  --logger-github FILE        Write GitHub Actions annotations for escaped mutants to FILE"
+  , "  --logger-gitlab FILE        Write GitLab Code Quality JSON for escaped mutants to FILE"
+  , "  --logger-agentic-json FILE  Write per-mutant JSON for LLM consumption to FILE"
+  , ""
+  , "CONFIG FILE (.mucheck.yaml, auto-loaded from project root):"
+  , "  min_msi: 80               Minimum required MSI (0-100)"
+  , "  min_covered_msi: 80       Minimum required covered-code MSI"
+  , "  timeout: 30               Per-mutant timeout in seconds"
+  , "  quiet: true               Suppress killed/error output"
+  , "  disable_mutators: [a, b]  Mutator names to skip"
+  , "  enable_mutators: [a, b]   Restrict to named mutators"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"
@@ -758,7 +978,7 @@ help = putStrLn $ showAS
   , "  2  Bad arguments"
   , "  3  Pre-flight failure (--noop: tests fail on original source)"
   , "  4  Escaped mutants (--fail-on-escaped)"
-  , "  5  MSI below threshold (--min-msi)"
+  , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
   , ""
   , "E.g.:"
   , "  mucheck [--dry-run] [-tix file.tix] Examples/AssertCheckTest.hs"

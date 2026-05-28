@@ -43,6 +43,10 @@ evaluateMutants ::
     Maybe Int ->
     -- | Optional directory to keep mutant files in (Nothing = system temp, deleted after)
     Maybe FilePath ->
+    -- | Extra arguments forwarded to every test invocation via @withArgs@
+    [String] ->
+    -- | Optional per-mutant callback invoked after each mutant is evaluated
+    Maybe (MutantSummary -> IO ()) ->
     -- | The module to be evaluated
     a ->
     -- | The mutants to be evaluated
@@ -51,13 +55,21 @@ evaluateMutants ::
     [TestStr] ->
     -- | Returns a tuple of full run summary and individual mutant summary
     IO (MAnalysisSummary, [MutantSummary])
-evaluateMutants mtimeout keepDir m mutants tests = do
+evaluateMutants mtimeout keepDir extraArgs mcallback m mutants tests = do
     mutantDir <- resolveMutantDir keepDir
     let doDelete = keepDir == Nothing
-    results <- mapM (evalMutant mtimeout doDelete mutantDir tests) mutants
-    let singleTestSummaries = zipWith (curry (summarizeResults m tests)) mutants results
-        ma = fullSummary m tests results
-    return (ma, singleTestSummaries)
+        evalOne mutant = do
+            result  <- evalMutant mtimeout doDelete mutantDir extraArgs tests mutant
+            let summary = summarizeResults m tests (mutant, result)
+            case mcallback of
+                Nothing -> return ()
+                Just cb -> cb summary
+            return (result, summary)
+    pairs <- mapM evalOne mutants
+    let results   = map fst pairs
+        summaries = map snd pairs
+        ma        = fullSummary m tests results
+    return (ma, summaries)
 
 -- | Compute the directory to write mutant files into.
 -- If a keep-dir is provided, use it; otherwise use the system temp dir.
@@ -94,13 +106,15 @@ evalMutant ::
     Bool ->
     -- | Directory to write the mutant file into
     FilePath ->
+    -- | Extra arguments forwarded to every test invocation
+    [String] ->
     -- | The tests to be used
     [TestStr] ->
     -- | Mutant being tested
     Mutant ->
     -- | Returns the result of test runs
     IO [InterpreterOutput t]
-evalMutant mtimeout doDelete mutantDir tests Mutant{..} = do
+evalMutant mtimeout doDelete mutantDir extraArgs tests Mutant{..} = do
     let mutantFile = mutantDir ++ "/" ++ hash _mutant ++ ".hs"
         logF       = mutantFile ++ ".log"
 
@@ -109,7 +123,7 @@ evalMutant mtimeout doDelete mutantDir tests Mutant{..} = do
     writeResult <- try (writeFile mutantFile _mutant) :: IO (Either IOException ())
     result <- case writeResult of
         Left err -> return [Io{_io = Left (I.UnknownError ("write error: " ++ show err)), _ioLog = ""}]
-        Right () -> stopFast (evalTest mtimeout mutantFile logF) tests
+        Right () -> stopFast (evalTest mtimeout extraArgs mutantFile logF) tests
     when doDelete $ do
         _ <- try (removeFile mutantFile) :: IO (Either IOException ())
         _ <- try (removeFile logF)       :: IO (Either IOException ())
@@ -149,6 +163,8 @@ evalTest ::
     (Typeable a, Summarizable a) =>
     -- | Optional timeout in microseconds
     Maybe Int ->
+    -- | Extra arguments forwarded to the test via @withArgs@
+    [String] ->
     -- | The mutant _file_ that we have to evaluate (_not_ the content)
     String ->
     -- | The file where we will write the stdout and stderr during the run.
@@ -157,8 +173,8 @@ evalTest ::
     TestStr ->
     -- | Returns the output of given test run
     IO (InterpreterOutput a)
-evalTest mtimeout mutantFile logF test = do
-    let runAction = withArgs [] $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+evalTest mtimeout extraArgs mutantFile logF test = do
+    let runAction = withArgs extraArgs $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
     mval <- case mtimeout of
         Nothing -> Just <$> runAction
         Just t -> timeout t runAction
@@ -214,4 +230,3 @@ fullSummary m _tests results = MAnalysisSummary {
         fails = filter (any (failure_ m)) completed
         -- A mutant is alive if all tests succeeded
         alive = filter (all (success_ m)) completed
-

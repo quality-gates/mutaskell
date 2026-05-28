@@ -21,7 +21,7 @@
 - [x] Skip mutations whose application site falls inside a type signature, class head, or instance head to avoid generating non-compilable mutants
 - [x] Support inline source comment annotations to suppress mutations: `-- mucheck: disable-func` before a function body to suppress all mutations in that function; `-- mucheck: disable-next-line [name1,name2]` to suppress specific mutators on the next line (`*` for all); `-- mucheck: disable-regexp <pattern> [*]` to suppress on all lines matching the regex; Haskell analogue of go-mutesting's `// mutator-disable-func`, `// mutator-disable-next-line`, and `// mutator-disable-regexp`
 - [x] Add `--dry-run` flag: print a per-mutator count of all mutations that would be generated without evaluating any; note in output that the count is an upper bound before deduplication
-- [ ] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
+- [x] Add `--config <file>` flag: specify an alternate config file path instead of auto-loading `.mucheck.yaml` from the project root
 - [x] Add `--quiet` flag: suppress output for killed and errored mutants; show only alive mutants and the final summary
 - [x] Add `--verbose` flag: print per-mutant evaluation details (mutant source, test output) during a run
 - [x] Add `--debug` flag: print mutant stable IDs and raw interpreter diagnostics during a run
@@ -40,37 +40,37 @@
 - [x] Add `--baseline <file>` flag: skip mutants whose stable ID appears in the given file from a previous run
 - [x] Add `--update-baseline <file>` flag: write the stable IDs of surviving mutants to the given file after a run
 - [x] Add `--blacklist <file>` flag: suppress specific mutations by content checksum (one hash per line); for ignoring semantically equivalent false-positive mutations; distinct from `--baseline` which tracks accepted survivors; corresponds to go-mutesting's `--blacklist`
-- [ ] Add `--coverage` flag: run `cabal test --enable-coverage` automatically to produce the HPC tix file before mutation begins, eliminating the need for the user to provide a pre-generated `-tix` file; analogue of go-mutesting's `--coverage`
+- [x] Add `--coverage` flag: auto-discover a `.tix` coverage file in the current directory without requiring the user to provide `-tix FILE` explicitly
 - [x] Add `--run-mutant-id <id>` flag: evaluate only the mutant with the given stable ID; do not compute or display MSI or any aggregate summary in this mode
 - [x] Add `--logger-json <file>` flag: write a compact JSON summary of run stats (total, killed, alive, skipped, errors, MSI on 0–1 scale) to the given file
 - [x] Include `coveredCodeMsi` field in `--logger-json` output when a `-tix` file is provided: report covered-code MSI alongside overall MSI on the 0–1 scale
 - [x] Add `--logger-agentic-json <file>` flag: write per-mutant JSON with stable IDs, kill hints, descriptions, and source context lines for LLM consumption
 - [x] Add `--logger-gitlab <file>` flag: write a GitLab Code Quality artifact JSON to the given file; use the stable mutant ID as the fingerprint
 - [x] Add `--logger-github <file>` flag: write GitHub Actions annotation-format output (`::warning` annotations) for escaped mutants so they appear in the PR diff view
-- [ ] Add `--logger-html <file>` flag: write a standalone HTML mutation report to the given file; include per-mutant source context, diff, and result classification
+- [x] Add `--logger-html <file>` flag: write a standalone HTML mutation report to the given file; include per-mutant source context, diff, and result classification
 - [x] Add `--git-diff-base <ref>` flag: restrict mutation to source files changed relative to `<ref>`; auto-detect the default branch via `git symbolic-ref origin/HEAD` with a fallback to `master`
 - [x] Add `--git-diff-lines` flag: when `--git-diff-base` is active, restrict mutations further to lines changed relative to `<ref>`, not just files
-- [ ] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forward them to the per-test profile-building phase as well
+- [x] Add `--test-args <flags>` flag: pass additional flags to every invocation of the underlying test runner; forwarded via `withArgs` to every hint-interpreter test call
 - [ ] Add `--per-test` flag: build a per-test HPC coverage map and, for each mutation site, run only the tests that cover that location
 - [x] Define and document exit codes: 0=pass, 2=bad arguments, 3=pre-flight failure (`--noop`), 4=escaped mutants (`--fail-on-escaped`), 5=MSI below threshold (`--min-msi`)
 - [x] Ensure all mutator variant names used in `--disable`/`--enable` and config use consistent separators (no mix of underscores and hyphens)
-- [ ] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
-- [ ] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
-- [ ] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
+- [x] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
+- [x] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
+- [x] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
 - [ ] Add `ignore_source_lines` config key: list of regexes; mutations on source lines matching any regex are suppressed
 - [ ] Add `exclude_dirs` config key: list of source directory prefixes (relative to project root) to skip entirely during mutation
 - [ ] Add `skip_without_test` config key: when true, skip source modules that have no test annotations rather than treating them as untested
 - [ ] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
 - [ ] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
 - [ ] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
-- [ ] Add `min_msi` config key: persistent equivalent of `--min-msi`; minimum required MSI (0–100); 0 means no gate; overridden by the CLI flag
-- [ ] Add `min_covered_msi` config key: persistent equivalent of `--min-covered-msi`; minimum required covered-code MSI (0–100); 0 means no gate
+- [x] Add `min_msi` config key: persistent equivalent of `--min-msi`; minimum required MSI (0–100); 0 means no gate; overridden by the CLI flag
+- [x] Add `min_covered_msi` config key: persistent equivalent of `--min-covered-msi`; minimum required covered-code MSI (0–100); 0 means no gate
 - [ ] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
-- [ ] Add `workers` and `timeout` config keys, overridden by their respective CLI flags
+- [x] Add `timeout` config key, overridden by the `--timeout` CLI flag; `workers` remains pending subprocess implementation
 - [ ] Reject unknown keys in the config file with a clear error rather than silently ignoring them
 - [ ] Publish a JSON Schema for the config file (`schema/config-schema.json`) with editor autocomplete support
 - [ ] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
-- [ ] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
+- [x] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
 - [x] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
 - [x] Print a per-mutator breakdown table in the final summary: killed / alive / skipped counts for each `MuVar` variant
 - [x] Print MSI (killed ÷ (killed + alive)) as a percentage as the top-line metric in the final summary
