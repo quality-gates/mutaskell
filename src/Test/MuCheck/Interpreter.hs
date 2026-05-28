@@ -14,7 +14,8 @@ import Data.Either (partitionEithers)
 import Data.List (isPrefixOf, partition)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import System.Directory (createDirectoryIfMissing, removeDirectoryRecursive)
+import qualified Language.Haskell.Interpreter.Unsafe as IU
+import System.Directory (createDirectoryIfMissing, getCurrentDirectory, listDirectory, removeDirectoryRecursive)
 import System.Environment (withArgs)
 import System.IO.Temp (getCanonicalTemporaryDirectory)
 import System.Timeout (timeout)
@@ -227,7 +228,15 @@ evalTest ::
     -- | Returns the output of given test run
     IO (InterpreterOutput a)
 evalTest mtimeout extraArgs mutantFile logF test = do
-    let runAction = withArgs extraArgs $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+    -- On GHC 9.8+ the GHC API does not automatically read the
+    -- .ghc.environment.* file written by `cabal build
+    -- --write-ghc-environment-files=always`.  Detect the file in the current
+    -- working directory and pass it explicitly via `-package-env` so that
+    -- hint can find packages registered only in the local package database
+    -- (e.g. the MuCheck library itself when the test suite runs it inline).
+    pkgEnvArgs <- findPkgEnvArgs
+    let runAction = withArgs extraArgs $ catchOutput logF $
+                        IU.unsafeRunInterpreterWithArgs pkgEnvArgs (evalMethod mutantFile test)
     mval <- case mtimeout of
         Nothing -> Just <$> runAction
         Just t -> timeout t runAction
@@ -235,6 +244,19 @@ evalTest mtimeout extraArgs mutantFile logF test = do
             Nothing -> Left (I.UnknownError "Timeout occurred")
             Just v -> v
     return Io{_io = val, _ioLog = logF}
+
+-- | Detect any @.ghc.environment.*@ file in the current directory and return
+-- the corresponding @[\"-package-env\", \<file\>]@ arguments for
+-- 'I.runInterpreterWithArgs'.  Returns @[]@ when no environment file is found
+-- (e.g. in a plain @ghc@ or @runhaskell@ invocation without cabal).
+findPkgEnvArgs :: IO [String]
+findPkgEnvArgs = do
+    cwd   <- getCurrentDirectory
+    files <- listDirectory cwd
+    let envFiles = filter (".ghc.environment." `isPrefixOf`) files
+    case envFiles of
+        (f:_) -> return ["-package-env", cwd ++ "/" ++ f]
+        []    -> return []
 
 {- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 
