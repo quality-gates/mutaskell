@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.21]
+  * Fixed: add `workers` to `schema/mucheck-config-schema.json`; editors with YAML autocomplete now suggest it and schema-validating tools no longer reject it
+
+## [0.4.20]
+  * Fixed: `getASTFromStr` now returns `Either String Module_` instead of crashing on parse failure
+  * Fixed: `genMutants`, `getAllTests`, and `mucheck` now propagate parse errors gracefully to the terminal and exit with code 2
+
 ## [0.4.19]
   * Add `--workers N` flag: evaluate mutants concurrently using N subprocess workers; hint is not thread-safe so each worker is a fresh process; output is synchronized through the parent to prevent interleaved lines
 
