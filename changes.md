@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.16]
+  * Add `ignore_source_lines` config key: list of substrings; suppress mutations on source lines containing any substring
+  * Add `skip_without_test` config key: when true, skip source modules with no test annotations and exit cleanly
+  * Fix output ordering race: after evaluation, read the final progress counts in the main thread and print them before the summary; eliminates interleaving between stderr progress and stdout output
+  * Publish JSON Schema for the config file at `schema/mucheck-config-schema.json` with `additionalProperties: false` for editor autocomplete support
+
 ## [0.4.15]
   * Add `silent_mode` config key: print only the final summary line; suppress all per-mutant output and the mutator breakdown table
   * Add `max_mutants` config key: cap the total number of sampled mutants before evaluation

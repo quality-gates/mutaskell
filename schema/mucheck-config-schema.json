@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jonbaldie.github.io/mucheck/schema/mucheck-config-schema.json",
+  "title": "MuCheck configuration",
+  "description": "Schema for .mucheck.yaml — the MuCheck project-level config file.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "min_msi": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Minimum required mutation score (MSI) as a percentage. Exit code 5 if below this value."
+    },
+    "min_covered_msi": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Minimum required covered-code MSI as a percentage. Requires a -tix file. Exit code 5 if below."
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Per-mutant timeout in seconds. Overridden by the --timeout CLI flag."
+    },
+    "max_mutants": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of sampled mutants to evaluate. Caps the randomly sampled set."
+    },
+    "quiet": {
+      "type": "boolean",
+      "description": "Suppress output for killed and errored mutants; show only surviving mutants."
+    },
+    "silent_mode": {
+      "type": "boolean",
+      "description": "Print only the final summary line. Suppresses all per-mutant output and the breakdown table."
+    },
+    "skip_without_test": {
+      "type": "boolean",
+      "description": "When true, skip source modules that have no test annotations rather than running with zero tests."
+    },
+    "json_output": {
+      "type": "string",
+      "description": "Path to write a compact JSON run summary after every run. Persistent equivalent of --logger-json."
+    },
+    "html_output": {
+      "type": "string",
+      "description": "Path to write a standalone HTML mutation report after every run. Persistent equivalent of --logger-html."
+    },
+    "disable_mutators": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of mutator names or trailing-* category wildcards to skip."
+    },
+    "enable_mutators": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of mutator names or trailing-* category wildcards to restrict to."
+    },
+    "ignore_source_lines": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of substrings; mutations on source lines containing any substring are suppressed."
+    }
+  }
+}

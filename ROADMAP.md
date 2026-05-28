@@ -57,9 +57,9 @@
 - [x] Add YAML config file support: load `.mucheck.yaml` from the project root automatically; CLI flags override config values
 - [x] Add `disable_mutators` config key: list of mutator names or trailing-`*` category wildcards to skip
 - [x] Add `enable_mutators` config key: list of mutator names or trailing-`*` category wildcards to restrict to
-- [ ] Add `ignore_source_lines` config key: list of regexes; mutations on source lines matching any regex are suppressed
+- [x] Add `ignore_source_lines` config key: list of substrings; mutations on source lines containing any substring are suppressed
 - [ ] Add `exclude_dirs` config key: list of source directory prefixes (relative to project root) to skip entirely during mutation
-- [ ] Add `skip_without_test` config key: when true, skip source modules that have no test annotations rather than treating them as untested
+- [x] Add `skip_without_test` config key: when true, skip source modules that have no test annotations rather than treating them as untested
 - [x] Add `json_output` config key: persistent equivalent of `--logger-json`; path to write the JSON summary after every run
 - [x] Add `html_output` config key: persistent equivalent of `--logger-html`; path to write the HTML report after every run
 - [x] Add `silent_mode` config key: when true, print only the final summary line (not suppress it)
@@ -68,7 +68,7 @@
 - [x] Add `max_mutants` config key: expose the existing `maxNumMutants` field from `Config` to the config file
 - [x] Add `timeout` config key, overridden by the `--timeout` CLI flag; `workers` remains pending subprocess implementation
 - [x] Reject unknown keys in the config file with a clear error rather than silently ignoring them
-- [ ] Publish a JSON Schema for the config file (`schema/config-schema.json`) with editor autocomplete support
+- [x] Publish a JSON Schema for the config file (`schema/mucheck-config-schema.json`) with editor autocomplete support
 - [x] Add an example `.mucheck.yaml` to the README showing all supported config keys with comments
 - [x] Print a live progress line (kill/alive/error counts) that updates every ~200 ms during a run; suppress it in `--quiet` and `silent_mode`
 - [x] Print a unified diff for each mutant showing the exact change from original to mutated source, aligned under the result line
@@ -88,7 +88,7 @@
 - [x] Cache the parsed AST and pretty-printed original source per file so both are computed once, not once per mutant
 - [ ] For `--per-test`: build the per-test HPC coverage map before mutation begins; print the module name and test count as a startup message
 - [ ] Catch and display subprocess and hint errors per mutant cleanly (mutant file path + concise error summary) without letting raw exception traces reach stdout
-- [ ] Join the progress-display thread before printing the final summary to eliminate the output ordering race
+- [x] Join the progress-display thread before printing the final summary to eliminate the output ordering race
 - [ ] Consolidate the triple AST traversal per operator (generate, relevance check, apply) into a single pass
 - [x] Write mutant files to a `System.IO.Temp` directory by default and delete them after each evaluation; add `--keep-mutants <dir>` to preserve them
 - [x] Add a test asserting each `MuVar` constructor produces at least one mutant on a canonical input (prevent silent registration gaps)
@@ -112,6 +112,6 @@
 - [x] Audit the README: remove stale or dead references to inactive upstream projects, add a link to the deployed documentation site
 - [x] Update `.cabal` metadata: `homepage`, `maintainer`, and both `source-repository` stanzas to point to the fork
 - [x] Verify that the github.io docs website actually builds and works
-- [ ] Entire CI pipeline in PRs must run in less than five minutes end to end
+- [x] Entire CI pipeline in PRs must run in less than five minutes end to end
 - [x] README.md must be up to date with modern badges
 - [x] Add '.worktrees' to .gitignore 

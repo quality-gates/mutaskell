@@ -149,16 +149,19 @@ MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags
 
 ```yaml
 # .mucheck.yaml — example config; unknown keys are rejected with an error
-min_msi: 80                  # Minimum required MSI (0–100); exit 5 if below
-min_covered_msi: 80          # Minimum required covered-code MSI (requires -tix)
-timeout: 30                  # Per-mutant timeout in seconds
-max_mutants: 200             # Cap the total number of sampled mutants
-quiet: true                  # Suppress killed/error output; show only survivors
-silent_mode: true            # Print only the final summary line; no per-mutant output
-json_output: mucheck.json    # Always write a JSON summary here after every run
-html_output: mucheck.html    # Always write an HTML report here after every run
+# JSON Schema: schema/mucheck-config-schema.json
+min_msi: 80                       # Minimum required MSI (0–100); exit 5 if below
+min_covered_msi: 80               # Minimum required covered-code MSI (requires -tix)
+timeout: 30                       # Per-mutant timeout in seconds
+max_mutants: 200                  # Cap the total number of sampled mutants
+quiet: true                       # Suppress killed/error output; show only survivors
+silent_mode: true                 # Print only the final summary line; no per-mutant output
+skip_without_test: true           # Skip files with no test annotations; exit 0
+json_output: mucheck.json         # Always write a JSON summary here after every run
+html_output: mucheck.html         # Always write an HTML report here after every run
 disable_mutators: [literal-values, negate-if-else]  # Mutators to skip
 enable_mutators: [functions]                         # Restrict to these mutators only
+ignore_source_lines: [NOTEST, uncovered]             # Skip mutations on lines containing these substrings
 ```
 
 

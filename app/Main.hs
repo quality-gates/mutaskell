@@ -6,7 +6,7 @@ import Control.Exception (IOException, try)
 import Control.Monad (unless, when, forM_)
 import Data.Char (isSpace)
 import Data.IORef (modifyIORef', newIORef, readIORef)
-import Data.List (group, intercalate, isPrefixOf, isSuffixOf, nub, sort, sortBy, stripPrefix)
+import Data.List (group, intercalate, isInfixOf, isPrefixOf, isSuffixOf, nub, sort, sortBy, stripPrefix)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (listDirectory)
@@ -62,6 +62,8 @@ data Opts = Opts
   , optCoverage     :: Bool
   , optSilent       :: Bool
   , optMaxMutants   :: Maybe Int
+  , optIgnoreLines  :: [String]
+  , optSkipWithoutTest :: Bool
   }
 
 defaultOpts :: Opts
@@ -100,6 +102,8 @@ defaultOpts = Opts
   , optCoverage     = False
   , optSilent       = False
   , optMaxMutants   = Nothing
+  , optIgnoreLines  = []
+  , optSkipWithoutTest = False
   }
 
 knownConfigKeys :: [String]
@@ -107,6 +111,7 @@ knownConfigKeys =
   [ "min_msi", "min_covered_msi", "timeout", "quiet", "silent_mode"
   , "max_mutants", "json_output", "html_output"
   , "disable_mutators", "enable_mutators"
+  , "ignore_source_lines", "skip_without_test"
   ]
 
 -- | Load config and return either an error string or a transformer.
@@ -167,6 +172,11 @@ applyYamlConfig pairs opts = foldl applyPair opts pairs
       o { optDisable = optDisable o ++ parseYamlList v }
     applyPair o ("enable_mutators", v) =
       o { optEnable = optEnable o ++ parseYamlList v }
+    applyPair o ("ignore_source_lines", v) =
+      o { optIgnoreLines = optIgnoreLines o ++ parseYamlList v }
+    applyPair o ("skip_without_test", v)
+      | v `elem` ["true","True","yes"] = o { optSkipWithoutTest = True }
+      | otherwise                       = o
     applyPair o _ = o
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
@@ -326,9 +336,13 @@ runOpts opts
         filtered2 <- applyBaseline  (optBaseline opts)  filtered1
         filtered3 <- applyBlacklist (optBlacklist opts) filtered2
         filtered4 <- applyDiffLines (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) filtered3
-        let finalMutants = applyRunMutantId (optRunMutantId opts) filtered4
+        let filtered5 = applyIgnoreLines origSrc (optIgnoreLines opts) filtered4
+            finalMutants = applyRunMutantId (optRunMutantId opts) filtered5
             tests        = map (genTest modFile)
         testNames <- getAllTests (getName modFile)
+        when (optSkipWithoutTest opts && null testNames) $ do
+          putStrLn $ "Skipping " ++ optFile opts ++ ": no test annotations found"
+          exitWith ExitSuccess
         timeoutUs <- resolveTimeout opts (optFile opts) modFile testNames
         let total = length finalMutants
         progressRef <- newIORef (0 :: Int, 0 :: Int, 0 :: Int, 0 :: Int)
@@ -355,7 +369,17 @@ runOpts opts
         (fsum', tsum) <- evaluateMutants timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
         case mtid of
           Nothing  -> return ()
-          Just tid -> killThread tid >> hPutStrLn stderr ""
+          Just tid -> do
+            killThread tid
+            -- Read final counts in the main thread (avoids output ordering race).
+            -- The background thread is dead; this is safe to read without a lock.
+            (k,a,e,sk) <- readIORef progressRef
+            let done = k + a + e + sk
+            hPutStr stderr $ "\rProgress: [" ++ show done ++ "/" ++ show total ++ "]"
+              ++ " killed=" ++ show k ++ " alive=" ++ show a
+              ++ " error=" ++ show e ++ " skip=" ++ show sk ++ "   "
+            hPutStrLn stderr ""
+            hFlush stderr
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
@@ -572,6 +596,17 @@ buildHtmlReport file origSrc tsum msum =
      ++ "<strong>Errors:</strong> " ++ show _maErrors ++ "</div>"
      ++ concatMap entryHtml tsum
      ++ "</body></html>\n"
+
+-- | Filter out mutants whose source start line contains any of the given substrings.
+applyIgnoreLines :: String -> [String] -> [Mutant] -> [Mutant]
+applyIgnoreLines _   []       ms = ms
+applyIgnoreLines src patterns ms = filter (not . isIgnored) ms
+  where
+    srcLines = lines src
+    isIgnored m =
+      let sl = spanStartLine (_mspan m)
+          ln = if sl >= 1 && sl <= length srcLines then srcLines !! (sl - 1) else ""
+      in  any (`isInfixOf` ln) patterns
 
 -- | Return True if --git-diff-base is not set, or if the file appears in the diff.
 checkGitDiff :: FilePath -> Maybe String -> IO Bool
