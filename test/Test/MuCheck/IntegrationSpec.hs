@@ -29,7 +29,17 @@ spec = describe "integration" $ do
                 expectationFailure $ "mucheck returned an error: " ++ err
             Right (summary, _mutantSummaries) -> do
                 _maNumMutants summary `shouldSatisfy` (> 0)
-                _maKilled summary `shouldSatisfy` (> 0)
+                -- Include a diagnostic breakdown in the failure message so that
+                -- CI logs make the classification visible without needing to
+                -- change the assertion semantics.
+                let diag = "killed=" ++ show (_maKilled summary)
+                         ++ " alive=" ++ show (_maAlive summary)
+                         ++ " errors=" ++ show (_maErrors summary)
+                         ++ " skipped=" ++ show (_maSkipped summary)
+                         ++ " total=" ++ show (_maNumMutants summary)
+                if _maKilled summary > 0
+                    then return ()
+                    else expectationFailure $ "expected at least one kill but got 0 kills: " ++ diag
                 let total = _maNumMutants summary
                     accounted = _maKilled summary
                               + _maAlive summary
