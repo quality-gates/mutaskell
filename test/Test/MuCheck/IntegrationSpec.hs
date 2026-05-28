@@ -16,6 +16,7 @@ import Test.Hspec
 
 import Test.MuCheck (mucheck)
 import Test.MuCheck.AnalysisSummary (MAnalysisSummary (..))
+import Test.MuCheck.Interpreter (MutantSummary (..))
 import Test.MuCheck.TestAdapter.AssertCheckAdapter (AssertCheckRun (..))
 
 spec :: Spec
@@ -37,9 +38,16 @@ spec = describe "integration" $ do
                          ++ " errors=" ++ show (_maErrors summary)
                          ++ " skipped=" ++ show (_maSkipped summary)
                          ++ " total=" ++ show (_maNumMutants summary)
+                let firstMutantInfo = case _mutantSummaries of
+                        (MSumSkipped m _:_) -> " first-skipped-mutant=" ++ take 200 (show m)
+                        (MSumError _ e _:_) -> " first-error=" ++ e
+                        (MSumAlive _ _:_)   -> " first=alive"
+                        (MSumKilled _ _:_)  -> " first=killed"
+                        (MSumOther _ _:_)   -> " first=other"
+                        []                  -> " no-mutants"
                 if _maKilled summary > 0
                     then return ()
-                    else expectationFailure $ "expected at least one kill but got 0 kills: " ++ diag
+                    else expectationFailure $ "expected at least one kill but got 0 kills: " ++ diag ++ firstMutantInfo
                 let total = _maNumMutants summary
                     accounted = _maKilled summary
                               + _maAlive summary
