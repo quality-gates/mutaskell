@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.22]
+  * Fixed: passing both `--enable` and `--disable` together now exits with code 2 and a clear error message instead of silently letting `--enable` win
+  * Changed: extracted `Opts`, `parseOptsFrom`, and related config functions into a new `App.Opts` module so the test suite can exercise CLI parsing directly
+  * Added: six unit tests in `Test.MuCheck.CLISpec` covering the `--enable`/`--disable` conflict, unknown flags, and missing file argument
+
 ## [0.4.21]
   * Fixed: add `workers` to `schema/mucheck-config-schema.json`; editors with YAML autocomplete now suggest it and schema-validating tools no longer reject it
 

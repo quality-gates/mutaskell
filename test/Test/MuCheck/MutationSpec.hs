@@ -52,7 +52,7 @@ myFn x = if x == 1 then True else False
 |]
                     ]
 
-            map show (selectLitOps (getASTFromStr text)) `shouldBe` res
+            map show (selectLitOps (H.ast text)) `shouldBe` res
 
     describe "selectBLitOps" $ do
         it "returns binarylit muops" $ do
@@ -79,7 +79,7 @@ True
 }
 |]
                     ]
-            map show (selectBLitOps (getASTFromStr text)) `shouldBe` res
+            map show (selectBLitOps (H.ast text)) `shouldBe` res
 
     describe "selectIfElseBoolNegOps" $ do
         it "returns ifelse muops" $ do
@@ -99,7 +99,7 @@ if x == 1 then False else True
 }
 |]
                     ]
-            map show (selectIfElseBoolNegOps (getASTFromStr text)) `shouldBe` res
+            map show (selectIfElseBoolNegOps (H.ast text)) `shouldBe` res
 
     describe "selectGuardedBoolNegOps" $ do
         it "returns guardedboolean muops" $ do
@@ -120,7 +120,7 @@ myFn   | otherwise = False
 }
 |]
                     ]
-            map show (selectGuardedBoolNegOps (getASTFromStr text)) `shouldBe` res
+            map show (selectGuardedBoolNegOps (H.ast text)) `shouldBe` res
 
     describe "selectRemoveNotOps" $ do
         it "returns remove-not muops" $ do
@@ -129,7 +129,7 @@ myFn   | otherwise = False
 module Prop where
 myFn x = not x
 |]
-            selectRemoveNotOps (getASTFromStr text) `shouldSatisfy` (not . null)
+            selectRemoveNotOps (H.ast text) `shouldSatisfy` (not . null)
 
     describe "selectRemoveNegationOps" $ do
         it "returns remove-negation muops" $ do
@@ -138,7 +138,7 @@ myFn x = not x
 module Prop where
 myFn x = negate x
 |]
-            selectRemoveNegationOps (getASTFromStr text) `shouldSatisfy` (not . null)
+            selectRemoveNegationOps (H.ast text) `shouldSatisfy` (not . null)
 
     describe "selectFnMatches" $ do
         it "returns fn muops" $ do
@@ -172,13 +172,13 @@ myFn (x : xs) = 1 + myFn xs
 myFn (x : xs) = 1 + myFn xs
 }|]
                     ]
-            map show (selectFnMatches (getASTFromStr text)) `shouldBe` res
+            map show (selectFnMatches (H.ast text)) `shouldBe` res
 
 {-
   describe "selectGuardedBoolNegOps" $ do
     it "returns relevant function guard ordering mutators" $ do
       let text = "myFn x | x == 1 = True\nmyFn   | otherwise = False\n"
-      selectGuardedBoolNegOps (getASTFromStr text) `shouldBe` [
+      selectGuardedBoolNegOps (H.ast text) `shouldBe` [
        GuardedRhs (SrcLoc "<unknown>.hs" 1 8)
                   [Qualifier (InfixApp (Var (UnQual (Ident "x"))) (QVarOp (UnQual (Symbol "=="))) (Lit (Int 1)))]
                   (Con (UnQual (Ident "True")))
@@ -198,7 +198,7 @@ myFn (x : xs) = 1 + myFn xs
   describe "selectIfElseBoolNegOps" $ do
     it "returns relevant ifElse mutators" $ do
       let text = "myFn x = if True then 1 else 0\n"
-      selectIfElseBoolNegOps (getASTFromStr text) `shouldBe` [
+      selectIfElseBoolNegOps (H.ast text) `shouldBe` [
         If (Con (UnQual (Ident "True"))) (Lit (Int 1)) (Lit (Int 0))
         ==>
         If (Con (UnQual (Ident "True"))) (Lit (Int 0)) (Lit (Int 1))]
@@ -206,7 +206,7 @@ myFn (x : xs) = 1 + myFn xs
   describe "selectLitOps" $ do
     it "returns relevant literal mutators" $ do
       let text = "myFn x = if True then 1 else 0\n"
-      selectLitOps (getASTFromStr text) `shouldBe` [
+      selectLitOps (H.ast text) `shouldBe` [
         Int 1 ==> Int 2,
         Int 1 ==> Int 0,
         Int 1 ==> Int 1,
@@ -217,13 +217,13 @@ myFn (x : xs) = 1 + myFn xs
   describe "selectBLitOps" $ do
     it "returns relevant literal mutators" $ do
       let text = "myFn x = if True then 1 else 0\n"
-      selectBLitOps (getASTFromStr text) `shouldBe` [
+      selectBLitOps (H.ast text) `shouldBe` [
         Ident "True" ==> Ident "False"]
 
   describe "selectFnMatches" $ do
     it "returns mutated function definition by removing one of the patterns" $ do
       let text = "myFn True = 1\nmyFn False = 0\n"
-      selectFnMatches (getASTFromStr text) `shouldBe` [
+      selectFnMatches (H.ast text) `shouldBe` [
         FunBind [Match (SrcLoc "<unknown>.hs" 1 1)
                        (Ident "myFn")
                        [PApp (UnQual (Ident "True")) []]
@@ -252,7 +252,7 @@ myFn (x : xs) = 1 + myFn xs
   describe "mutate" $ do
     it "returns relevant mutations" $ do
       let text = "myFn x = if True then 1 else 0\n"
-      mutate (Int 1 ==> Int 2) (getASTFromStr text) `shouldBe`[
+      mutate (Int 1 ==> Int 2) (H.ast text) `shouldBe`[
         Module
           (SrcLoc "<unknown>.hs" 1 1)
           (ModuleName "Main")
@@ -271,7 +271,7 @@ myFn (x : xs) = 1 + myFn xs
   describe "mutatesN" $ do
     it "returns relevant mutations" $ do
       let text = "myFn x = if True then 1 else 0\n"
-      mutatesN [Int 1 ==> Int 2] (getASTFromStr text) 1 `shouldBe`[
+      mutatesN [Int 1 ==> Int 2] (H.ast text) 1 `shouldBe`[
         Module
           (SrcLoc "<unknown>.hs" 1 1)
           (ModuleName "Main")
@@ -288,7 +288,7 @@ myFn (x : xs) = 1 + myFn xs
                    (BDecls [])]] ]
     it "returns all relevant mutations" $ do
       let text = "myFn x = if 1 then 1 else 0\n"
-      mutatesN [Int 1 ==> Int 2] (getASTFromStr text) 1 `shouldBe`[
+      mutatesN [Int 1 ==> Int 2] (H.ast text) 1 `shouldBe`[
         Module
           (SrcLoc "<unknown>.hs" 1 1)
           (ModuleName "Main")

@@ -24,6 +24,7 @@ import Language.Haskell.Exts (
     ModuleName (..),
     Name (Ident, Symbol),
     ParseMode (..),
+    ParseResult (..),
     Pat (PVar, PWildCard),
     QName (UnQual),
     QOp (QVarOp),
@@ -32,7 +33,6 @@ import Language.Haskell.Exts (
     SrcSpanInfo (..),
     Stmt (Generator, LetStmt, Qualifier),
     defaultParseMode,
-    fromParseResult,
     parseModuleWithMode,
     prettyPrint,
  )
@@ -53,7 +53,7 @@ genMutants ::
     -- | Coverage information for the module
     FilePath ->
     -- | Returns the covering mutants produced, and original length.
-    IO (Int, [Mutant])
+    IO (Either String (Int, [Mutant]))
 genMutants = genMutantsWith defaultConfig
 
 {- | The `genMutantsWith` function takes configuration function to mutate,
@@ -69,23 +69,25 @@ genMutantsWith ::
     -- | Coverage information for the module
     FilePath ->
     -- | Returns the covered mutants produced, and the original number
-    IO (Int, [Mutant])
-genMutantsWith _config filename tix = do
+    IO (Either String (Int, [Mutant]))
+genMutantsWith config filename tix = do
     f <- readFile filename
 
-    let origAst = getASTFromStr f
-        modul = getModuleName origAst
-        mutants :: [Mutant]
-        mutants = genMutantsFromAST defaultConfig origAst
+    case getASTFromStr f of
+      Left err -> return $ Left err
+      Right origAst -> do
+        let modul = getModuleName origAst
+            mutants :: [Mutant]
+            mutants = genMutantsFromAST config origAst
 
-    -- We have a choice here. We could allow users to specify test specific
-    -- coverage rather than a single coverage. This can further reduce the
-    -- mutants.
-    c <- getUnCoveredPatches tix modul
-    -- check if the mutants span is within any of the covered spans.
-    return $ case c of
-        Nothing -> (-1, mutants)
-        Just v -> (length mutants, removeUncovered v mutants)
+        -- We have a choice here. We could allow users to specify test specific
+        -- coverage rather than a single coverage. This can further reduce the
+        -- mutants.
+        c <- getUnCoveredPatches tix modul
+        -- check if the mutants span is within any of the covered spans.
+        return $ Right $ case c of
+            Nothing -> (-1, mutants)
+            Just v -> (length mutants, removeUncovered v mutants)
 
 -- | Remove mutants that are not covered by any tests
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]
@@ -109,8 +111,8 @@ genMutantsForSrc ::
     -- | The module we are mutating
     String ->
     -- | Returns the mutants
-    [Mutant]
-genMutantsForSrc config src = genMutantsFromAST config (getASTFromStr src)
+    Either String [Mutant]
+genMutantsForSrc config src = genMutantsFromAST config <$> getASTFromStr src
 
 {- | Like 'genMutantsForSrc' but accepts a pre-parsed AST, avoiding a second
 parse when the caller already has one.
@@ -285,8 +287,10 @@ removeOneElem l = choose l (length l - 1)
 -- AST/module-related operations
 
 -- | Returns the AST from the file
-getASTFromStr :: String -> Module_
-getASTFromStr fname = fromParseResult $ parseModuleWithMode mode fname
+getASTFromStr :: String -> Either String Module_
+getASTFromStr fname = case parseModuleWithMode mode fname of
+    ParseOk a -> Right a
+    ParseFailed loc msg -> Left $ "Parse failed at " ++ show loc ++ ": " ++ msg
   where
     mode = defaultParseMode{extensions = exts}
     exts =
@@ -319,16 +323,16 @@ autoDiscoverTestNames ast = filter isTestName $ map functionName (getDecl ast)
 
 -- | Given the module name, return all marked tests.
 -- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
-getAllTests :: String -> IO [String]
+getAllTests :: String -> IO (Either String [String])
 getAllTests modname = allTests <$> readFile modname
 
 -- | Given module source, return all marked tests.
 -- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
-allTests :: String -> [String]
-allTests modsrc =
-  let ast = getASTFromStr modsrc
-      byAnn = getAnn ast "Test"
-  in if null byAnn then autoDiscoverTestNames ast else byAnn
+allTests :: String -> Either String [String]
+allTests modsrc = do
+  ast <- getASTFromStr modsrc
+  let byAnn = getAnn ast "Test"
+  return $ if null byAnn then autoDiscoverTestNames ast else byAnn
 
 -- | The name of a function
 functionName :: Decl_ -> String

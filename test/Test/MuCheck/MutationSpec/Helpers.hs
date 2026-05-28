@@ -31,7 +31,9 @@ myFn [] = 0
 myFn (x:xs) = 1 + myFn xs
 |]
 
-ast = getASTFromStr
+ast s = case getASTFromStr s of
+    Right a -> a
+    Left err -> error $ "Test AST parse failure: " ++ err
 decl = getDecl
 matches (FunBind l ms) = ms
 

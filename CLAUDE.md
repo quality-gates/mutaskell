@@ -54,7 +54,7 @@ Follow these steps in order when landing a change:
 6. **Commit and push** — fix forward only. No `--force-push` and no `--amend` on published commits. If a hook or check fails, fix it in a new commit. **The `master` branch has push protection — all changes must land via a PR.**
 7. **Watch CI** — wait for the Actions run to go green before merging. Run `gh pr checks <number>` to confirm every workflow passes; do not merge if any is red.
 8. **Merge to master** — squash or merge commit, then push master.
-9. **Tag and release** — pick the next semver tag. Create a GitHub release: succinct style, plain English, list what changed.
+9. **Tag and release** — pick the next semver tag. Update the `version:` field and `source-repository this` tag in `MuCheck.cabal` to match. Create a GitHub release: succinct style, plain English, list what changed.
 
 ## Conventions
 

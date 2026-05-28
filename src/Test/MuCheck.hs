@@ -26,20 +26,26 @@ mucheck ::
     -- | The HPC <coverage>.tix file
     FilePath ->
     -- | Returns a tuple of full summary, and individual mutant results.
-    IO (MAnalysisSummary, [MutantSummary])
+    IO (Either String (MAnalysisSummary, [MutantSummary]))
 mucheck moduleFile tix = do
   -- get tix here.
-  (len, mutants) <- genMutants (getName moduleFile) tix
-  -- Should we do random sample on covering alone or on the full?
-  smutants <- sampler defaultConfig mutants
-  tests <- getAllTests (getName moduleFile)
-  (fsum', msum) <- evaluateMutants 1 Nothing Nothing [] Nothing moduleFile smutants (map (genTest moduleFile) tests)
-  -- set the original size of mutants. (We report the results based on original
-  -- number of mutants, not just the covered ones.)
-  let fsum = case len of
-       -1 -> fsum' { _maCoveredNumMutants = -1 }
-       _  -> fsum' { _maCoveredNumMutants = length mutants }
-  return (fsum, msum)
+  res <- genMutants (getName moduleFile) tix
+  case res of
+    Left err -> return $ Left err
+    Right (len, mutants) -> do
+      -- Should we do random sample on covering alone or on the full?
+      smutants <- sampler defaultConfig mutants
+      testRes <- getAllTests (getName moduleFile)
+      case testRes of
+        Left err -> return $ Left err
+        Right tests -> do
+          (fsum', msum) <- evaluateMutants 1 Nothing Nothing [] Nothing moduleFile smutants (map (genTest moduleFile) tests)
+          -- set the original size of mutants. (We report the results based on original
+          -- number of mutants, not just the covered ones.)
+          let fsum = case len of
+               -1 -> fsum' { _maCoveredNumMutants = -1 }
+               _  -> fsum' { _maCoveredNumMutants = length mutants }
+          return $ Right (fsum, msum)
 
 {- | Wrapper around sampleF that returns correct sampling ratios according to
 configuration passed. TODO: Actually use the sampling configuration.
