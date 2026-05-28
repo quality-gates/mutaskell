@@ -24,6 +24,8 @@ jobs:
         run: cabal build --write-ghc-environment-files=always all
       - name: Run test suite
         run: cabal test all --test-show-details=direct
+      - name: Smoke test (fast sanity check before slow coverage+mutation steps)
+        run: cabal run mucheck -- --dry-run Examples/AssertCheckTest.hs
       - name: Run sample-test with coverage (MuCheck package only)
         run: |
           echo "package MuCheck" > cabal.project.local

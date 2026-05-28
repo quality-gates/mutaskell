@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                MuCheck
-version:             0.5.1
+version:             0.5.2
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
@@ -29,7 +29,7 @@ source-repository    head
 source-repository    this
   type:              git
   location:          https://github.com/jonbaldie/mucheck.git
-  tag:               0.5.1
+  tag:               0.5.2
 
 common dependencies
   build-depends:    base >=4 && <5,
@@ -80,6 +80,9 @@ executable mucheck
                     process >= 1.6.0,
                     directory >= 1.3,
                     optparse-applicative >= 0.16,
+                    yaml >= 0.11,
+                    aeson >= 2.0,
+                    bytestring >= 0.10,
                     MuCheck
   default-language: Haskell2010
   hs-source-dirs:   app
@@ -117,4 +120,7 @@ test-suite spec
                     MuCheck,
                     directory >= 1.3,
                     optparse-applicative >= 0.16,
+                    yaml >= 0.11,
+                    aeson >= 2.0,
+                    bytestring >= 0.10,
   build-tool-depends: hspec-discover:hspec-discover

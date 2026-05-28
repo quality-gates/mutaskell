@@ -5,8 +5,7 @@ import App.Opts
     ( Opts(..)
     , defaultOpts
     , parseOptsFrom
-    , applyYamlConfig
-    , parseYamlKV
+    , parseYamlConfigStr
     )
 
 main :: IO ()
@@ -115,24 +114,41 @@ spec = do
 
         -- Config loader tests (d): config values applied as defaults; CLI overrides
         it "config file min_msi is applied as default" $ do
-            let pairs  = parseYamlKV "min_msi: 60\n"
-                base   = applyYamlConfig pairs defaultOpts
-            optMinMsi base `shouldBe` Just 60
+            case parseYamlConfigStr "min_msi: 60" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> optMinMsi (fn defaultOpts) `shouldBe` Just 60
 
         it "CLI --min-msi overrides config file value" $ do
-            let pairs  = parseYamlKV "min_msi: 60\n"
-                base   = applyYamlConfig pairs defaultOpts
-            case parseOptsFrom base ["--min-msi", "90", "F.hs"] of
-                Right opts -> optMinMsi opts `shouldBe` Just 90
-                Left err   -> expectationFailure $ "Expected Right but got Left: " ++ err
+            case parseYamlConfigStr "min_msi: 60" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> do
+                    let base = fn defaultOpts
+                    case parseOptsFrom base ["--min-msi", "90", "F.hs"] of
+                        Right opts -> optMinMsi opts `shouldBe` Just 90
+                        Left err'  -> expectationFailure $ "Expected Right but got Left: " ++ err'
 
         it "config file quiet: true is applied" $ do
-            let pairs = parseYamlKV "quiet: true\n"
-                base  = applyYamlConfig pairs defaultOpts
-            optQuiet base `shouldBe` True
+            case parseYamlConfigStr "quiet: true" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> optQuiet (fn defaultOpts) `shouldBe` True
 
         it "config file workers is applied" $ do
-            let pairs = parseYamlKV "workers: 3\n"
-                base  = applyYamlConfig pairs defaultOpts
-            optWorkers base `shouldBe` 3
+            case parseYamlConfigStr "workers: 3" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> optWorkers (fn defaultOpts) `shouldBe` 3
+
+        it "config YAML inline list for disable_mutators is parsed" $ do
+            case parseYamlConfigStr "disable_mutators: [functions, literal-values]" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> optDisable (fn defaultOpts) `shouldBe` ["functions", "literal-values"]
+
+        it "config YAML block list for disable_mutators is parsed" $ do
+            case parseYamlConfigStr "disable_mutators:\n  - functions\n  - literal-values" of
+                Left err -> expectationFailure $ "Parse error: " ++ err
+                Right fn -> optDisable (fn defaultOpts) `shouldBe` ["functions", "literal-values"]
+
+        it "config unknown key is rejected with error" $ do
+            case parseYamlConfigStr "unknown_key: foo" of
+                Left _  -> return ()
+                Right _ -> expectationFailure "Expected Left for unknown key"
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | CLI option types, parser, and config loader for mucheck.
 -- Extracted into its own module so the spec test-suite can import and test
 -- 'parseOptsFrom' without pulling in the full 'Main' module.
@@ -9,17 +10,20 @@ module App.Opts
   , parseOptsFrom
   , validateOpts
   , loadConfig
-  , parseYamlKV
-  , parseYamlList
-  , applyYamlConfig
-  , knownConfigKeys
+  , parseYamlConfigStr
   , splitOn
   ) where
 
-import Control.Exception (IOException, try)
+import Data.ByteString.Char8 (pack)
+import System.Directory (doesFileExist)
 import Data.Char (isSpace)
 import Data.List (intercalate)
+import Data.Maybe (fromMaybe)
 import Options.Applicative
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Yaml as Yaml
+import Data.Aeson (FromJSON(..), withObject, (.:?))
 
 -- | All command-line options for a mucheck run.
 data Opts = Opts
@@ -108,9 +112,9 @@ defaultOpts = Opts
   , optWorkerOutput = Nothing
   }
 
--- | Known YAML config file keys.
-knownConfigKeys :: [String]
-knownConfigKeys =
+-- Private list of valid config keys; used for unknown-key rejection.
+knownYamlKeys :: [String]
+knownYamlKeys =
   [ "min_msi", "min_covered_msi", "timeout", "quiet", "silent_mode"
   , "max_mutants", "json_output", "html_output"
   , "disable_mutators", "enable_mutators"
@@ -118,87 +122,90 @@ knownConfigKeys =
   , "exclude_dirs", "workers"
   ]
 
--- | Load config and return either an error string or a transformer.
--- Applied to defaultOpts before CLI parsing so CLI flags override config.
+-- | Typed representation of the @.mucheck.yaml@ config file.
+data YamlConfig = YamlConfig
+  { ycMinMsi            :: Maybe Int
+  , ycMinCoveredMsi     :: Maybe Int
+  , ycTimeout           :: Maybe Int
+  , ycMaxMutants        :: Maybe Int
+  , ycQuiet             :: Maybe Bool
+  , ycSilentMode        :: Maybe Bool
+  , ycJsonOutput        :: Maybe String
+  , ycHtmlOutput        :: Maybe String
+  , ycDisableMutators   :: Maybe [String]
+  , ycEnableMutators    :: Maybe [String]
+  , ycIgnoreSourceLines :: Maybe [String]
+  , ycSkipWithoutTest   :: Maybe Bool
+  , ycExcludeDirs       :: Maybe [String]
+  , ycWorkers           :: Maybe Int
+  }
+
+instance FromJSON YamlConfig where
+    parseJSON = withObject "config" $ \obj -> do
+        let unknowns = filter (\k -> Key.toString k `notElem` knownYamlKeys) (KM.keys obj)
+        case unknowns of
+            (k:_) -> fail $ "Unknown config key: " ++ Key.toString k
+                              ++ ". Known keys: " ++ intercalate ", " knownYamlKeys
+            [] -> YamlConfig
+                    <$> obj .:? "min_msi"
+                    <*> obj .:? "min_covered_msi"
+                    <*> obj .:? "timeout"
+                    <*> obj .:? "max_mutants"
+                    <*> obj .:? "quiet"
+                    <*> obj .:? "silent_mode"
+                    <*> obj .:? "json_output"
+                    <*> obj .:? "html_output"
+                    <*> obj .:? "disable_mutators"
+                    <*> obj .:? "enable_mutators"
+                    <*> obj .:? "ignore_source_lines"
+                    <*> obj .:? "skip_without_test"
+                    <*> obj .:? "exclude_dirs"
+                    <*> obj .:? "workers"
+
+-- | Apply a parsed 'YamlConfig' to an 'Opts' record.
+-- Config values fill in defaults; CLI flags (applied later) override these.
+applyYamlConfigRecord :: YamlConfig -> Opts -> Opts
+applyYamlConfigRecord cfg opts = opts
+    { optMinMsi         = ycMinMsi cfg          <|> optMinMsi opts
+    , optMinCoveredMsi  = ycMinCoveredMsi cfg   <|> optMinCoveredMsi opts
+    , optTimeout        = ycTimeout cfg         <|> optTimeout opts
+    , optMaxMutants     = ycMaxMutants cfg      <|> optMaxMutants opts
+    , optQuiet          = fromMaybe (optQuiet opts)          (ycQuiet cfg)
+    , optSilent         = fromMaybe (optSilent opts)         (ycSilentMode cfg)
+    , optLoggerJson     = ycJsonOutput cfg      <|> optLoggerJson opts
+    , optLoggerHtml     = ycHtmlOutput cfg      <|> optLoggerHtml opts
+    , optDisable        = optDisable opts        ++ fromMaybe [] (ycDisableMutators cfg)
+    , optEnable         = optEnable opts         ++ fromMaybe [] (ycEnableMutators cfg)
+    , optIgnoreLines    = optIgnoreLines opts    ++ fromMaybe [] (ycIgnoreSourceLines cfg)
+    , optSkipWithoutTest = fromMaybe (optSkipWithoutTest opts) (ycSkipWithoutTest cfg)
+    , optExcludeDirs    = optExcludeDirs opts    ++ fromMaybe [] (ycExcludeDirs cfg)
+    , optWorkers        = fromMaybe (optWorkers opts) (ycWorkers cfg)
+    }
+
+-- | Load config and return either an error string or an 'Opts' transformer.
+-- Applied to 'defaultOpts' before CLI parsing so CLI flags override config.
+-- Returns @Right id@ if the file does not exist.
+--
+-- Note: 'Yaml.decodeFileEither' catches 'IOException' internally and wraps it
+-- as a 'ParseException', so a plain @try@ cannot distinguish missing-file from
+-- a genuine parse error.  We therefore check existence first.
 loadConfig :: Maybe FilePath -> IO (Either String (Opts -> Opts))
 loadConfig mPath = do
-  let path = case mPath of { Just p -> p; Nothing -> ".mucheck.yaml" }
-  result <- try (readFile path) :: IO (Either IOException String)
-  case result of
-    Left _        -> return (Right id)
-    Right contents ->
-      let pairs = parseYamlKV contents
-          unknowns = filter (\(k,_) -> k `notElem` knownConfigKeys) pairs
-      in case unknowns of
-           ((k,_):_) -> return (Left $ "Unknown config key: " ++ k
-                                   ++ ". Known keys: " ++ intercalate ", " knownConfigKeys)
-           []        -> return (Right (applyYamlConfig pairs))
+    let path = fromMaybe ".mucheck.yaml" mPath
+    exists <- doesFileExist path
+    if not exists
+        then return (Right id)
+        else do
+            result <- Yaml.decodeFileEither path
+            case result of
+                Left err  -> return (Left (Yaml.prettyPrintParseException err))
+                Right cfg -> return (Right (applyYamlConfigRecord cfg))
 
--- | Parse a YAML-ish key:value file into a list of pairs.
-parseYamlKV :: String -> [(String, String)]
-parseYamlKV = concatMap parseLine . filter (not . skip) . lines
-  where
-    skip s = case dropWhile isSpace s of { [] -> True; (c:_) -> c == '#' }
-    parseLine s = case break (== ':') s of
-      (k, ':' : v) ->
-        let k' = trim k; v' = dropWhile isSpace v
-        in if null k' then [] else [(k', v')]
-      _ -> []
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
--- | Apply a list of YAML key-value pairs to an 'Opts' record.
-applyYamlConfig :: [(String, String)] -> Opts -> Opts
-applyYamlConfig pairs opts = foldl applyPair opts pairs
-  where
-    applyPair o ("min_msi", v) = case (reads v, optMinMsi o) of
-      ([(i,"")], Nothing) -> o { optMinMsi = Just i }
-      _                   -> o
-    applyPair o ("min_covered_msi", v) = case (reads v, optMinCoveredMsi o) of
-      ([(i,"")], Nothing) -> o { optMinCoveredMsi = Just i }
-      _                   -> o
-    applyPair o ("timeout", v) = case (reads v, optTimeout o) of
-      ([(i,"")], Nothing) -> o { optTimeout = Just i }
-      _                   -> o
-    applyPair o ("max_mutants", v) = case (reads v, optMaxMutants o) of
-      ([(i,"")], Nothing) -> o { optMaxMutants = Just i }
-      _                   -> o
-    applyPair o ("quiet", v)
-      | v `elem` ["true","True","yes"] = o { optQuiet = True }
-      | otherwise                       = o
-    applyPair o ("silent_mode", v)
-      | v `elem` ["true","True","yes"] = o { optSilent = True }
-      | otherwise                       = o
-    applyPair o ("json_output", v) = case optLoggerJson o of
-      Nothing -> o { optLoggerJson = Just (trim v) }
-      Just _  -> o
-    applyPair o ("html_output", v) = case optLoggerHtml o of
-      Nothing -> o { optLoggerHtml = Just (trim v) }
-      Just _  -> o
-    applyPair o ("disable_mutators", v) =
-      o { optDisable = optDisable o ++ parseYamlList v }
-    applyPair o ("enable_mutators", v) =
-      o { optEnable = optEnable o ++ parseYamlList v }
-    applyPair o ("ignore_source_lines", v) =
-      o { optIgnoreLines = optIgnoreLines o ++ parseYamlList v }
-    applyPair o ("skip_without_test", v)
-      | v `elem` ["true","True","yes"] = o { optSkipWithoutTest = True }
-      | otherwise                       = o
-    applyPair o ("exclude_dirs", v) =
-      o { optExcludeDirs = optExcludeDirs o ++ parseYamlList v }
-    applyPair o ("workers", v) = case (reads v, optWorkers o) of
-      ([(i, "")], 1) -> o { optWorkers = i }
-      _              -> o
-    applyPair o _ = o
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
--- | Parse a YAML-ish list value: either @[a, b, c]@ or a bare string.
-parseYamlList :: String -> [String]
-parseYamlList s = case dropWhile isSpace s of
-  ('[' : rest) ->
-    let inner = takeWhile (/= ']') rest
-    in map trim (splitOn ',' inner)
-  s' -> let t = trim s' in if null t then [] else [t]
-  where trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+-- | Parse a YAML config string (for testing) and return an 'Opts' transformer.
+parseYamlConfigStr :: String -> Either String (Opts -> Opts)
+parseYamlConfigStr s = case Yaml.decodeEither' (pack s) of
+    Left err  -> Left (Yaml.prettyPrintParseException err)
+    Right cfg -> Right (applyYamlConfigRecord cfg)
 
 -- | Split a string on a delimiter character, trimming whitespace from each token.
 splitOn :: Char -> String -> [String]

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.2]
+  * Changed: replaced the hand-rolled `parseYamlKV` config loader with the `yaml` library; config files now correctly handle quoted strings, inline lists (`[a, b]`), block lists, and multi-line values that the old split-on-`:` parser rejected; unknown config keys are still rejected with a clear error listing valid keys
+  * Added: `parseYamlConfigStr` exported from `App.Opts` for testing YAML config parsing from inline strings; three new tests in `CLISpec` cover inline lists, block lists, and unknown-key rejection
+
 ## [0.5.1]
   * Changed: replaced the hand-rolled `parseOpts`/`parseOptsFrom` CLI parser with `optparse-applicative`; the binary now generates `--help` output automatically and reports flag errors in the standard format; shell completion scripts are available via `--bash-completion-script` / `--zsh-completion-script`
   * Changed: the HPC coverage flag is now `--tix FILE` (was `-tix FILE`); update any scripts or CI configs that used the old single-dash form
