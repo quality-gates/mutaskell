@@ -64,6 +64,7 @@ data Opts = Opts
   , optMaxMutants   :: Maybe Int
   , optIgnoreLines  :: [String]
   , optSkipWithoutTest :: Bool
+  , optExcludeDirs  :: [String]
   }
 
 defaultOpts :: Opts
@@ -104,6 +105,7 @@ defaultOpts = Opts
   , optMaxMutants   = Nothing
   , optIgnoreLines  = []
   , optSkipWithoutTest = False
+  , optExcludeDirs  = []
   }
 
 knownConfigKeys :: [String]
@@ -112,6 +114,7 @@ knownConfigKeys =
   , "max_mutants", "json_output", "html_output"
   , "disable_mutators", "enable_mutators"
   , "ignore_source_lines", "skip_without_test"
+  , "exclude_dirs"
   ]
 
 -- | Load config and return either an error string or a transformer.
@@ -177,6 +180,8 @@ applyYamlConfig pairs opts = foldl applyPair opts pairs
     applyPair o ("skip_without_test", v)
       | v `elem` ["true","True","yes"] = o { optSkipWithoutTest = True }
       | otherwise                       = o
+    applyPair o ("exclude_dirs", v) =
+      o { optExcludeDirs = optExcludeDirs o ++ parseYamlList v }
     applyPair o _ = o
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
@@ -310,9 +315,15 @@ runOpts :: Opts -> IO ()
 runOpts opts
   | optDryRun opts = dryRun (optFile opts)
   | otherwise      = do
-      inDiff <- checkGitDiff (optFile opts) (optGitDiffBase opts)
+      let file = optFile opts
+          excDirs = optExcludeDirs opts
+          inExcluded = any (\d -> d `isPrefixOf` file || (d ++ "/") `isPrefixOf` file) excDirs
+      when inExcluded $ do
+        putStrLn $ "Skipping " ++ file ++ ": excluded by exclude_dirs"
+        exitWith ExitSuccess
+      inDiff <- checkGitDiff file (optGitDiffBase opts)
       unless inDiff $ do
-        putStrLn $ "Skipping " ++ optFile opts ++ ": not in git diff relative to " ++ maybe "" id (optGitDiffBase opts)
+        putStrLn $ "Skipping " ++ file ++ ": not in git diff relative to " ++ maybe "" id (optGitDiffBase opts)
         return ()
       when inDiff $ do
         when (optNoop opts) $ noopCheck (optFile opts)
@@ -1035,6 +1046,7 @@ help = putStrLn $ showAS
   , "  quiet: true               Suppress killed/error output"
   , "  disable_mutators: [a, b]  Mutator names to skip"
   , "  enable_mutators: [a, b]   Restrict to named mutators"
+  , "  exclude_dirs: [a, b]      Skip target if its path starts with any listed prefix"
   , ""
   , "MUTATOR NAMES (for --disable / --enable):"
   , "  pattern-match             Function pattern-match permutation and removal"

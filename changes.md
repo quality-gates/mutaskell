@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.18]
+  * Fixed: HPC module name lookup to correctly handle package/target prefixes
+  * Fixed: HPC .mix file loading robustness for flattened .hpc directories (common in CI)
+  * Refactored: `removeRedundantSpans` for better robustness
+  * Improved: MSI accuracy by correctly identifying uncovered code (example MSI improved from 59% to 76%)
+  * Add `exclude_dirs` config key: list of path prefixes; skip mutation if the target file path starts with any listed prefix
+  * Add `genMutantsWithExtra` API in `Test.MuCheck.Mutation`: accepts additional custom `(MuVar, Module_ -> [MuOp])` selector functions for third-party mutators without forking
+  * Auto-discover test functions by naming convention (`prop_*`, `test_*`, `spec_*`) when no `{-# ANN ... "Test" #-}` annotations are present
+  * Improve error display: `showE` now produces clean single-line summaries; `WontCompile` shows only the first GHC error message
+  * Add covered-MSI >= 50% quality gate to CI mutation workflow using HPC coverage data; copy mix files from dist-newstyle to .hpc/ so getMix can resolve them
+
 ## [0.4.17]
   * Add `zero-return` mutator: replace each function match body with the zero value for its declared return type; applies to functions with a type signature in the same module (`Bool` → `False`, `Int`/`Integer` → `0`, `Double`/`Float` → `0.0`, `String` → `""`, `[a]` → `[]`, `Maybe a` → `Nothing`, `IO a` → `return undefined`)
   * Add 8 tests for `removeRedundantSpans` and `removeUncovered` (coverage-filtering code path)

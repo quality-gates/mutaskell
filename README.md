@@ -163,6 +163,7 @@ html_output: mucheck.html         # Always write an HTML report here after every
 disable_mutators: [literal-values, negate-if-else]  # Mutators to skip
 enable_mutators: [functions]                         # Restrict to these mutators only
 ignore_source_lines: [NOTEST, uncovered]             # Skip mutations on lines containing these substrings
+exclude_dirs: [vendor/, generated/]                  # Skip target if path starts with any listed prefix
 ```
 
 

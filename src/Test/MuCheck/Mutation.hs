@@ -6,7 +6,7 @@
 module Test.MuCheck.Mutation where
 
 import Data.Generics (Typeable, listify, mkMp)
-import Data.List (nub, nubBy, partition, permutations, (\\))
+import Data.List (isPrefixOf, nub, nubBy, partition, permutations, (\\))
 import Language.Haskell.Exts (
     Alt (Alt),
     Annotation (Ann),
@@ -122,11 +122,39 @@ genMutantsFromAST ::
     Module_ ->
     -- | Returns the mutants
     [Mutant]
-genMutantsFromAST config origAst =
+genMutantsFromAST config origAst = genMutantsWithExtra config [] origAst
+
+{- | Like 'genMutantsFromAST' but also accepts additional custom selector functions.
+Third-party packages can use this to inject extra mutation operators without forking.
+Each extra selector receives the pre-parsed AST and returns @(MuVar, MuOp)@ pairs;
+use 'MutateOther' with a descriptive name as the 'MuVar'.
+
+Example:
+
+> import Test.MuCheck.Mutation (genMutantsWithExtra)
+> import Test.MuCheck.MuOp (MuOp, Module_, Mutable (..))
+> import Test.MuCheck.Config (Config, MuVar (..), defaultConfig)
+> import Data.Generics (listify)
+>
+> mySelector :: Module_ -> [(MuVar, MuOp)]
+> mySelector ast = [(MutateOther "my-mutator", old ==> new) | ...]
+>
+> mutants = genMutantsWithExtra defaultConfig [mySelector] parsedAst
+-}
+genMutantsWithExtra ::
+    -- | Configuration
+    Config ->
+    -- | Additional custom selector functions
+    [Module_ -> [(MuVar, MuOp)]] ->
+    -- | Pre-parsed AST of the module to mutate
+    Module_ ->
+    -- | Returns the mutants
+    [Mutant]
+genMutantsWithExtra config extraSels origAst =
     nubBy (\a b -> _mutant a == _mutant b) $
         filter (\m -> _mutant m /= origStr) $
             map (toMutant . apTh (prettyPrint . withAnn)) $
-                programMutants config ast
+                programMutantsWith config extraSels ast
   where
     (onlyAnn, noAnn) = splitAnnotations origAst
     ast = putDecl origAst noAnn
@@ -141,7 +169,20 @@ programMutants ::
     Module_ ->
     -- | Returns mutated modules
     [(MuVar, Span, Module_)]
-programMutants config ast = nub $ mutatesN (applicableOps config ast) ast fstOrder
+programMutants config ast = programMutantsWith config [] ast
+
+-- | Like 'programMutants' but also accepts additional custom selector functions.
+programMutantsWith ::
+    -- | Configuration
+    Config ->
+    -- | Additional custom selector functions
+    [Module_ -> [(MuVar, MuOp)]] ->
+    -- | Module to mutate
+    Module_ ->
+    -- | Returns mutated modules
+    [(MuVar, Span, Module_)]
+programMutantsWith config extraSels ast =
+    nub $ mutatesN (applicableOps config ast ++ concatMap ($ ast) extraSels) ast fstOrder
   where
     fstOrder = 1 -- first order
 
@@ -191,9 +232,12 @@ splitAnnotations ast = partition fn $ getDecl ast
 
 -- only one of pragmaName or functionName will be present at a time.
 
--- | Returns the annotated tests and their annotations
+-- | Returns the annotated tests and their annotations.
+-- Falls back to naming conventions when no ANN annotations are present.
 getAnnotatedTests :: Module_ -> [String]
-getAnnotatedTests ast = concatMap (getAnn ast) ["Test", "TestSupport"]
+getAnnotatedTests ast =
+  let byAnn = concatMap (getAnn ast) ["Test", "TestSupport"]
+  in if null byAnn then autoDiscoverTestNames ast else byAnn
 
 -- | Get the embedded declarations from a module.
 getDecl :: Module_ -> [Decl_]
@@ -266,13 +310,25 @@ getAnn m s = [conv name | Ann _l name _exp <- listify isAnn m]
     conv (Symbol _l n) = n
     conv (Ident _l n) = n
 
--- | given the module name, return all marked tests
+-- | Auto-discover test function names by naming convention.
+-- Used as a fallback when no {-# ANN ... "Test" #-} annotations are present.
+autoDiscoverTestNames :: Module_ -> [String]
+autoDiscoverTestNames ast = filter isTestName $ map functionName (getDecl ast)
+  where
+    isTestName n = not (null n) && any (`isPrefixOf` n) ["prop_", "test_", "spec_"]
+
+-- | Given the module name, return all marked tests.
+-- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
 getAllTests :: String -> IO [String]
 getAllTests modname = allTests <$> readFile modname
 
--- | Given module source, return all marked tests
+-- | Given module source, return all marked tests.
+-- Falls back to naming conventions (prop_*, test_*, spec_*) when no ANN annotations exist.
 allTests :: String -> [String]
-allTests modsrc = getAnn (getASTFromStr modsrc) "Test"
+allTests modsrc =
+  let ast = getASTFromStr modsrc
+      byAnn = getAnn ast "Test"
+  in if null byAnn then autoDiscoverTestNames ast else byAnn
 
 -- | The name of a function
 functionName :: Decl_ -> String

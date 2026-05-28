@@ -1,8 +1,11 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Read the HPC Tix and Mix files.
 module Test.MuCheck.Tix where
 
+import Control.Exception (catch, SomeException)
+import Data.List (isSuffixOf)
 import Trace.Hpc.Mix
 import Trace.Hpc.Tix
 import Trace.Hpc.Util
@@ -55,7 +58,25 @@ parseTix path = do
 
 -- | Read the corresponding Mix file to a TixModule
 getMix :: TixModule -> IO Mix
-getMix tm = readMix [".hpc"] (Right tm)
+getMix tm = do
+    let name = tixModuleName tm
+    -- Try reading with original name
+    res <- tryReadMix [".hpc"] (Right tm)
+    case res of
+        Just m -> return m
+        Nothing -> do
+            -- Try stripping package prefix (everything before first slash)
+            let strippedName = case break (== '/') name of
+                    (_, "") -> name
+                    (_, s) -> drop 1 s
+            res2 <- tryReadMix [".hpc"] (Left strippedName)
+            case res2 of
+                Just m -> return m
+                Nothing -> error $ "mucheck: can not find " ++ name ++ " (or " ++ strippedName ++ ") in .hpc"
+
+-- | Helper to try reading a mix file without crashing
+tryReadMix :: [FilePath] -> Either String TixModule -> IO (Maybe Mix)
+tryReadMix fp target = (Just <$> readMix fp target) `catch` (\(_ :: SomeException) -> return Nothing)
 
 -- | return the tix and mix information
 getMixedTix :: String -> IO [(String, [(Span, TCovered)])]
@@ -64,23 +85,6 @@ getMixedTix file = do
     mixs <- mapM getMix tms
     let names = map tixModuleName tms
     return $ zipWith3 mixTix names mixs tms
-
-{- getMixedTix "tests.tix"
-[("Main",[
- (11:12-11:26,TNotCovered),
- (11:3-11:26,TNotCovered),
- (10:9-11:26,TNotCovered),
- (10:1-11:26,TNotCovered),
- (6:14-6:44,TCovered),
- (6:3-6:44,TCovered),
- (7:14-7:46,TCovered),
- (7:3-7:46,TCovered),
- (8:14-8:46,TCovered),
- (8:3-8:46,TCovered),
- (5:8-8:46,TCovered),
- (5:1-8:46,TCovered)])]
--}
--- [10:1-11:26]
 
 {- | getUnCoveredPatches returns the largest parts of the program that are not
 covered.
@@ -95,16 +99,12 @@ getUnCoveredPatches file name = do
         _ -> Just $ removeRedundantSpans $ map fst uncovSpan
 
 -- | Get the span and covering information of the given module
-getNamedModule :: String -> [(String, [(Span,TCovered)])] -> [(Span,TCovered)]
-getNamedModule mname val = case lookup mname val of
-                             Just x  -> x
-                             Nothing -> []
+getNamedModule :: String -> [(String, [(Span, TCovered)])] -> [(Span, TCovered)]
+getNamedModule mname val =
+    case filter (\(k, _) -> mname == k || (("/" ++ mname) `isSuffixOf` k)) val of
+        ((_, x) : _) -> x
+        [] -> []
 
 -- | Remove spans which are contained within others of same kind.
 removeRedundantSpans :: [Span] -> [Span]
-removeRedundantSpans [] = []
-removeRedundantSpans [x] = [x]
-removeRedundantSpans (a : b : cde) =
-    if
-        | insideSpan a b -> removeRedundantSpans (b : cde)
-        | otherwise -> a : removeRedundantSpans (b : cde)
+removeRedundantSpans spans = filter (\s -> not $ any (\s' -> s /= s' && insideSpan s s') spans) spans

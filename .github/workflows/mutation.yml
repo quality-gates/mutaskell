@@ -22,5 +22,14 @@ jobs:
           restore-keys: ${{ runner.os }}-ghc-9.8.2-cabal-
       - name: Build and run test suite
         run: cabal test all --test-show-details=direct --write-ghc-environment-files=always
-      - name: Run mutation tests with MSI quality gate
-        run: cabal run mucheck -- --min-msi 50 --ignore-msi-with-no-mutations Examples/AssertCheckTest.hs
+      - name: Run sample-test with coverage (MuCheck package only)
+        run: |
+          echo "package MuCheck" > cabal.project.local
+          echo "  coverage: True" >> cabal.project.local
+          cabal run exe:sample-test
+          rm -f cabal.project.local
+          mkdir -p .hpc
+          # Find all .mix files and flatten them into .hpc/
+          find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+      - name: Run mutation tests with MSI and covered-MSI quality gates
+        run: cabal run mucheck -- --min-msi 50 --min-covered-msi 50 --ignore-msi-with-no-mutations -tix sample-test.tix Examples/AssertCheckTest.hs

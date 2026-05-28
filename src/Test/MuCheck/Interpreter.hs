@@ -87,7 +87,7 @@ summarizeResults :: (Summarizable s, TRun a s) =>
 summarizeResults m tests (mutant, ioresults) =
   case [e | Io (Left e) _ <- ioresults] of
     (I.WontCompile _ : _) -> MSumSkipped mutant logS
-    (err:_)               -> MSumError mutant (show err) logS
+    (err:_)               -> MSumError mutant (showE err) logS
     []                    -> if any isKilled ioresults
                               then MSumKilled mutant logS
                               else MSumAlive mutant logS
@@ -151,12 +151,17 @@ stopFast fn (x:xs) = do
       then (v :) <$> stopFast fn xs
       else return [v] -- test failed (mutant detected)
 
--- | Show error
+-- | Show a clean, single-line error summary without raw exception traces.
 showE :: I.InterpreterError -> String
-showE (I.UnknownError e) = "Unknown: " ++ e
-showE (I.WontCompile e) = "Compile: " ++ show e
-showE (I.NotAllowed e) = "Not Allowed: " ++ e
-showE (I.GhcException e) = "GhcException: " ++ e
+showE (I.UnknownError e)    = "Error: " ++ firstLine e
+showE (I.WontCompile [])    = "Compile error (no details)"
+showE (I.WontCompile (e:_)) = "Compile error: " ++ firstLine (I.errMsg e)
+showE (I.NotAllowed e)      = "Not allowed: " ++ firstLine e
+showE (I.GhcException e)    = "GHC exception: " ++ firstLine e
+
+-- | Return only the first line of a potentially multi-line string, truncated.
+firstLine :: String -> String
+firstLine s = take 200 $ takeWhile (/= '\n') s
 
 -- | Run one single test on a mutant
 evalTest ::
