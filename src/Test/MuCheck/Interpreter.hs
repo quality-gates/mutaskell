@@ -94,7 +94,7 @@ resolveMutantDir (Just dir) = createDirectoryIfMissing True dir >> return dir
 resolveMutantDir Nothing    = getCanonicalTemporaryDirectory
 
 -- | The `summarizeResults` function evaluates the results of a test run
--- using the supplied `isSuccess` and `testSummaryFn` functions from the adapters
+-- using the supplied `isSuccess` and `summarize_` functions from the adapters
 summarizeResults :: (Summarizable s, TRun a s) =>
      a                                                            -- ^ The module to be evaluated
   -> [TestStr]                                                    -- ^ Tests we used to run analysis

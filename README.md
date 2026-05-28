@@ -64,11 +64,14 @@ make hpcex
 
 Currently `MuCheck` is restricted to running mutation analysis on a single
 module at a time. In order for it to work, the module being tested should
-contain the tests also. Further the tests should be annotated with
-```
-{-# ANN <function name> "Test" #-}
-```
-If you have supporting functions, they should be annotated with "TestSupport".
+contain the tests also.
+
+MuCheck discovers test functions in two ways:
+
+1. **Naming convention**: Functions whose names start with `prop_`, `test_`, or `spec_` are picked up automatically.
+2. **Annotation**: Any function annotated with `{-# ANN <name> "Test" #-}` is treated as a test. Use this as an opt-in override for names that do not follow a convention.
+
+If you have supporting functions that should not be mutated, annotate them with `{-# ANN <name> "TestSupport" #-}`.
 This allows MuCheck to find the tests to run, and also to figure out which of
 the functions to leave alone while mutating.
 

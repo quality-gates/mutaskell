@@ -3,16 +3,19 @@ module Test.MuCheck.TestAdapter.AssertCheck where
 
 import Control.Exception
 
+-- | Result of an assertion check
 data AssertStatus
-    = AssertSuccess
-    | AssertFailure
+    = AssertSuccess -- ^ Assertion passed
+    | AssertFailure -- ^ Assertion failed
     deriving (Eq, Show)
 
+-- | Convert a boolean to an AssertStatus
 assertCheck :: Bool -> AssertStatus
 assertCheck fn = case fn of
     True -> AssertSuccess
     False -> AssertFailure
 
+-- | Print the result of an assertion check and handle exceptions
 assertCheckResult :: AssertStatus -> IO AssertStatus
 assertCheckResult fn = withCheck $ case fn of
     AssertSuccess -> do

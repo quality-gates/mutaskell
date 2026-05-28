@@ -8,6 +8,7 @@
   * Fixed: `test/Spec.hs` cleaned up — removed dead manual `main`/`spec` wiring that conflicted with the active `hspec-discover` pragma; added a comment explaining that new `*Spec.hs` files are picked up automatically
   * Added: `test/Test/MuCheck/IntegrationSpec.hs` — end-to-end test that calls the `mucheck` library function on `Examples/AssertCheckTest.hs` and asserts kills > 0 and count consistency; run selectively with `--test-option=--match --test-option="/integration/"`
   * Added: extended `Test.MuCheck.CLISpec` with 18 tests covering flag round-trips, bad-argument error messages, and config-file override behaviour
+  * Fixed: reached 100% Haddock coverage across all modules; addressed missing documentation in `AssertCheck`, `AssertCheckAdapter`, and `Print`; fixed stale `testSummaryFn` and `MuOP` references in docstrings
 
 ## [0.4.22]
   * Fixed: passing both `--enable` and `--disable` together now exits with code 2 and a clear error message instead of silently letting `--enable` win
