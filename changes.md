@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.5.6]
+  * Changed: CI mutation job now caches the GHC 9.12.1 toolchain (`/usr/local/.ghcup`) and the Hackage package index (`~/.cabal/packages`) between runs; previously GHC was downloaded (286 MB) and installed from scratch on every run, costing ~1m45s; the cabal store was already cached
+
 ## [0.5.5]
   * Changed: README badges consolidated from five (Mutation Analysis, HLint, OSV-Scanner, Docs, License) to three (CI, Docs, License); HLint and OSV-Scanner badges removed
   * Added: "Mutation Types: Before & After" section in README with a concrete Haskell before/after example for each of the 23 mutation types
