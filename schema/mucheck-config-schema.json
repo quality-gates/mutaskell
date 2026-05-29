@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jonbaldie.github.io/mucheck/schema/mucheck-config-schema.json",
-  "title": "MuCheck configuration",
-  "description": "Schema for .mucheck.yaml — the MuCheck project-level config file.",
+  "$id": "https://quality-gates.github.io/mutaskell/schema/mucheck-config-schema.json",
+  "title": "mutaskell configuration",
+  "description": "Schema for .mucheck.yaml — the mutaskell project-level config file.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

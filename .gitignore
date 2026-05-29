@@ -1,3 +1,5 @@
+.claude/
+.serena/
 test.log
 Examples/*
 dist/*

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1]
+  * Fixed: removed committed internal tool files (`.claude/scheduled_tasks.lock`, `.serena/project.yml`, `todo.md`, `old.md`); added `.claude/` and `.serena/` to `.gitignore`
+  * Fixed: stale `MuCheck.cabal` references in `haskell-ci.yml` comment header
+  * Fixed: schema `$id`, `title`, and `description` updated to reference `mutaskell`
+  * Fixed: CLAUDE.md corrected default branch name from `master` to `main`
+
 ## [0.6.0]
   * Changed: package renamed from `MuCheck` to `mutaskell`; all library modules moved from `Test.MuCheck.*` to `Test.Mutaskell.*`; binary renamed from `mucheck` to `mutaskell`
 
