@@ -118,6 +118,18 @@ mkFracLitExpr f = mkL (HsOverLit noExtField overlit)
 mkStringExpr :: String -> LHsExpr GhcPs
 mkStringExpr s = mkL (HsLit noExtField (HsString NoSourceText (mkFastString s)))
 
+-- | Wrap an expression in explicit parentheses: @e@ → @(e)@.
+-- Needed when injecting a prefix application such as @not@ around an
+-- operator expression, so that @not (n > 0)@ is produced rather than the
+-- mis-parenthesised @not n > 0@ (which parses as @(not n) > 0@).
+-- XPar GhcPs = (EpToken "(", EpToken ")"); we build both tokens with a
+-- zero-width delta so the parens hug the wrapped expression.
+mkPar :: LHsExpr GhcPs -> LHsExpr GhcPs
+mkPar e = mkL (HsPar (lpar, rpar) (setEntryDP e (SameLine 0)))
+  where
+    lpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
+    rpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
+
 -- | Create an empty list expression @[]@.
 -- We provide explicit bracket tokens so that 'exactPrint' emits @[]@ rather
 -- than the empty string that results from @noAnn :: AnnList ()@.
@@ -471,8 +483,16 @@ selectIfElseBoolNegOps m = selectValOps isIf convert m
     isIf (L _ HsIf{}) = True
     isIf _            = False
 
+    -- Swap the then/else branches.  Each branch carries its own leading entry
+    -- delta (the spacing after the @then@/@else@ keyword tokens held in @x@);
+    -- swapping the branches verbatim leaves each branch with the *other*
+    -- branch's delta, which corrupts layout and drops the @else@ keyword,
+    -- yielding source that never compiles.  We transfer the original branch's
+    -- entry delta onto the branch that now occupies its slot (the same
+    -- technique 'fixEntries' uses for clause reordering).
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
-    convert (L _ (HsIf x cond t f)) = [mkL (HsIf x cond f t)]
+    convert (L _ (HsIf x cond t f)) =
+        [mkL (HsIf x cond (transferEntryDP t f) (transferEntryDP f t))]
     convert _ = []
 
 -- | Negate boolean guards: @x == 1@ → @not (x == 1)@.
@@ -510,7 +530,7 @@ selectGuardedBoolNegOps m = selectValOps isMatchWithGuards convert m
     boolNegate :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
     boolNegate s | isOtherwiseStmt s = []
     boolNegate (L _ (BodyStmt x expr y z)) =
-        [mkL (BodyStmt x (mkApp (mkVar "not") expr) y z)]
+        [mkL (BodyStmt x (mkApp (mkVar "not") (mkPar expr)) y z)]
     boolNegate _ = []
 
 -- ---------------------------------------------------------------------------

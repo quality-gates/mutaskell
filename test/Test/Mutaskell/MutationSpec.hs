@@ -5,7 +5,9 @@ module Test.Mutaskell.MutationSpec where
 import Data.List (isInfixOf)
 import Here
 import Test.Hspec
+import Test.Mutaskell.Config (defaultConfig)
 import Test.Mutaskell.Mutation
+import Test.Mutaskell.TestAdapter (Mutant (..))
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
 
 main :: IO ()
@@ -55,6 +57,20 @@ myFn x = if x == 1 then True else False
             ops `shouldSatisfy` (not . null)
             ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
+        -- Regression: the branch swap used to reuse each branch's original
+        -- entry delta verbatim, dropping the @else@ keyword and producing
+        -- source that never compiled (silently counted as skipped).
+        it "emits a complete, branch-swapped if expression" $ do
+            let text =
+                    [e|
+module Prop where
+
+myFn x = if x == 1 then True else False
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            map (unwords . words . _mutant) mutants
+                `shouldSatisfy` any ("then False else True" `isInfixOf`)
+
     describe "selectGuardedBoolNegOps" $ do
         it "returns guarded-boolean muops for a module with a guarded definition" $ do
             let text =
@@ -68,6 +84,21 @@ myFn _ | otherwise = False
             let ops = selectGuardedBoolNegOps ast
             ops `shouldSatisfy` (not . null)
             ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
+
+        -- Regression: the negated guard was emitted as @not x == 1@ (parsed
+        -- @(not x) == 1@), a precedence error that never compiled.  It must be
+        -- parenthesised as @not (x == 1)@.
+        it "parenthesises the negated guard expression" $ do
+            let text =
+                    [e|
+module Prop where
+
+myFn x | x == 1 = True
+myFn _ | otherwise = False
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            map (unwords . words . _mutant) mutants
+                `shouldSatisfy` any ("not (x == 1)" `isInfixOf`)
 
     describe "selectRemoveNotOps" $ do
         it "returns remove-not muops" $ do
