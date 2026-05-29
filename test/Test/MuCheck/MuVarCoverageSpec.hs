@@ -158,6 +158,58 @@ f :: Int -> Bool
 f x = x > 0
 |]
 
+listLiteralSrc :: String
+listLiteralSrc = [e|
+module M where
+f = [1, 2, 3 :: Int]
+|]
+
+bindToSeqSrc :: String
+bindToSeqSrc = [e|
+module M where
+import System.IO
+f h = do
+  x <- hGetLine h
+  return x
+|]
+
+patConSrc :: String
+patConSrc = [e|
+module M where
+f (Just x) = x
+f Nothing  = 0
+|]
+
+appendStripSrc :: String
+appendStripSrc = [e|
+module M where
+f xs ys = xs ++ ys
+|]
+
+flipArgsSrc :: String
+flipArgsSrc = [e|
+module M where
+f x y = compare x y
+|]
+
+seqStripSrc :: String
+seqStripSrc = [e|
+module M where
+f x y = seq x y
+|]
+
+tupleSwapSrc :: String
+tupleSwapSrc = [e|
+module M where
+f x = (x, x)
+|]
+
+orderingLitSrc :: String
+orderingLitSrc = [e|
+module M where
+f = GT
+|]
+
 spec :: Spec
 spec = describe "MuVar coverage" $ do
   it "pattern-match produces at least one mutant" $ do
@@ -229,3 +281,27 @@ spec = describe "MuVar coverage" $ do
   it "zero-return produces at least one mutant" $ do
     ast <- H.ast zeroReturnSrc
     selectZeroReturnOps ast `shouldSatisfy` (not . null)
+  it "list-literal produces at least one mutant" $ do
+    ast <- H.ast listLiteralSrc
+    selectExplicitListOps ast `shouldSatisfy` (not . null)
+  it "bind-to-sequence produces at least one mutant" $ do
+    ast <- H.ast bindToSeqSrc
+    selectBindToSequenceOps ast `shouldSatisfy` (not . null)
+  it "pattern-constructor produces at least one mutant" $ do
+    ast <- H.ast patConSrc
+    selectPatternConstructorFlipOps ast `shouldSatisfy` (not . null)
+  it "append-strip produces at least one mutant" $ do
+    ast <- H.ast appendStripSrc
+    selectAppendStripOps ast `shouldSatisfy` (not . null)
+  it "flip-args produces at least one mutant" $ do
+    ast <- H.ast flipArgsSrc
+    selectFlipArgsOps ast `shouldSatisfy` (not . null)
+  it "seq-strip produces at least one mutant" $ do
+    ast <- H.ast seqStripSrc
+    selectSeqStripOps ast `shouldSatisfy` (not . null)
+  it "tuple-swap produces at least one mutant" $ do
+    ast <- H.ast tupleSwapSrc
+    selectTupleSwapOps ast `shouldSatisfy` (not . null)
+  it "ordering-literal produces at least one mutant" $ do
+    ast <- H.ast orderingLitSrc
+    selectOrderingLitOps ast `shouldSatisfy` (not . null)

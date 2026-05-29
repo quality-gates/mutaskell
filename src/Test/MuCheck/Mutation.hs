@@ -13,6 +13,7 @@ import Data.List (isPrefixOf, nub, nubBy, partition, permutations)
 
 import GHC.Hs
 import GHC.Parser.Annotation ()
+import Language.Haskell.Syntax.Basic (Boxity (..))
 import GHC.Types.SrcLoc
     ( GenLocated (..)
     , generatedSrcSpan
@@ -250,7 +251,15 @@ applicableOps config ast = relevantOps ast opsList
             , (MutateOther "bracket-degenerate",  selectBracketDegenerateOps ast)
             , (MutateOther "error-guard",         selectErrorGuardOps ast)
             , (MutateOther "replace-mutable-arg", selectReplaceMutableArgOps ast)
-            , (MutateOther "zero-return",         selectZeroReturnOps ast)
+            , (MutateOther "zero-return",          selectZeroReturnOps ast)
+            , (MutateOther "list-literal",         selectExplicitListOps ast)
+            , (MutateOther "bind-to-sequence",     selectBindToSequenceOps ast)
+            , (MutateOther "pattern-constructor",  selectPatternConstructorFlipOps ast)
+            , (MutateOther "append-strip",         selectAppendStripOps ast)
+            , (MutateOther "flip-args",            selectFlipArgsOps ast)
+            , (MutateOther "seq-strip",            selectSeqStripOps ast)
+            , (MutateOther "tuple-swap",           selectTupleSwapOps ast)
+            , (MutateOther "ordering-literal",     selectOrderingLitOps ast)
             ]
 
 -- ---------------------------------------------------------------------------
@@ -1079,3 +1088,212 @@ selectZeroReturnOps m =
         L la (Match xm ctx pats
                (GRHSs xg [L lg (GRHS xga [] (setEntryDP zv (SameLine 1)))] binds))
     replaceMatchBody _ a = a
+
+-- ---------------------------------------------------------------------------
+-- Explicit list literal mutations
+
+-- | Replace non-empty explicit list literals with the empty list or with
+-- one element removed: @[x, y, z]@ → @[]@, @[x, z]@, @[y, z]@, @[x, y]@.
+selectExplicitListOps :: Module_ -> [MuOp]
+selectExplicitListOps m = selectValOps isNonEmptyList convert m
+  where
+    isNonEmptyList :: LHsExpr GhcPs -> Bool
+    isNonEmptyList (L _ (ExplicitList _ elems)) = not (null elems)
+    isNonEmptyList _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (ExplicitList ann elems)) =
+        mkListExpr :
+        [ mkL (ExplicitList ann elems') | elems' <- removeOneElem elems ]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- Monadic bind-to-sequence mutation
+
+-- | Replace @x \<- action@ with @_ \<- action@ (wildcard bind) in @do@ blocks,
+-- dropping the bound name so any downstream use of @x@ becomes a compile error
+-- (killed mutant) or the mutation survives only if @x@ was already unused.
+selectBindToSequenceOps :: Module_ -> [MuOp]
+selectBindToSequenceOps m = selectValOps isDo convert m
+  where
+    isDo :: LHsExpr GhcPs -> Bool
+    isDo (L _ (HsDo _ (DoExpr _)  _)) = True
+    isDo (L _ (HsDo _ (MDoExpr _) _)) = True
+    isDo _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsDo x ctx (L ls stmts))) =
+        [ mkL (HsDo x ctx (L ls stmts'))
+        | stmts' <- dropOneBind stmts
+        ]
+    convert _ = []
+
+    dropOneBind :: [ExprLStmt GhcPs] -> [[ExprLStmt GhcPs]]
+    dropOneBind stmts =
+        [ replaceAt i (toWildBind s) stmts
+        | (i, s) <- zip [0..] stmts
+        , isNamedBind s
+        , i < length stmts - 1
+        ]
+
+    isNamedBind :: ExprLStmt GhcPs -> Bool
+    isNamedBind (L _ (BindStmt _ (L _ (VarPat _ _)) _)) = True
+    isNamedBind _ = False
+
+    toWildBind :: ExprLStmt GhcPs -> ExprLStmt GhcPs
+    toWildBind (L l (BindStmt xb _ expr)) =
+        L l (BindStmt xb (mkL (WildPat noExtField)) expr)
+    toWildBind s = s
+
+-- ---------------------------------------------------------------------------
+-- Pattern constructor flip mutations
+
+-- | Flip constructor patterns in function clauses and case alternatives:
+-- @Just x@ ↔ @Nothing@, @Left x@ ↔ @Right x@, @True@ ↔ @False@ (top-level patterns only).
+selectPatternConstructorFlipOps :: Module_ -> [MuOp]
+selectPatternConstructorFlipOps m = selectValOps hasFlippableCon convert m
+  where
+    flippableSet :: [String]
+    flippableSet = ["Just","Nothing","Left","Right","True","False"]
+
+    flipConName :: String -> Maybe String
+    flipConName "Just"    = Just "Nothing"
+    flipConName "Nothing" = Just "Just"
+    flipConName "Left"    = Just "Right"
+    flipConName "Right"   = Just "Left"
+    flipConName "True"    = Just "False"
+    flipConName "False"   = Just "True"
+    flipConName _         = Nothing
+
+    isFlippablePat :: LPat GhcPs -> Bool
+    isFlippablePat (L _ (ConPat _ (L _ rdr) _))     = rdrStr rdr `elem` flippableSet
+    isFlippablePat (L _ (ParPat _ lp))               = isFlippablePat lp
+    isFlippablePat _ = False
+
+    hasFlippableCon :: Alt_ -> Bool
+    hasFlippableCon (L _ (Match _ _ (L _ pats) _)) = any isFlippablePat pats
+
+    convert :: Alt_ -> [Alt_]
+    convert (L la (Match xm ctx (L lp pats) rhs)) =
+        [ L la (Match xm ctx (L lp pats') rhs)
+        | pats' <- flipOnePat pats
+        ]
+
+    flipOnePat :: [LPat GhcPs] -> [[LPat GhcPs]]
+    flipOnePat pats =
+        [ replaceAt i pat' pats
+        | (i, pat) <- zip [0..] pats
+        , pat' <- flipTopPat pat
+        ]
+
+    -- Unwrap ParPat and re-wrap the flipped result, so that function-argument
+    -- patterns such as @f (Just x)@ and @f (Left e)@ are handled correctly.
+    flipTopPat :: LPat GhcPs -> [LPat GhcPs]
+    flipTopPat (L l (ParPat x inner)) =
+        [ L l (ParPat x p) | p <- flipTopPat inner ]
+    flipTopPat (L l (ConPat x (L lr rdr) args)) =
+        case flipConName (rdrStr rdr) of
+            Nothing        -> []
+            Just "Nothing" ->
+                [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc "Nothing"))) (PrefixCon [] []))]
+            Just "Just"    ->
+                [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc "Just")))
+                         (PrefixCon [] [mkL (WildPat noExtField)]))]
+            Just other     ->
+                [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc other))) args)]
+    flipTopPat _ = []
+
+-- ---------------------------------------------------------------------------
+-- Append strip mutation
+
+-- | Replace @xs ++ ys@ with @xs@ or @ys@, testing that both halves are needed.
+selectAppendStripOps :: Module_ -> [MuOp]
+selectAppendStripOps m = selectValOps isAppend convert m
+  where
+    isAppend :: LHsExpr GhcPs -> Bool
+    isAppend (L _ (OpApp _ _ (L _ (HsVar _ (L _ op))) _)) = rdrStr op == "++"
+    isAppend _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (OpApp _ e1 _ e2)) = [e1, e2]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- Flip-argument mutation
+
+-- | Swap the two arguments of a known binary function:
+-- @f a b@ → @f b a@.  Applied only to functions where both arguments
+-- typically share a type, reducing type-error noise.
+selectFlipArgsOps :: Module_ -> [MuOp]
+selectFlipArgsOps m = selectValOps isFlippable convert m
+  where
+    flippableFns :: [String]
+    flippableFns =
+        [ "compare", "max", "min", "gcd", "lcm"
+        , "div", "mod", "quot", "rem"
+        , "elem", "notElem"
+        , "splitAt", "take", "drop", "replicate"
+        ]
+
+    isFlippable :: LHsExpr GhcPs -> Bool
+    isFlippable (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) _)) =
+        rdrStr rdr `elem` flippableFns
+    isFlippable _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ (L _ (HsApp _ f a)) b)) =
+        [mkApp (mkApp f (setEntryDP b (SameLine 1))) (setEntryDP a (SameLine 1))]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- seq strip mutation
+
+-- | Replace @seq x y@ with @y@, testing that forced evaluation is required.
+selectSeqStripOps :: Module_ -> [MuOp]
+selectSeqStripOps m = selectValOps isSeqApp convert m
+  where
+    isSeqApp :: LHsExpr GhcPs -> Bool
+    isSeqApp (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _)) _)) =
+        rdrStr rdr == "seq"
+    isSeqApp _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsApp _ _ y)) = [y]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- Tuple swap mutation
+
+-- | Swap the two components of a pair expression: @(a, b)@ → @(b, a)@.
+-- Produces a compile error when @a@ and @b@ have different types; those
+-- mutants are reported as killed via interpreter error.
+selectTupleSwapOps :: Module_ -> [MuOp]
+selectTupleSwapOps m = selectValOps isPair convert m
+  where
+    isPair :: LHsExpr GhcPs -> Bool
+    isPair (L _ (ExplicitTuple _ [Present _ _, Present _ _] Boxed)) = True
+    isPair _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (ExplicitTuple x [Present xa a, Present xb b] box)) =
+        [mkL (ExplicitTuple x [Present xa b, Present xb a] box)]
+    convert _ = []
+
+-- ---------------------------------------------------------------------------
+-- Ordering literal mutation
+
+-- | Flip @GT@ ↔ @LT@ and replace @EQ@ with @GT@ or @LT@.
+selectOrderingLitOps :: Module_ -> [MuOp]
+selectOrderingLitOps m = selectValOps isOrdering convert m
+  where
+    isOrdering :: LHsExpr GhcPs -> Bool
+    isOrdering (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` ["GT", "LT", "EQ"]
+    isOrdering _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L _ (HsVar _ (L _ rdr))) = case rdrStr rdr of
+        "GT" -> [mkDataVar "LT"]
+        "LT" -> [mkDataVar "GT"]
+        "EQ" -> [mkDataVar "GT", mkDataVar "LT"]
+        _    -> []
+    convert _ = []

@@ -81,7 +81,7 @@ module to be.
 MuCheck currently supports:
 
 1.  Literal values (Int, Float, Char, String, Bool)
-2.  Standard functions and operators substitution
+2.  Standard functions and operators substitution (includes `&&`/`||` swap, `foldl`/`foldr` swap, and all comparison, arithmetic, and bitwise operator groups)
 3.  If-else swapping
 4.  Guarded boolean negation
 5.  Pattern match permutation and removal
@@ -103,6 +103,14 @@ MuCheck currently supports:
 21. Exception handler removal: `catch`, `handle`, `try` replaced with no-ops (`error-guard`)
 22. Mutable argument replacement: `IORef`/`MVar`/`TVar` replaced with `undefined` (`replace-mutable-arg`)
 23. Zero-return: replace each function match body with the zero value for its declared return type — `False`, `0`, `""`, `Nothing`, `[]`, or `return undefined` for IO (`zero-return`)
+24. Explicit list literal emptying or one-element removal: `[x, y, z]` → `[]` or `[x, z]` etc. (`list-literal`)
+25. Monadic bind stripping: `x <- action` → `_ <- action`, testing that the bound value is used (`bind-to-sequence`)
+26. Pattern constructor flip: `Just x`/`Nothing`, `Left e`/`Right e`, `True`/`False` in patterns (`pattern-constructor`)
+27. Append strip: `xs ++ ys` → `xs` or `ys`, testing that both halves of a concatenation are needed (`append-strip`)
+28. Argument flip for known binary functions: `compare x y` → `compare y x` (`flip-args`)
+29. `seq` strip: `seq x y` → `y`, testing that forced evaluation is required (`seq-strip`)
+30. Tuple component swap: `(a, b)` → `(b, a)` (`tuple-swap`)
+31. `Ordering` literal flip: `GT` ↔ `LT`, `EQ` → `GT` or `LT` (`ordering-literal`)
 
 ### Mutation Types: Before & After
 
@@ -117,13 +125,21 @@ threshold = 10
 threshold = 11
 ```
 
-**2. Functions and operators** — swaps operators or functions with similar ones
+**2. Functions and operators** — swaps operators or functions within configured groups (arithmetic, comparison, bitwise, logical `&&`/`||`, folds `foldl`/`foldr`, and more)
 
 ```haskell
 -- Before
 x = a + b
--- After
+-- After (arithmetic)
 x = a - b
+-- Before
+result = a && b
+-- After (logical)
+result = a || b
+-- Before
+sorted = foldl f z xs
+-- After (fold direction)
+sorted = foldr f z xs
 ```
 
 **3. If-else swapping** — swaps the then and else branches
@@ -325,6 +341,86 @@ modifyIORef undefined (+1)
 isValid x = x > 0
 -- After
 isValid x = False
+```
+
+**24. Explicit list literal** (`list-literal`) — empties a non-empty list or removes one element
+
+```haskell
+-- Before
+xs = [1, 2, 3]
+-- After (empty)
+xs = []
+-- After (one removed)
+xs = [2, 3]
+```
+
+**25. Monadic bind stripping** (`bind-to-sequence`) — replaces `x <- action` with `_ <- action`, testing that the bound value is used downstream
+
+```haskell
+-- Before
+result <- readFile path
+return result
+-- After
+_ <- readFile path
+return result  -- compile error: 'result' unbound
+```
+
+**26. Pattern constructor flip** (`pattern-constructor`) — flips a constructor in a pattern: `Just`↔`Nothing`, `Left`↔`Right`, `True`↔`False`
+
+```haskell
+-- Before
+f (Just x) = x + 1
+f Nothing  = 0
+-- After
+f Nothing  = x + 1  -- x unbound: compile error (killed)
+f (Just _) = 0
+```
+
+**27. Append strip** (`append-strip`) — replaces `xs ++ ys` with `xs` or with `ys`, testing that both halves are needed
+
+```haskell
+-- Before
+result = prefix ++ suffix
+-- After (left only)
+result = prefix
+-- After (right only)
+result = suffix
+```
+
+**28. Argument flip** (`flip-args`) — swaps the two arguments of a known binary function
+
+```haskell
+-- Before
+cmp = compare x y
+-- After
+cmp = compare y x
+```
+
+**29. `seq` strip** (`seq-strip`) — removes `seq x y`, replacing it with `y`, testing that the forced evaluation is required
+
+```haskell
+-- Before
+f x acc = seq acc (acc + x)
+-- After
+f x acc = acc + x
+```
+
+**30. Tuple swap** (`tuple-swap`) — swaps the two components of a pair expression
+
+```haskell
+-- Before
+pair = (key, value)
+-- After
+pair = (value, key)  -- compile error when types differ (killed)
+```
+
+**31. `Ordering` literal flip** (`ordering-literal`) — flips `GT` ↔ `LT`; replaces `EQ` with `GT` or `LT`
+
+```haskell
+-- Before
+cmp = GT
+-- After
+cmp = LT
 ```
 
 ### Language Extensions

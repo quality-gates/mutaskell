@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.7]
+  * Added: `&&`/`||` logical operator swap and `foldl`/`foldr` fold-direction swap to default function substitution groups
+  * Added: 8 new dedicated mutation operators — `list-literal` (empty or shrink explicit list literals), `bind-to-sequence` (wildcard monadic binds), `pattern-constructor` (flip `Just`/`Nothing`, `Left`/`Right`, `True`/`False` in patterns), `append-strip` (drop one side of `++`), `flip-args` (swap arguments of known binary functions such as `compare`, `div`, `elem`), `seq-strip` (remove `seq x y` → `y`), `tuple-swap` (swap pair components), `ordering-literal` (flip `GT`↔`LT`, replace `EQ`)
+
 ## [0.5.6]
   * Changed: CI mutation job now caches the GHC 9.12.1 toolchain (`/usr/local/.ghcup`) and the Hackage package index (`~/.cabal/packages`) between runs; previously GHC was downloaded (286 MB) and installed from scratch on every run, costing ~1m45s; the cabal store was already cached
 
