@@ -1,0 +1,19 @@
+# Fast setup for large projects: only mutate lines changed in the current branch.
+#
+# Use this config alongside --git-diff-base and --git-diff-lines on the CLI:
+#
+#   cabal run mucheck -- \
+#     --config setups/diff-only.mucheck.yaml \
+#     --git-diff-base origin/main \
+#     --git-diff-lines \
+#     src/MyModule.hs
+#
+# This restricts mutation to changed lines only, keeping PR runs fast
+# regardless of file size.
+#
+# Rename to .mucheck.yaml and drop --config if you want it as your default.
+
+min_covered_msi: 70
+timeout: 20
+workers: 4
+quiet: true

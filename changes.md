@@ -1,6 +1,23 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.8]
+  * Added: `setups/` directory with ready-to-use GitHub Actions workflow, GitLab CI job, and three `.mucheck.yaml` templates (conservative, strict, diff-only)
+  * Changed: README rewritten with plain-language explanation of why mutation testing matters, concrete examples of AI-generated test patterns that escape mutation, covered-MSI guidance, and a get-started section
+  * Fixed: CLAUDE.md shipping workflow updated to prevent recurring version revert: version bump now required in the PR itself, and agents must branch from `origin/master` before doing any work
+
+## [0.5.7]
+  * Added: `&&`/`||` logical operator swap and `foldl`/`foldr` fold-direction swap to default function substitution groups
+  * Added: 8 new dedicated mutation operators — `list-literal` (empty or shrink explicit list literals), `bind-to-sequence` (wildcard monadic binds), `pattern-constructor` (flip `Just`/`Nothing`, `Left`/`Right`, `True`/`False` in patterns), `append-strip` (drop one side of `++`), `flip-args` (swap arguments of known binary functions such as `compare`, `div`, `elem`), `seq-strip` (remove `seq x y` → `y`), `tuple-swap` (swap pair components), `ordering-literal` (flip `GT`↔`LT`, replace `EQ`)
+
+## [0.5.6]
+  * Changed: CI mutation job now caches the GHC 9.12.1 toolchain (`/usr/local/.ghcup`) and the Hackage package index (`~/.cabal/packages`) between runs; previously GHC was downloaded (286 MB) and installed from scratch on every run, costing ~1m45s; the cabal store was already cached
+
+## [0.5.5]
+  * Changed: README badges consolidated from five (Mutation Analysis, HLint, OSV-Scanner, Docs, License) to three (CI, Docs, License); HLint and OSV-Scanner badges removed
+  * Added: "Mutation Types: Before & After" section in README with a concrete Haskell before/after example for each of the 23 mutation types
+  * Changed: Haddock pages deployment now passes `--haddock-hyperlinked-source` so each identifier in the hosted docs links to a syntax-highlighted source view
+
+## [0.5.4]
   * Fixed: `selectRemoveStmtOps` no longer applies to list comprehensions (`HsDo ListComp`); the previous `isValidDo` check incorrectly allowed removing the mandatory result `LastStmt` from a comprehension, leaving a body-less comprehension that triggered a GHC 9.12.1 `pprComp` panic; `isDo` is now restricted to `DoExpr`/`MDoExpr` only
   * Fixed: `--noop` pre-flight failure now prints the actual interpreter error to stderr so users can diagnose test format problems (e.g. wrong return type, missing imports) instead of receiving only the generic "test suite does not pass" message
   * Fixed: `--help` footer now uses `footerDoc`/`vsep` so mutator names and exit codes render as structured lines instead of a single reflowed paragraph

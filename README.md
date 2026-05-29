@@ -1,8 +1,102 @@
-[![Mutation Analysis](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml)
-[![HLint](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml)
-[![OSV-Scanner](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml)
+[![CI](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml)
 [![Docs](https://github.com/jonbaldie/mucheck/actions/workflows/pages.yml/badge.svg)](https://jonbaldie.github.io/mucheck)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
+
+# Why mutation testing?
+
+Code coverage tells you which lines executed during a test run. It tells you nothing about whether the tests would catch a bug. A test suite that calls every function without ever checking return values will show 100% coverage while catching nothing.
+
+Mutation testing answers the harder question: **if the code were wrong, would the tests fail?** MuCheck makes small, deliberate changes to your source — flipping `+` to `-`, swapping `True` to `False`, dropping a base case, replacing `Just x` with `Nothing` — and re-runs the test suite. If the tests still pass, that mutation *escaped*. An escaped mutant means a real bug of that shape would go undetected in production too.
+
+## It catches AI-generated test slop
+
+LLMs are good at producing tests that pass. They're not optimising for tests that would catch bugs — they're producing code that looks like tests. Mutation testing exposes the difference.
+
+**Testing existence instead of value.** An LLM asked to test a lookup function will often write:
+
+```haskell
+it "finds the user" $
+  Map.lookup userId db `shouldSatisfy` isJust
+```
+
+Mutate the value stored in the map — wrong role, wrong email, anything — and this test still passes. It only checks that *something* came back. `shouldBe (Just expectedUser)` kills the mutant; `shouldSatisfy isJust` does not.
+
+**Avoiding boundary values.** Given a validation function:
+
+```haskell
+isValidEmail :: String -> Bool
+isValidEmail s = '@' `elem` s && '.' `elem` s
+```
+
+An LLM writes ``isValidEmail "user@example.com" `shouldBe` True``. Mutate `&&` to `||` — the test input has both characters, so it still returns `True` and the test still passes. The mutant only dies when you test an input like `"user@example"` (has `@` but no `.`), which the LLM never thought to include.
+
+**Testing the wrong property.** For a sort function, an LLM often asserts on length rather than order:
+
+```haskell
+it "sorts a list" $
+  length (qsort [3,1,2]) `shouldBe` 3
+```
+
+Mutate the comparator so equal elements end up in the wrong partition. Length is still 3. The test passes. ``qsort [3,1,2] `shouldBe` [1,2,3]`` kills it immediately.
+
+**Testing each function in isolation with cherry-picked inputs.** A pipeline `parse → validate → process` gets three separate unit tests, each with a hand-crafted input that happens to work. Mutate `parse` to return a slightly wrong value — a default port of `0` instead of `80` — and all three tests still pass because `validate` and `process` are fed their own canned inputs, not `parse`'s output. Only an end-to-end test that feeds a real input through the whole pipeline and checks the final result would catch it.
+
+The common thread: the tests verify that code ran, not that it produced the right answer. Mutation testing forces that distinction into the open.
+
+## The metric to track: covered-MSI
+
+Raw MSI counts mutations in code your tests never execute. Add a new function with no tests yet, and your score drops — not because your existing tests got weaker, but because there's more untested code. That's a coverage problem, not a test quality problem, and conflating the two makes the number hard to act on.
+
+Covered-MSI only counts mutations in lines your test suite actually ran through, using GHC's HPC coverage data. It stays flat when you add untested code and drops when your existing tests stop catching things they used to catch. That's the signal worth gating on in CI.
+
+Use `--min-covered-msi 70` as a starting point. To get covered-MSI, build your test suite with `--enable-coverage` and pass the resulting `.tix` file via `--tix` — the get-started section below shows the exact commands.
+
+## Get started
+
+**Minimal run** (no coverage data):
+
+```bash
+cabal build --write-ghc-environment-files=always all
+cabal run mucheck -- src/YourModule.hs
+```
+
+**With coverage** (recommended — unlocks covered-MSI):
+
+```bash
+# Build and run your test suite with coverage instrumentation
+echo "package your-package-name" > cabal.project.local
+echo "  coverage: True" >> cabal.project.local
+cabal run exe:your-test-suite
+rm -f cabal.project.local
+
+# Copy .mix files where mucheck can find them
+mkdir -p .hpc
+find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+
+# Pass the generated .tix file to mucheck
+cabal run mucheck -- --tix your-test-suite.tix src/YourModule.hs
+```
+
+**With a config file** — drop a `.mucheck.yaml` in your project root:
+
+```yaml
+min_covered_msi: 70    # fail CI if covered-MSI drops below 70%
+timeout: 30            # kill slow mutant evaluations after 30s
+workers: 4             # evaluate 4 mutants in parallel
+quiet: true            # only print surviving mutants, not every kill
+```
+
+**CI and config examples** — the `setups/` directory in this repo contains ready-to-use files:
+
+| File | What it is |
+| :--- | :--- |
+| `setups/github-actions.yml` | Complete GitHub Actions workflow; copy to `.github/workflows/mutation.yml` |
+| `setups/gitlab-ci.yml` | GitLab CI job with Code Quality artifact; paste into `.gitlab-ci.yml` |
+| `setups/conservative.mucheck.yaml` | Low bar for first adoption; rename to `.mucheck.yaml` and raise the threshold over time |
+| `setups/strict.mucheck.yaml` | High bar for mature or greenfield projects |
+| `setups/diff-only.mucheck.yaml` | Only mutates changed lines; pair with `--git-diff-base` for fast PR checks |
+
+The `--write-ghc-environment-files=always` flag is required so the `hint` interpreter can find your project's modules at runtime. The `.ghc.environment.*` file it generates is already in `.gitignore`.
 
 # Documentation
 
@@ -83,7 +177,7 @@ module to be.
 MuCheck currently supports:
 
 1.  Literal values (Int, Float, Char, String, Bool)
-2.  Standard functions and operators substitution
+2.  Standard functions and operators substitution (includes `&&`/`||` swap, `foldl`/`foldr` swap, and all comparison, arithmetic, and bitwise operator groups)
 3.  If-else swapping
 4.  Guarded boolean negation
 5.  Pattern match permutation and removal
@@ -105,6 +199,325 @@ MuCheck currently supports:
 21. Exception handler removal: `catch`, `handle`, `try` replaced with no-ops (`error-guard`)
 22. Mutable argument replacement: `IORef`/`MVar`/`TVar` replaced with `undefined` (`replace-mutable-arg`)
 23. Zero-return: replace each function match body with the zero value for its declared return type — `False`, `0`, `""`, `Nothing`, `[]`, or `return undefined` for IO (`zero-return`)
+24. Explicit list literal emptying or one-element removal: `[x, y, z]` → `[]` or `[x, z]` etc. (`list-literal`)
+25. Monadic bind stripping: `x <- action` → `_ <- action`, testing that the bound value is used (`bind-to-sequence`)
+26. Pattern constructor flip: `Just x`/`Nothing`, `Left e`/`Right e`, `True`/`False` in patterns (`pattern-constructor`)
+27. Append strip: `xs ++ ys` → `xs` or `ys`, testing that both halves of a concatenation are needed (`append-strip`)
+28. Argument flip for known binary functions: `compare x y` → `compare y x` (`flip-args`)
+29. `seq` strip: `seq x y` → `y`, testing that forced evaluation is required (`seq-strip`)
+30. Tuple component swap: `(a, b)` → `(b, a)` (`tuple-swap`)
+31. `Ordering` literal flip: `GT` ↔ `LT`, `EQ` → `GT` or `LT` (`ordering-literal`)
+
+### Mutation Types: Before & After
+
+Each mutant is a single, minimal change to your source. Below is a concrete example for every mutation type.
+
+**1. Literal values** — substitutes nearby numeric, char, string, or bool literals
+
+```haskell
+-- Before
+threshold = 10
+-- After
+threshold = 11
+```
+
+**2. Functions and operators** — swaps operators or functions within configured groups (arithmetic, comparison, bitwise, logical `&&`/`||`, folds `foldl`/`foldr`, and more)
+
+```haskell
+-- Before
+x = a + b
+-- After (arithmetic)
+x = a - b
+-- Before
+result = a && b
+-- After (logical)
+result = a || b
+-- Before
+sorted = foldl f z xs
+-- After (fold direction)
+sorted = foldr f z xs
+```
+
+**3. If-else swapping** — swaps the then and else branches
+
+```haskell
+-- Before
+if valid then "ok" else "fail"
+-- After
+if valid then "fail" else "ok"
+```
+
+**4. Guarded boolean negation** — negates a guard condition
+
+```haskell
+-- Before
+f x | x > 0 = "positive"
+-- After
+f x | not (x > 0) = "positive"
+```
+
+**5. Pattern match permutation and removal** — reorders clauses or drops one
+
+```haskell
+-- Before
+classify 0 = "zero"
+classify n = "nonzero"
+-- After (permutation)
+classify n = "nonzero"
+classify 0 = "zero"
+```
+
+**6. `not` removal** (`remove-not`) — strips `not` from a negated predicate
+
+```haskell
+-- Before
+guard (not (null xs))
+-- After
+guard (null xs)
+```
+
+**7. `negate` removal** (`remove-negation`) — strips `negate` from an expression
+
+```haskell
+-- Before
+abs (negate x)
+-- After
+abs x
+```
+
+**8. `case...of` alternative removal** (`case-alt-remove`) — removes one branch
+
+```haskell
+-- Before
+case x of { Just v -> v; Nothing -> 0 }
+-- After
+case x of { Nothing -> 0 }
+```
+
+**9. Default alternative removal** (`case-default-remove`) — removes the `_` or `otherwise` branch
+
+```haskell
+-- Before
+case x of { 0 -> "zero"; _ -> "other" }
+-- After
+case x of { 0 -> "zero" }
+```
+
+**10. Do-block statement removal** (`remove-stmt`) — removes one statement from a `do` block
+
+```haskell
+-- Before
+do
+  logEvent ev
+  processEvent ev
+-- After
+do
+  processEvent ev
+```
+
+**11. Let-binding removal** (`remove-let-binding`) — removes one binding from a `let...in` or `do let`
+
+```haskell
+-- Before
+let result = compute x
+    adjusted = result + 1
+in adjusted
+-- After
+let adjusted = result + 1
+in adjusted
+```
+
+**12. Where-binding removal** (`remove-where-binding`) — removes one binding from a `where` clause
+
+```haskell
+-- Before
+f x = g y
+  where y = x + 1
+-- After
+f x = g y
+```
+
+**13. Self-assignment removal** (`remove-self-assign`) — removes `let x = x` or `x <- return x`
+
+```haskell
+-- Before
+do
+  x <- return x
+  process x
+-- After
+do
+  process x
+```
+
+**14. Numeric literal negation** (`negate-literal`) — wraps a numeric literal with `negate`
+
+```haskell
+-- Before
+offset = 42
+-- After
+offset = negate 42
+```
+
+**15. String literal replacement** (`string-literal`) — replaces the string in a comparison with `""`
+
+```haskell
+-- Before
+x == "hello"
+-- After
+x == ""
+```
+
+**16. Boolean operand replacement** (`bool-operand`) — replaces one operand of `&&` or `||` with `True` or `False`
+
+```haskell
+-- Before
+valid && authorised
+-- After
+True && authorised
+```
+
+**17. `Maybe` flipping** (`flip-maybe`) — swaps `Just x` and `Nothing`
+
+```haskell
+-- Before
+Just result
+-- After
+Nothing
+```
+
+**18. `Either` flipping** (`flip-either`) — swaps `Right x` and `Left x`
+
+```haskell
+-- Before
+Right result
+-- After
+Left result
+```
+
+**19. Concurrency wrapper removal** (`remove-forkIO`) — drops `forkIO`, `async`, or `withAsync`
+
+```haskell
+-- Before
+forkIO (worker queue)
+-- After
+worker queue
+```
+
+**20. Resource bracket degeneration** (`bracket-degenerate`) — removes the release action from `bracket`
+
+```haskell
+-- Before
+bracket acquire release action
+-- After
+acquire >>= action
+```
+
+**21. Exception handler removal** (`error-guard`) — replaces `catch`/`handle`/`try` with a no-op
+
+```haskell
+-- Before
+catch (riskyOp x) handler
+-- After
+riskyOp x
+```
+
+**22. Mutable argument replacement** (`replace-mutable-arg`) — replaces an `IORef`/`MVar`/`TVar` argument with `undefined`
+
+```haskell
+-- Before
+modifyIORef ref (+1)
+-- After
+modifyIORef undefined (+1)
+```
+
+**23. Zero-return** (`zero-return`) — replaces the body of a function clause with the zero value for its return type
+
+```haskell
+-- Before
+isValid x = x > 0
+-- After
+isValid x = False
+```
+
+**24. Explicit list literal** (`list-literal`) — empties a non-empty list or removes one element
+
+```haskell
+-- Before
+xs = [1, 2, 3]
+-- After (empty)
+xs = []
+-- After (one removed)
+xs = [2, 3]
+```
+
+**25. Monadic bind stripping** (`bind-to-sequence`) — replaces `x <- action` with `_ <- action`, testing that the bound value is used downstream
+
+```haskell
+-- Before
+result <- readFile path
+return result
+-- After
+_ <- readFile path
+return result  -- compile error: 'result' unbound
+```
+
+**26. Pattern constructor flip** (`pattern-constructor`) — flips a constructor in a pattern: `Just`↔`Nothing`, `Left`↔`Right`, `True`↔`False`
+
+```haskell
+-- Before
+f (Just x) = x + 1
+f Nothing  = 0
+-- After
+f Nothing  = x + 1  -- x unbound: compile error (killed)
+f (Just _) = 0
+```
+
+**27. Append strip** (`append-strip`) — replaces `xs ++ ys` with `xs` or with `ys`, testing that both halves are needed
+
+```haskell
+-- Before
+result = prefix ++ suffix
+-- After (left only)
+result = prefix
+-- After (right only)
+result = suffix
+```
+
+**28. Argument flip** (`flip-args`) — swaps the two arguments of a known binary function
+
+```haskell
+-- Before
+cmp = compare x y
+-- After
+cmp = compare y x
+```
+
+**29. `seq` strip** (`seq-strip`) — removes `seq x y`, replacing it with `y`, testing that the forced evaluation is required
+
+```haskell
+-- Before
+f x acc = seq acc (acc + x)
+-- After
+f x acc = acc + x
+```
+
+**30. Tuple swap** (`tuple-swap`) — swaps the two components of a pair expression
+
+```haskell
+-- Before
+pair = (key, value)
+-- After
+pair = (value, key)  -- compile error when types differ (killed)
+```
+
+**31. `Ordering` literal flip** (`ordering-literal`) — flips `GT` ↔ `LT`; replaces `EQ` with `GT` or `LT`
+
+```haskell
+-- Before
+cmp = GT
+-- After
+cmp = LT
+```
 
 ### Language Extensions
 

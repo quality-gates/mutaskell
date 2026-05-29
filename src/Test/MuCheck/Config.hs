@@ -33,6 +33,14 @@ comparators = ["<", ">", "<=", ">=", "/=", "=="]
 binAriths :: [String]
 binAriths = ["+", "-", "*", "/"]
 
+-- | logical operators ["&&", "||"]
+logicOps :: [String]
+logicOps = ["&&", "||"]
+
+-- | fold functions ["foldl", "foldl'", "foldr"]
+foldFns :: [String]
+foldFns = ["foldl", "foldl'", "foldr"]
+
 -- | Data.Bits symbols [".&.", ".|."]
 bitSymbols :: [String]
 bitSymbols = [".&.", ".|."]
@@ -108,6 +116,8 @@ defaultConfig =
             , FnOp{_type = FnSymbol, _fns = binAriths}
             , FnOp{_type = FnSymbol, _fns = bitSymbols}
             , FnOp{_type = FnIdent, _fns = bitIdents}
+            , FnOp{_type = FnSymbol, _fns = logicOps}
+            , FnOp{_type = FnIdent, _fns = foldFns}
             ]
         , doMutatePatternMatches = 1.0
         , doMutateValues = 1.0

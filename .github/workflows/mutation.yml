@@ -10,22 +10,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache GHC toolchain
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup
+          key: ${{ runner.os }}-ghcup-9.12.1
+
       - uses: haskell-actions/setup@v2
         with:
           ghc-version: '9.12.1'
           cabal-version: '3.12.1.0'
+          cabal-update: false
+
+      - name: Cache Hackage index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/packages
+          key: ${{ runner.os }}-cabal-index-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-cabal-index-
+
       - name: Cache cabal store
         uses: actions/cache@v4
         with:
           path: ~/.cabal/store
           key: ${{ runner.os }}-ghc-9.12.1-cabal-${{ hashFiles('MuCheck.cabal') }}
           restore-keys: ${{ runner.os }}-ghc-9.12.1-cabal-
+
+      - name: Update Hackage package list
+        run: cabal update
+
       - name: Build all targets (writes .ghc.environment.* for hint)
         run: cabal build --write-ghc-environment-files=always all
+
       - name: Run test suite
         run: cabal test all --test-show-details=direct
+
       - name: Smoke test (fast sanity check before slow coverage+mutation steps)
         run: cabal run mucheck -- --dry-run Examples/AssertCheckTest.hs
+
       - name: Run sample-test with coverage (MuCheck package only)
         run: |
           echo "package MuCheck" > cabal.project.local
@@ -35,5 +58,6 @@ jobs:
           mkdir -p .hpc
           # Find all .mix files and flatten them into .hpc/
           find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+
       - name: Run mutation tests with MSI and covered-MSI quality gates
         run: cabal run mucheck -- --min-msi 50 --min-covered-msi 50 --ignore-msi-with-no-mutations --tix sample-test.tix Examples/AssertCheckTest.hs

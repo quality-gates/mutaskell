@@ -1,0 +1,20 @@
+# Conservative setup for a project adopting mutation testing for the first time.
+#
+# The goal here is to get a baseline score without blocking anything.
+# Once you know where you stand, raise min_covered_msi by ~5 points per sprint
+# until you reach a level you're happy to enforce.
+#
+# Rename this file to .mucheck.yaml at your project root to activate it.
+
+min_covered_msi: 40        # Low bar to start; raise it as your tests improve
+timeout: 60                # Generous — lower it once you know your typical eval time
+workers: 2
+max_mutants: 100           # Cap to keep the first runs fast
+quiet: true                # Print only survivors, not every kill
+
+ignore_source_lines:
+  - NOTEST                 # Lines with this comment are not mutated
+
+exclude_dirs:
+  - vendor/
+  - generated/

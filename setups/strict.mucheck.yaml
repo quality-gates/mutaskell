@@ -1,0 +1,10 @@
+# Strict setup for a mature or greenfield project.
+#
+# Rename this file to .mucheck.yaml at your project root to activate it.
+
+min_covered_msi: 80        # 80% of covered mutations must be killed
+min_msi: 60                # Also gates on raw MSI to catch coverage gaps
+timeout: 30
+workers: 4
+json_output: mucheck.json  # Always write a JSON summary for downstream tooling
+html_output: mucheck.html  # Always write a browsable HTML report
