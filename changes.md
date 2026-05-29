@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.4]
+  * Fixed: `negate-if-else` no longer drops the `else` branch. The then/else swap reused each branch's original layout delta, producing source that never compiled (silently counted as skipped); it now transfers the correct entry delta so the swapped `if` compiles and is actually evaluated
+  * Fixed: `negate-guards` now parenthesises the negated guard. A guard such as `n > 0` was mutated to `not n > 0` (parsed `(not n) > 0`), a precedence error that never compiled; it is now correctly emitted as `not (n > 0)`
+  * Added: regression tests asserting the *emitted source* of both negation mutators is well-formed (branch-swapped `if` retains both branches; negated guard is parenthesised), closing the gap left by tests that only checked operator generation
+
 ## [0.6.3]
   * Fixed: documented `Build & test` command in `CLAUDE.md` now uses `--write-ghc-environment-files=always`; a plain `cabal build all` does not write the `.ghc.environment.*` file the integration test needs, so following the old instructions on a fresh tree made `IntegrationSpec` fail
   * Fixed: `IntegrationSpec` now fails with an actionable message when the `.ghc.environment.*` file is missing, and distinguishes "all mutants skipped as non-compilable" (a misconfigured interpreter environment) from a genuine zero-kill result, instead of surfacing only an opaque `killed == 0` failure

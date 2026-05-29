@@ -7,7 +7,7 @@
 for example,`head` is an identifier while `==` is a symbol.
 -}</span></span><span>
 </span><span id="line-9"></span><span class="hs-keyword">data</span><span> </span><span id="FnType"><span class="annot"><a href="Test.Mutaskell.Config.html#FnType"><span class="hs-identifier hs-var">FnType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FnSymbol"><span class="annot"><a href="Test.Mutaskell.Config.html#FnSymbol"><span class="hs-identifier hs-var">FnSymbol</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="FnIdent"><span class="annot"><a href="Test.Mutaskell.Config.html#FnIdent"><span class="hs-identifier hs-var">FnIdent</span></a></span></span><span>
-</span><span id="line-10"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679265928"><span id="local-6989586621679265933"><span class="annot"><span class="annottext">FnType -&gt; FnType -&gt; Bool
+</span><span id="line-10"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266055"><span id="local-6989586621679266060"><span class="annot"><span class="annottext">FnType -&gt; FnType -&gt; Bool
 (FnType -&gt; FnType -&gt; Bool)
 -&gt; (FnType -&gt; FnType -&gt; Bool) -&gt; Eq FnType
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
@@ -15,7 +15,7 @@ $c== :: FnType -&gt; FnType -&gt; Bool
 == :: FnType -&gt; FnType -&gt; Bool
 $c/= :: FnType -&gt; FnType -&gt; Bool
 /= :: FnType -&gt; FnType -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679265938"><span id="local-6989586621679265940"><span id="local-6989586621679265944"><span class="annot"><span class="annottext">Int -&gt; FnType -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266065"><span id="local-6989586621679266067"><span id="local-6989586621679266071"><span class="annot"><span class="annottext">Int -&gt; FnType -&gt; ShowS
 [FnType] -&gt; ShowS
 FnType -&gt; String
 (Int -&gt; FnType -&gt; ShowS)
@@ -28,7 +28,7 @@ $cshow :: FnType -&gt; String
 show :: FnType -&gt; String
 $cshowList :: [FnType] -&gt; ShowS
 showList :: [FnType] -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679265949"><span id="local-6989586621679265953"><span id="local-6989586621679265956"><span id="local-6989586621679265961"><span class="annot"><span class="annottext">ReadPrec [FnType]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266076"><span id="local-6989586621679266080"><span id="local-6989586621679266083"><span id="local-6989586621679266088"><span class="annot"><span class="annottext">ReadPrec [FnType]
 ReadPrec FnType
 Int -&gt; ReadS FnType
 ReadS [FnType]
@@ -58,14 +58,14 @@ match)
 </span><span id="line-17"></span><span class="hs-keyword">data</span><span> </span><span id="FnOp"><span class="annot"><a href="Test.Mutaskell.Config.html#FnOp"><span class="hs-identifier hs-var">FnOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FnOp"><span class="annot"><a href="Test.Mutaskell.Config.html#FnOp"><span class="hs-identifier hs-var">FnOp</span></a></span></span><span> </span><span class="hs-special">{</span><span id="_type"><span class="annot"><span class="annottext">FnOp -&gt; FnType
 </span><a href="Test.Mutaskell.Config.html#_type"><span class="hs-identifier hs-var hs-var">_type</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#FnType"><span class="hs-identifier hs-type">FnType</span></a></span><span class="hs-special">,</span><span> </span><span id="_fns"><span class="annot"><span class="annottext">FnOp -&gt; [String]
 </span><a href="Test.Mutaskell.Config.html#_fns"><span class="hs-identifier hs-var hs-var">_fns</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span class="hs-special">}</span><span>
-</span><span id="line-18"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679265971"><span id="local-6989586621679265975"><span class="annot"><span class="annottext">FnOp -&gt; FnOp -&gt; Bool
+</span><span id="line-18"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266098"><span id="local-6989586621679266102"><span class="annot"><span class="annottext">FnOp -&gt; FnOp -&gt; Bool
 (FnOp -&gt; FnOp -&gt; Bool) -&gt; (FnOp -&gt; FnOp -&gt; Bool) -&gt; Eq FnOp
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c== :: FnOp -&gt; FnOp -&gt; Bool
 == :: FnOp -&gt; FnOp -&gt; Bool
 $c/= :: FnOp -&gt; FnOp -&gt; Bool
 /= :: FnOp -&gt; FnOp -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679265979"><span id="local-6989586621679265987"><span id="local-6989586621679265991"><span class="annot"><span class="annottext">Int -&gt; FnOp -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266106"><span id="local-6989586621679266114"><span id="local-6989586621679266118"><span class="annot"><span class="annottext">Int -&gt; FnOp -&gt; ShowS
 [FnOp] -&gt; ShowS
 FnOp -&gt; String
 (Int -&gt; FnOp -&gt; ShowS)
@@ -78,7 +78,7 @@ $cshow :: FnOp -&gt; String
 show :: FnOp -&gt; String
 $cshowList :: [FnOp] -&gt; ShowS
 showList :: [FnOp] -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679265996"><span id="local-6989586621679266000"><span id="local-6989586621679266003"><span id="local-6989586621679266016"><span class="annot"><span class="annottext">ReadPrec [FnOp]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266123"><span id="local-6989586621679266127"><span id="local-6989586621679266130"><span id="local-6989586621679266143"><span class="annot"><span class="annottext">ReadPrec [FnOp]
 ReadPrec FnOp
 Int -&gt; ReadS FnOp
 ReadS [FnOp]
@@ -228,7 +228,7 @@ many mutants to be picked randomly from the available pool
 </span><span id="line-104"></span><span>      </span><span id="maxNumMutants"><span class="annot"><span class="annottext">Config -&gt; Int
 </span><a href="Test.Mutaskell.Config.html#maxNumMutants"><span class="hs-identifier hs-var hs-var">maxNumMutants</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-105"></span><span>    </span><span class="hs-special">}</span><span>
-</span><span id="line-106"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266037"><span id="local-6989586621679266051"><span id="local-6989586621679266055"><span class="annot"><span class="annottext">Int -&gt; Config -&gt; ShowS
+</span><span id="line-106"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266164"><span id="local-6989586621679266178"><span id="local-6989586621679266182"><span class="annot"><span class="annottext">Int -&gt; Config -&gt; ShowS
 [Config] -&gt; ShowS
 Config -&gt; String
 (Int -&gt; Config -&gt; ShowS)
@@ -241,7 +241,7 @@ $cshow :: Config -&gt; String
 show :: Config -&gt; String
 $cshowList :: [Config] -&gt; ShowS
 showList :: [Config] -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266059"><span id="local-6989586621679266063"><span id="local-6989586621679266066"><span id="local-6989586621679266096"><span class="annot"><span class="annottext">ReadPrec [Config]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266186"><span id="local-6989586621679266190"><span id="local-6989586621679266193"><span id="local-6989586621679266223"><span class="annot"><span class="annottext">ReadPrec [Config]
 ReadPrec Config
 Int -&gt; ReadS Config
 ReadS [Config]
@@ -339,14 +339,14 @@ readListPrec :: ReadPrec [Config]
 </span><span id="line-135"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MutateNegateIfElse"><span class="annot"><a href="Test.Mutaskell.Config.html#MutateNegateIfElse"><span class="hs-identifier hs-var">MutateNegateIfElse</span></a></span></span><span>
 </span><span id="line-136"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MutateNegateGuards"><span class="annot"><a href="Test.Mutaskell.Config.html#MutateNegateGuards"><span class="hs-identifier hs-var">MutateNegateGuards</span></a></span></span><span>
 </span><span id="line-137"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MutateOther"><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-var">MutateOther</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
-</span><span id="line-138"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266107"><span id="local-6989586621679266112"><span class="annot"><span class="annottext">MuVar -&gt; MuVar -&gt; Bool
+</span><span id="line-138"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679266234"><span id="local-6989586621679266239"><span class="annot"><span class="annottext">MuVar -&gt; MuVar -&gt; Bool
 (MuVar -&gt; MuVar -&gt; Bool) -&gt; (MuVar -&gt; MuVar -&gt; Bool) -&gt; Eq MuVar
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c== :: MuVar -&gt; MuVar -&gt; Bool
 == :: MuVar -&gt; MuVar -&gt; Bool
 $c/= :: MuVar -&gt; MuVar -&gt; Bool
 /= :: MuVar -&gt; MuVar -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266117"><span id="local-6989586621679266124"><span id="local-6989586621679266128"><span id="local-6989586621679266131"><span id="local-6989586621679266134"><span id="local-6989586621679266137"><span id="local-6989586621679266140"><span class="annot"><span class="annottext">Eq MuVar
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266244"><span id="local-6989586621679266251"><span id="local-6989586621679266255"><span id="local-6989586621679266258"><span id="local-6989586621679266261"><span id="local-6989586621679266264"><span id="local-6989586621679266267"><span class="annot"><span class="annottext">Eq MuVar
 Eq MuVar =&gt;
 (MuVar -&gt; MuVar -&gt; Ordering)
 -&gt; (MuVar -&gt; MuVar -&gt; Bool)
@@ -383,7 +383,7 @@ $cmax :: MuVar -&gt; MuVar -&gt; MuVar
 max :: MuVar -&gt; MuVar -&gt; MuVar
 $cmin :: MuVar -&gt; MuVar -&gt; MuVar
 min :: MuVar -&gt; MuVar -&gt; MuVar
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266146"><span id="local-6989586621679266151"><span id="local-6989586621679266155"><span class="annot"><span class="annottext">Int -&gt; MuVar -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266273"><span id="local-6989586621679266278"><span id="local-6989586621679266282"><span class="annot"><span class="annottext">Int -&gt; MuVar -&gt; ShowS
 [MuVar] -&gt; ShowS
 MuVar -&gt; String
 (Int -&gt; MuVar -&gt; ShowS)
@@ -396,7 +396,7 @@ $cshow :: MuVar -&gt; String
 show :: MuVar -&gt; String
 $cshowList :: [MuVar] -&gt; ShowS
 showList :: [MuVar] -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266158"><span id="local-6989586621679266162"><span id="local-6989586621679266165"><span id="local-6989586621679266177"><span class="annot"><span class="annottext">ReadPrec [MuVar]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679266285"><span id="local-6989586621679266289"><span id="local-6989586621679266292"><span id="local-6989586621679266304"><span class="annot"><span class="annottext">ReadPrec [MuVar]
 ReadPrec MuVar
 Int -&gt; ReadS MuVar
 ReadS [MuVar]
@@ -424,32 +424,32 @@ in
 </span><span id="line-143"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-type">getSample</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
 </span><span id="line-144"></span><span id="getSample"><span class="annot"><span class="annottext">getSample :: MuVar -&gt; Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var hs-var">getSample</span></a></span></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="Test.Mutaskell.Config.html#MutatePatternMatch"><span class="hs-identifier hs-var">MutatePatternMatch</span></a></span><span> </span><span id="local-6989586621679266180"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266180"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#MutatePatternMatch"><span class="hs-identifier hs-var">MutatePatternMatch</span></a></span><span> </span><span id="local-6989586621679266307"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266307"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#doMutatePatternMatches"><span class="hs-identifier hs-var">doMutatePatternMatches</span></a></span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266180"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><a href="#local-6989586621679266307"><span class="hs-identifier hs-var">c</span></a></span><span>
 </span><span id="line-145"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="Test.Mutaskell.Config.html#MutateValues"><span class="hs-identifier hs-var">MutateValues</span></a></span><span> </span><span id="local-6989586621679266181"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266181"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#MutateValues"><span class="hs-identifier hs-var">MutateValues</span></a></span><span> </span><span id="local-6989586621679266308"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266308"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#doMutateValues"><span class="hs-identifier hs-var">doMutateValues</span></a></span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266181"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><a href="#local-6989586621679266308"><span class="hs-identifier hs-var">c</span></a></span><span>
 </span><span id="line-146"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="Test.Mutaskell.Config.html#MutateFunctions"><span class="hs-identifier hs-var">MutateFunctions</span></a></span><span> </span><span id="local-6989586621679266182"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266182"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#MutateFunctions"><span class="hs-identifier hs-var">MutateFunctions</span></a></span><span> </span><span id="local-6989586621679266309"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266309"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#doMutateFunctions"><span class="hs-identifier hs-var">doMutateFunctions</span></a></span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266182"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><a href="#local-6989586621679266309"><span class="hs-identifier hs-var">c</span></a></span><span>
 </span><span id="line-147"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="Test.Mutaskell.Config.html#MutateNegateIfElse"><span class="hs-identifier hs-var">MutateNegateIfElse</span></a></span><span> </span><span id="local-6989586621679266183"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266183"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#MutateNegateIfElse"><span class="hs-identifier hs-var">MutateNegateIfElse</span></a></span><span> </span><span id="local-6989586621679266310"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266310"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#doNegateIfElse"><span class="hs-identifier hs-var">doNegateIfElse</span></a></span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266183"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><a href="#local-6989586621679266310"><span class="hs-identifier hs-var">c</span></a></span><span>
 </span><span id="line-148"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="Test.Mutaskell.Config.html#MutateNegateGuards"><span class="hs-identifier hs-var">MutateNegateGuards</span></a></span><span> </span><span id="local-6989586621679266184"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266184"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#MutateNegateGuards"><span class="hs-identifier hs-var">MutateNegateGuards</span></a></span><span> </span><span id="local-6989586621679266311"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266311"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Config -&gt; Rational
 </span><a href="Test.Mutaskell.Config.html#doNegateGuards"><span class="hs-identifier hs-var">doNegateGuards</span></a></span><span> </span><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266184"><span class="hs-identifier hs-var">c</span></a></span><span>
-</span><span id="line-149"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span id="local-6989586621679266185"><span class="annot"><span class="annottext">Config
-</span><a href="#local-6989586621679266185"><span class="hs-identifier hs-var">_c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621679266311"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-149"></span><span class="annot"><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span id="local-6989586621679266312"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679266312"><span class="hs-identifier hs-var">_c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational
 </span><span class="hs-number">1</span></span><span>
 </span><span id="line-150"></span><span>
 </span><span id="line-151"></span><span class="annot"><span class="hs-comment">{- | similarity between two mutation variants. For ease of use, MutateOther is
@@ -458,30 +458,30 @@ matched against any other MutateOther.
 -}</span></span><span>
 </span><span id="line-155"></span><span class="annot"><a href="Test.Mutaskell.Config.html#similar"><span class="hs-identifier hs-type">similar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
 </span><span id="line-156"></span><span id="similar"><span class="annot"><span class="annottext">similar :: MuVar -&gt; MuVar -&gt; Bool
-</span><a href="Test.Mutaskell.Config.html#similar"><span class="hs-identifier hs-var hs-var">similar</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266187"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266187"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266188"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266188"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
+</span><a href="Test.Mutaskell.Config.html#similar"><span class="hs-identifier hs-var hs-var">similar</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266314"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266314"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266315"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266315"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
 forall a. [a] -&gt; Bool
 forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
 </span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266187"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="#local-6989586621679266314"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
 </span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
 forall a. [a] -&gt; Bool
 forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
 </span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266188"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="#local-6989586621679266315"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
 </span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266187"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+</span><a href="#local-6989586621679266314"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266188"><span class="hs-identifier hs-var">b</span></a></span><span>
-</span><span id="line-157"></span><span class="annot"><a href="Test.Mutaskell.Config.html#similar"><span class="hs-identifier hs-var">similar</span></a></span><span> </span><span id="local-6989586621679266191"><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266191"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679266192"><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266192"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266191"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; MuVar -&gt; Bool
+</span><a href="#local-6989586621679266315"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-157"></span><span class="annot"><a href="Test.Mutaskell.Config.html#similar"><span class="hs-identifier hs-var">similar</span></a></span><span> </span><span id="local-6989586621679266318"><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679266318"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679266319"><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679266319"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679266318"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; MuVar -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266192"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><a href="#local-6989586621679266319"><span class="hs-identifier hs-var">y</span></a></span><span>
 </span><span id="line-158"></span><span>
 </span><span id="line-159"></span><span class="annot"><span class="hs-comment">-- | Convert a 'MuVar' to its canonical user-facing name used by @--disable@\/@--enable@.</span></span><span>
 </span><span id="line-160"></span><span class="annot"><a href="Test.Mutaskell.Config.html#showMuVar"><span class="hs-identifier hs-type">showMuVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
@@ -507,17 +507,17 @@ forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span id="line-167"></span><span class="annot"><a href="Test.Mutaskell.Config.html#showMuVar"><span class="hs-identifier hs-var">showMuVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;remove-negation&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;remove-negation&quot;</span></span><span>
-</span><span id="line-168"></span><span class="annot"><a href="Test.Mutaskell.Config.html#showMuVar"><span class="hs-identifier hs-var">showMuVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266194"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266194"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
+</span><span id="line-168"></span><span class="annot"><a href="Test.Mutaskell.Config.html#showMuVar"><span class="hs-identifier hs-var">showMuVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-type">MutateOther</span></a></span><span> </span><span id="local-6989586621679266321"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266321"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String -&gt; Bool
 forall a. [a] -&gt; Bool
 forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
 </span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266194"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266321"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;other&quot;</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;other:&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266194"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><a href="#local-6989586621679266321"><span class="hs-identifier hs-var">s</span></a></span><span>
 </span><span id="line-169"></span><span>
 </span><span id="line-170"></span><span class="hs-comment">-- | Parse a canonical mutator name (as produced by 'showMuVar') back to 'MuVar'.</span><span>
 </span><span id="line-171"></span><span class="hs-comment">-- Returns 'Nothing' for unrecognised strings.</span><span>
@@ -568,18 +568,18 @@ forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; MuVar
 </span><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-var">MutateOther</span></a></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-183"></span><span class="annot"><a href="Test.Mutaskell.Config.html#parseMuVar"><span class="hs-identifier hs-var">parseMuVar</span></a></span><span> </span><span id="local-6989586621679266197"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266197"><span class="hs-identifier hs-var">s</span></a></span></span><span>
-</span><span id="line-184"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679266198"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266198"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Maybe String
+</span><span id="line-183"></span><span class="annot"><a href="Test.Mutaskell.Config.html#parseMuVar"><span class="hs-identifier hs-var">parseMuVar</span></a></span><span> </span><span id="local-6989586621679266324"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266324"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679266325"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266325"><span class="hs-identifier hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Maybe String
 forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Maybe [a]
 </span><span class="hs-identifier hs-var">stripPrefix</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;other:&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266197"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; Maybe MuVar
+</span><a href="#local-6989586621679266324"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; Maybe MuVar
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; MuVar
 </span><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-var">MutateOther</span></a></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266198"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679266325"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-185"></span><span class="annot"><a href="Test.Mutaskell.Config.html#parseMuVar"><span class="hs-identifier hs-var">parseMuVar</span></a></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe MuVar
 forall a. Maybe a
@@ -588,30 +588,30 @@ forall a. Maybe a
 </span><span id="line-187"></span><span class="annot"><span class="hs-comment">-- | Match a user-supplied pattern (possibly with trailing @*@) against a 'MuVar' name.</span></span><span>
 </span><span id="line-188"></span><span class="annot"><a href="Test.Mutaskell.Config.html#matchesMuVarPat"><span class="hs-identifier hs-type">matchesMuVarPat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
 </span><span id="line-189"></span><span id="matchesMuVarPat"><span class="annot"><span class="annottext">matchesMuVarPat :: String -&gt; MuVar -&gt; Bool
-</span><a href="Test.Mutaskell.Config.html#matchesMuVarPat"><span class="hs-identifier hs-var hs-var">matchesMuVarPat</span></a></span></span><span> </span><span id="local-6989586621679266199"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266199"><span class="hs-identifier hs-var">pat</span></a></span></span><span> </span><span id="local-6989586621679266200"><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266200"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-190"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679266201"><span class="annot"><span class="annottext">name :: String
-</span><a href="#local-6989586621679266201"><span class="hs-identifier hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; String
+</span><a href="Test.Mutaskell.Config.html#matchesMuVarPat"><span class="hs-identifier hs-var hs-var">matchesMuVarPat</span></a></span></span><span> </span><span id="local-6989586621679266326"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266326"><span class="hs-identifier hs-var">pat</span></a></span></span><span> </span><span id="local-6989586621679266327"><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679266327"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679266328"><span class="annot"><span class="annottext">name :: String
+</span><a href="#local-6989586621679266328"><span class="hs-identifier hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; String
 </span><a href="Test.Mutaskell.Config.html#showMuVar"><span class="hs-identifier hs-var">showMuVar</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
-</span><a href="#local-6989586621679266200"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><a href="#local-6989586621679266327"><span class="hs-identifier hs-var">v</span></a></span><span>
 </span><span id="line-191"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ShowS
 forall a. [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266199"><span class="hs-identifier hs-var">pat</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679266326"><span class="hs-identifier hs-var">pat</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-192"></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
-</span><span class="hs-char">'*'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679266203"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266203"><span class="hs-identifier hs-var">revPrefix</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ShowS
+</span><span class="hs-char">'*'</span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679266330"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679266330"><span class="hs-identifier hs-var">revPrefix</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ShowS
 forall a. [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266203"><span class="hs-identifier hs-var">revPrefix</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+</span><a href="#local-6989586621679266330"><span class="hs-identifier hs-var">revPrefix</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
 forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
 </span><span class="hs-operator hs-var">`isPrefixOf`</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266201"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><a href="#local-6989586621679266328"><span class="hs-identifier hs-var">name</span></a></span><span>
 </span><span id="line-193"></span><span>       </span><span class="annot"><span class="annottext">String
 </span><span class="hs-identifier">_</span></span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266199"><span class="hs-identifier hs-var">pat</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+</span><a href="#local-6989586621679266326"><span class="hs-identifier hs-var">pat</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679266201"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><a href="#local-6989586621679266328"><span class="hs-identifier hs-var">name</span></a></span><span>
 </span><span id="line-194"></span></pre></body></html>

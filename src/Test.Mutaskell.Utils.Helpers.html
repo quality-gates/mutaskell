@@ -5,8 +5,8 @@
 </span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.MuOp.html"><span class="hs-identifier">Test.Mutaskell.MuOp</span></a></span><span>
 </span><span id="line-6"></span><span>
 </span><span id="line-7"></span><span class="annot"><span class="hs-comment">-- | Class to allow easier visualization of values without munging @show@</span></span><span>
-</span><span id="line-8"></span><span class="hs-keyword">class</span><span> </span><span id="Showx"><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#Showx"><span class="hs-identifier hs-var">Showx</span></a></span></span><span> </span><span id="local-6989586621679267558"><span class="annot"><a href="#local-6989586621679267558"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-9"></span><span>    </span><span id="showx"><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-type">showx</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679267558"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">class</span><span> </span><span id="Showx"><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#Showx"><span class="hs-identifier hs-var">Showx</span></a></span></span><span> </span><span id="local-6989586621679267685"><span class="annot"><a href="#local-6989586621679267685"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>    </span><span id="showx"><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-type">showx</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679267685"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
 </span><span id="line-10"></span><span>
 </span><span id="line-11"></span><span class="annot"><span class="hs-comment">-- | Temporary holder for easier visualization</span></span><span>
 </span><span id="line-12"></span><span class="hs-keyword">data</span><span> </span><span id="X"><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#X"><span class="hs-identifier hs-var">X</span></a></span></span><span>
@@ -16,21 +16,21 @@
 </span><span id="line-16"></span><span>
 </span><span id="line-17"></span><span class="annot"><span class="hs-comment">-- | 'Showx' instances using GHC's 'Outputable' pretty-printer</span></span><span>
 </span><span id="line-18"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#Showx"><span class="hs-identifier hs-type">Showx</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#X"><span class="hs-identifier hs-type">X</span></a></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-19"></span><span>    </span><span id="local-6989586621679267628"><span class="annot"><span class="annottext">showx :: X -&gt; String
-</span><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var hs-var hs-var">showx</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#ModuleX"><span class="hs-identifier hs-type">ModuleX</span></a></span><span> </span><span id="local-6989586621679267629"><span class="annot"><span class="annottext">Module_
-</span><a href="#local-6989586621679267629"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span id="line-19"></span><span>    </span><span id="local-6989586621679267755"><span class="annot"><span class="annottext">showx :: X -&gt; String
+</span><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var hs-var hs-var">showx</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#ModuleX"><span class="hs-identifier hs-type">ModuleX</span></a></span><span> </span><span id="local-6989586621679267756"><span class="annot"><span class="annottext">Module_
+</span><a href="#local-6989586621679267756"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;{ &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SDoc -&gt; String
 </span><span class="hs-identifier hs-var">showSDocUnsafe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Module_ -&gt; SDoc
 forall a. Outputable a =&gt; a -&gt; SDoc
 </span><span class="hs-identifier hs-var">ppr</span></span><span> </span><span class="annot"><span class="annottext">Module_
-</span><a href="#local-6989586621679267629"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><a href="#local-6989586621679267756"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot; }\n&quot;</span></span><span>
-</span><span id="line-20"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var">showx</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#DeclX"><span class="hs-identifier hs-type">DeclX</span></a></span><span>  </span><span id="local-6989586621679267630"><span class="annot"><span class="annottext">Decl_
-</span><a href="#local-6989586621679267630"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span id="line-20"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var">showx</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#DeclX"><span class="hs-identifier hs-type">DeclX</span></a></span><span>  </span><span id="local-6989586621679267757"><span class="annot"><span class="annottext">Decl_
+</span><a href="#local-6989586621679267757"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;{ &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SDoc -&gt; String
@@ -38,12 +38,12 @@ forall a. [a] -&gt; [a] -&gt; [a]
 forall a. Outputable a =&gt; a -&gt; SDoc
 </span><span class="hs-identifier hs-var">ppr</span></span><span> </span><span class="annot"><span class="annottext">Decl_
 GenLocated SrcSpanAnnA (HsDecl GhcPs)
-</span><a href="#local-6989586621679267630"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+</span><a href="#local-6989586621679267757"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot; }\n&quot;</span></span><span>
-</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var">showx</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#DeclXs"><span class="hs-identifier hs-type">DeclXs</span></a></span><span> </span><span id="local-6989586621679267631"><span class="annot"><span class="annottext">[Decl_]
-</span><a href="#local-6989586621679267631"><span class="hs-identifier hs-var">decls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#showx"><span class="hs-identifier hs-var">showx</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Utils.Helpers.html#DeclXs"><span class="hs-identifier hs-type">DeclXs</span></a></span><span> </span><span id="local-6989586621679267758"><span class="annot"><span class="annottext">[Decl_]
+</span><a href="#local-6989586621679267758"><span class="hs-identifier hs-var">decls</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
 </span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; String) -&gt; [String] -&gt; String
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(GenLocated SrcSpanAnnA (HsDecl GhcPs) -&gt; String)
@@ -60,5 +60,5 @@ forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 GenLocated SrcSpanAnnA (HsDecl GhcPs) -&gt; X
 </span><a href="Test.Mutaskell.Utils.Helpers.html#DeclX"><span class="hs-identifier hs-var">DeclX</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Decl_]
 [GenLocated SrcSpanAnnA (HsDecl GhcPs)]
-</span><a href="#local-6989586621679267631"><span class="hs-identifier hs-var">decls</span></a></span><span>
+</span><a href="#local-6989586621679267758"><span class="hs-identifier hs-var">decls</span></a></span><span>
 </span><span id="line-22"></span></pre></body></html>
