@@ -2,7 +2,7 @@ module Here (e, eF) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
-import Test.Muskell.Utils.Common
+import Test.Mutaskell.Utils.Common
 
 e :: QuasiQuoter
 e =

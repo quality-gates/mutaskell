@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cabal/store
-          key: ${{ runner.os }}-ghc-9.12.1-cabal-${{ hashFiles('muskell.cabal') }}
+          key: ${{ runner.os }}-ghc-9.12.1-cabal-${{ hashFiles('mutaskell.cabal') }}
           restore-keys: ${{ runner.os }}-ghc-9.12.1-cabal-
 
       - name: Update Hackage package list
@@ -47,11 +47,11 @@ jobs:
         run: cabal test all --test-show-details=direct
 
       - name: Smoke test (fast sanity check before slow coverage+mutation steps)
-        run: cabal run muskell -- --dry-run Examples/AssertCheckTest.hs
+        run: cabal run mutaskell -- --dry-run Examples/AssertCheckTest.hs
 
-      - name: Run sample-test with coverage (muskell package only)
+      - name: Run sample-test with coverage (mutaskell package only)
         run: |
-          echo "package muskell" > cabal.project.local
+          echo "package mutaskell" > cabal.project.local
           echo "  coverage: True" >> cabal.project.local
           cabal run exe:sample-test
           rm -f cabal.project.local
@@ -60,4 +60,4 @@ jobs:
           find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
 
       - name: Run mutation tests with MSI and covered-MSI quality gates
-        run: cabal run muskell -- --min-msi 50 --min-covered-msi 50 --ignore-msi-with-no-mutations --tix sample-test.tix Examples/AssertCheckTest.hs
+        run: cabal run mutaskell -- --min-msi 50 --min-covered-msi 50 --ignore-msi-with-no-mutations --tix sample-test.tix Examples/AssertCheckTest.hs

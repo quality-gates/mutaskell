@@ -19,12 +19,12 @@ import Control.Monad (forM_, unless, when)
 import Data.List (intercalate, nub, sort)
 
 import App.Opts (Opts(..))
-import Test.Muskell.AnalysisSummary (MAnalysisSummary(..))
-import Test.Muskell.Config (MuVar(..), showMuVar)
-import Test.Muskell.Interpreter (MutantSummary(..))
-import Test.Muskell.TestAdapter (Mutant(..))
-import Test.Muskell.Tix (spanStartLine)
-import Test.Muskell.Utils.Common (hash)
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
+import Test.Mutaskell.Config (MuVar(..), showMuVar)
+import Test.Mutaskell.Interpreter (MutantSummary(..))
+import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Tix (spanStartLine)
+import Test.Mutaskell.Utils.Common (hash)
 
 -- | Human-readable description of what a mutator changes.
 mutatorDescription :: MuVar -> String

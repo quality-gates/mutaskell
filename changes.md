@@ -1,7 +1,7 @@
 # Changelog
 
 ## [0.6.0]
-  * Changed: package renamed from `MuCheck` to `muskell`; all library modules moved from `Test.MuCheck.*` to `Test.Muskell.*`; binary renamed from `mucheck` to `muskell`
+  * Changed: package renamed from `MuCheck` to `mutaskell`; all library modules moved from `Test.MuCheck.*` to `Test.Mutaskell.*`; binary renamed from `mucheck` to `mutaskell`
 
 ## [0.5.8]
   * Added: `setups/` directory with ready-to-use GitHub Actions workflow, GitLab CI job, and three `.mucheck.yaml` templates (conservative, strict, diff-only)

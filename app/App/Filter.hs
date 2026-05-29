@@ -21,10 +21,10 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (readProcess)
 
 import App.Opts (splitOn)
-import Test.Muskell.Config (showMuVar)
-import Test.Muskell.TestAdapter (Mutant(..))
-import Test.Muskell.Tix (spanStartLine)
-import Test.Muskell.Utils.Common (hash)
+import Test.Mutaskell.Config (showMuVar)
+import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Tix (spanStartLine)
+import Test.Mutaskell.Utils.Common (hash)
 
 -- | Match a user-supplied pattern against a mutator name.
 -- Trailing '*' acts as a prefix wildcard: "other:*" matches "other:remove-not".
