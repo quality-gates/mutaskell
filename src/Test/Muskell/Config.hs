@@ -1,5 +1,5 @@
 -- | Configuration module
-module Test.MuCheck.Config where
+module Test.Muskell.Config where
 
 import Data.List (isPrefixOf, stripPrefix)
 

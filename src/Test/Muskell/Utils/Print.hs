@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- | Common print utilities
-module Test.MuCheck.Utils.Print where
+module Test.Muskell.Utils.Print where
 
 import Data.List (intercalate)
 import Debug.Trace

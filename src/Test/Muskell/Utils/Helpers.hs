@@ -1,8 +1,8 @@
 -- | Helper module for easier visualization
-module Test.MuCheck.Utils.Helpers where
+module Test.Muskell.Utils.Helpers where
 
 import GHC.Utils.Outputable (showSDocUnsafe, ppr)
-import Test.MuCheck.MuOp
+import Test.Muskell.MuOp
 
 -- | Class to allow easier visualization of values without munging @show@
 class Showx a where

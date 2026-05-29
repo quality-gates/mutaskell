@@ -40,13 +40,13 @@ import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
 import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
 
-import Test.MuCheck (sampler)
-import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
-import Test.MuCheck.Config (Config(..), defaultConfig, showMuVar)
-import Test.MuCheck.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.MuCheck.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
-import Test.MuCheck.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
-import Test.MuCheck.TestAdapter.AssertCheckAdapter
+import Test.Muskell (sampler)
+import Test.Muskell.AnalysisSummary (MAnalysisSummary(..))
+import Test.Muskell.Config (Config(..), defaultConfig, showMuVar)
+import Test.Muskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
+import Test.Muskell.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
+import Test.Muskell.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
+import Test.Muskell.TestAdapter.AssertCheckAdapter
 
 
 -- | Search for a .tix file in the current directory for --coverage auto-discovery.

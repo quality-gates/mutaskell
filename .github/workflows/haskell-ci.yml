@@ -167,17 +167,17 @@ jobs:
           find sdist -maxdepth 1 -type f -name '*.tar.gz' -exec tar -C $GITHUB_WORKSPACE/unpacked -xzvf {} \;
       - name: generate cabal.project
         run: |
-          PKGDIR_MuCheck="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/MuCheck-[0-9.]*')"
-          echo "PKGDIR_MuCheck=${PKGDIR_MuCheck}" >> "$GITHUB_ENV"
+          PKGDIR_muskell="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/muskell-[0-9.]*')"
+          echo "PKGDIR_muskell=${PKGDIR_muskell}" >> "$GITHUB_ENV"
           rm -f cabal.project cabal.project.local
           touch cabal.project
           touch cabal.project.local
-          echo "packages: ${PKGDIR_MuCheck}" >> cabal.project
-          echo "package MuCheck" >> cabal.project
+          echo "packages: ${PKGDIR_muskell}" >> cabal.project
+          echo "package muskell" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           cat >> cabal.project <<EOF
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(MuCheck)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(muskell)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
@@ -205,7 +205,7 @@ jobs:
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       - name: cabal check
         run: |
-          cd ${PKGDIR_MuCheck} || false
+          cd ${PKGDIR_muskell} || false
           ${CABAL} -vnormal check
       - name: haddock
         run: |

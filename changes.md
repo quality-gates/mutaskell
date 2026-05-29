@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.0]
+  * Changed: package renamed from `MuCheck` to `muskell`; all library modules moved from `Test.MuCheck.*` to `Test.Muskell.*`; binary renamed from `mucheck` to `muskell`
+
 ## [0.5.8]
   * Added: `setups/` directory with ready-to-use GitHub Actions workflow, GitLab CI job, and three `.mucheck.yaml` templates (conservative, strict, diff-only)
   * Changed: README rewritten with plain-language explanation of why mutation testing matters, concrete examples of AI-generated test patterns that escape mutation, covered-MSI guidance, and a get-started section

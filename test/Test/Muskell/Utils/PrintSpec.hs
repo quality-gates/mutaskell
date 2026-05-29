@@ -1,7 +1,7 @@
-module Test.MuCheck.Utils.PrintSpec (main, spec) where
+module Test.Muskell.Utils.PrintSpec (main, spec) where
 
 import Test.Hspec
-import Test.MuCheck.Utils.Print
+import Test.Muskell.Utils.Print
 
 main :: IO ()
 main = hspec spec

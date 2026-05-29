@@ -1,8 +1,8 @@
-module Test.MuCheck.Utils.CommonSpec (main, spec) where
+module Test.Muskell.Utils.CommonSpec (main, spec) where
 
 import System.Random
 import Test.Hspec
-import Test.MuCheck.Utils.Common (choose, coupling, remElt, replaceFst, sample, sampleF)
+import Test.Muskell.Utils.Common (choose, coupling, remElt, replaceFst, sample, sampleF)
 
 main :: IO ()
 main = hspec spec

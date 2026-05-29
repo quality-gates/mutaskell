@@ -6,7 +6,7 @@
 
 Code coverage tells you which lines executed during a test run. It tells you nothing about whether the tests would catch a bug. A test suite that calls every function without ever checking return values will show 100% coverage while catching nothing.
 
-Mutation testing answers the harder question: **if the code were wrong, would the tests fail?** MuCheck makes small, deliberate changes to your source — flipping `+` to `-`, swapping `True` to `False`, dropping a base case, replacing `Just x` with `Nothing` — and re-runs the test suite. If the tests still pass, that mutation *escaped*. An escaped mutant means a real bug of that shape would go undetected in production too.
+Mutation testing answers the harder question: **if the code were wrong, would the tests fail?** muskell makes small, deliberate changes to your source — flipping `+` to `-`, swapping `True` to `False`, dropping a base case, replacing `Just x` with `Nothing` — and re-runs the test suite. If the tests still pass, that mutation *escaped*. An escaped mutant means a real bug of that shape would go undetected in production too.
 
 ## It catches AI-generated test slop
 
@@ -57,7 +57,7 @@ Use `--min-covered-msi 70` as a starting point. To get covered-MSI, build your t
 
 ```bash
 cabal build --write-ghc-environment-files=always all
-cabal run mucheck -- src/YourModule.hs
+cabal run muskell -- src/YourModule.hs
 ```
 
 **With coverage** (recommended — unlocks covered-MSI):
@@ -74,7 +74,7 @@ mkdir -p .hpc
 find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
 
 # Pass the generated .tix file to mucheck
-cabal run mucheck -- --tix your-test-suite.tix src/YourModule.hs
+cabal run muskell -- --tix your-test-suite.tix src/YourModule.hs
 ```
 
 **With a config file** — drop a `.mucheck.yaml` in your project root:
@@ -100,7 +100,7 @@ The `--write-ghc-environment-files=always` flag is required so the `hint` interp
 
 # Documentation
 
-Full documentation is available on the [MuCheck GitHub Pages site](https://jonbaldie.github.io/mucheck).
+Full documentation is available on the [muskell GitHub Pages site](https://jonbaldie.github.io/mucheck).
 
 # Install required packages:
 
@@ -111,12 +111,12 @@ $ cabal install --only-dependencies --enable-tests
 ```
 # Use the provided sample adapter
 
-We are going to use the simplistic `Test.MuCheck.TestAdapter.AssertCheck`
+We are going to use the simplistic `Test.Muskell.TestAdapter.AssertCheck`
 module for our example.
 
 First, we need the coverage information of our tests. While it is not
 a required part, it is *strongly* recommended that you provide the coverage
-information of your module using `-fhpc` flag to ghc. MuCheck can cut down
+information of your module using `-fhpc` flag to ghc. muskell can cut down
 on the number of mutants generated drastically by using the `HPC` information.
 In order to run `sample-test` with coverage enabled we have to pass the `--enable-coverage` flag to cabal.
 The coverage information is written to the file`sample-test.tix` in the current directory.
@@ -128,7 +128,7 @@ cabal run --enable-coverage exe:sample-test
 We are now ready to run mucheck, let us run it.
 
 ```
-cabal run mucheck -- --tix sample-test.tix Examples/AssertCheckTest.hs
+cabal run muskell -- --tix sample-test.tix Examples/AssertCheckTest.hs
 ```
 
 This results (after a sufficiently large time) in
@@ -147,7 +147,7 @@ just 13 mutants that contained mutations where test suites can find them.
 The run resulted in just one of the mutants being alive, with a mutation score
 of 63%.
 
-All the steps above can also be done by running this make command in MuCheck
+All the steps above can also be done by running this make command in muskell
 directory.
 
 ```
@@ -156,17 +156,17 @@ make hpcex
 
 ## Important
 
-Currently `MuCheck` is restricted to running mutation analysis on a single
+Currently `muskell` is restricted to running mutation analysis on a single
 module at a time. In order for it to work, the module being tested should
 contain the tests also.
 
-MuCheck discovers test functions in two ways:
+muskell discovers test functions in two ways:
 
 1. **Naming convention**: Functions whose names start with `prop_`, `test_`, or `spec_` are picked up automatically.
 2. **Annotation**: Any function annotated with `{-# ANN <name> "Test" #-}` is treated as a test. Use this as an opt-in override for names that do not follow a convention.
 
 If you have supporting functions that should not be mutated, annotate them with `{-# ANN <name> "TestSupport" #-}`.
-This allows MuCheck to find the tests to run, and also to figure out which of
+This allows muskell to find the tests to run, and also to figure out which of
 the functions to leave alone while mutating.
 
 Take a look at the `Examples/AssertCheckTest.hs` to see how mucheck expects the
@@ -174,7 +174,7 @@ module to be.
 
 ## Supported Mutations
 
-MuCheck currently supports:
+muskell currently supports:
 
 1.  Literal values (Int, Float, Char, String, Bool)
 2.  Standard functions and operators substitution (includes `&&`/`||` swap, `foldl`/`foldr` swap, and all comparison, arithmetic, and bitwise operator groups)
@@ -521,15 +521,15 @@ cmp = LT
 
 ### Language Extensions
 
-MuCheck uses the actual GHC parser (via `ghc` + `ghc-exactprint`) so it
+muskell uses the actual GHC parser (via `ghc` + `ghc-exactprint`) so it
 supports **all** GHC language extensions out of the box — `LambdaCase`,
 `TypeFamilies`, `GADTs`, `LinearTypes`, `OverloadedStrings`, and anything else
 GHC 9.12 accepts.  There is no extension whitelist; if GHC can parse your
-source, MuCheck can mutate it.
+source, muskell can mutate it.
 
 ### Command-Line Interface
 
-MuCheck supports several CLI flags for configuring mutation runs and output:
+muskell supports several CLI flags for configuring mutation runs and output:
 
 *   `--dry-run`: Show mutation counts by type without evaluating.
 *   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
@@ -577,7 +577,7 @@ The `--logger-json FILE` flag writes a compact JSON summary after each run. The 
 
 ### Config file
 
-MuCheck auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:
+muskell auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:
 
 ```yaml
 # .mucheck.yaml — example config; unknown keys are rejected with an error

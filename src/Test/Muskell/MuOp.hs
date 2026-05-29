@@ -5,7 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Mutation operators
-module Test.MuCheck.MuOp (
+module Test.Muskell.MuOp (
     MuOp,
     Mutable (..),
     (==>*),
@@ -108,7 +108,7 @@ apply f (S m) = f m
 -- Span extraction
 
 -- | Extract the source span of the /before/ node as a @(startLine, startCol,
--- endLine, endCol)@ tuple, used by 'Test.MuCheck.TestAdapter.Mutant'.
+-- endLine, endCol)@ tuple, used by 'Test.Muskell.TestAdapter.Mutant'.
 getSpan :: MuOp -> (Int, Int, Int, Int)
 getSpan = apply go
   where

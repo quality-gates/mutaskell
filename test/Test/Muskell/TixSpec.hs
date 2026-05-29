@@ -1,10 +1,10 @@
-module Test.MuCheck.TixSpec where
+module Test.Muskell.TixSpec where
 
 import Test.Hspec
-import Test.MuCheck.Config (MuVar(..))
-import Test.MuCheck.Mutation (removeUncovered)
-import Test.MuCheck.TestAdapter (Mutant(..))
-import Test.MuCheck.Tix (removeRedundantSpans, toSpan)
+import Test.Muskell.Config (MuVar(..))
+import Test.Muskell.Mutation (removeUncovered)
+import Test.Muskell.TestAdapter (Mutant(..))
+import Test.Muskell.Tix (removeRedundantSpans, toSpan)
 
 mkMutant :: (Int, Int, Int, Int) -> Mutant
 mkMutant coords = Mutant
@@ -14,7 +14,7 @@ mkMutant coords = Mutant
   }
 
 spec :: Spec
-spec = describe "Test.MuCheck.Tix" $ do
+spec = describe "Test.Muskell.Tix" $ do
   describe "removeRedundantSpans" $ do
     it "returns empty list unchanged" $
       removeRedundantSpans [] `shouldBe` []

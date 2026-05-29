@@ -1,10 +1,10 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Test.MuCheck.MutationSpec.Helpers where
+module Test.Muskell.MutationSpec.Helpers where
 
 import Here
-import Test.MuCheck.Mutation
-import Test.MuCheck.MuOp (Module_, Decl_)
+import Test.Muskell.Mutation
+import Test.Muskell.MuOp (Module_, Decl_)
 
 _myprop :: String
 _myprop =

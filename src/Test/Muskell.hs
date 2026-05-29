@@ -1,14 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 
 -- | MuCheck base module
-module Test.MuCheck (mucheck, sampler) where
+module Test.Muskell (mucheck, sampler) where
 
-import Test.MuCheck.AnalysisSummary
-import Test.MuCheck.Config
-import Test.MuCheck.Interpreter (MutantSummary (..), evaluateMutants)
-import Test.MuCheck.Mutation
-import Test.MuCheck.TestAdapter
-import Test.MuCheck.Utils.Common
+import Test.Muskell.AnalysisSummary
+import Test.Muskell.Config
+import Test.Muskell.Interpreter (MutantSummary (..), evaluateMutants)
+import Test.Muskell.Mutation
+import Test.Muskell.TestAdapter
+import Test.Muskell.Utils.Common
 
 {- | Perform mutation analysis using any of the test frameworks that support
 Summarizable (essentially, after running it on haskell, we should be able to

@@ -1,7 +1,7 @@
-module Test.MuCheck.ConfigSpec where
+module Test.Muskell.ConfigSpec where
 
 import Test.Hspec
-import Test.MuCheck.Config
+import Test.Muskell.Config
 
 main :: IO ()
 main = hspec spec

@@ -2,12 +2,12 @@
 {-# LANGUAGE FunctionalDependencies #-}
 
 -- | Module for adapting test framekworks
-module Test.MuCheck.TestAdapter where
+module Test.Muskell.TestAdapter where
 
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import Test.MuCheck.Config
-import Test.MuCheck.Tix
+import Test.Muskell.Config
+import Test.Muskell.Tix
 
 -- | Wrapper for interpreter output
 data (Summarizable a) => InterpreterOutput a = Io {_io :: Either I.InterpreterError a, _ioLog :: String}

@@ -1,12 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Test.MuCheck.MutationSpec where
+module Test.Muskell.MutationSpec where
 
 import Data.List (isInfixOf)
 import Here
 import Test.Hspec
-import Test.MuCheck.Mutation
-import qualified Test.MuCheck.MutationSpec.Helpers as H
+import Test.Muskell.Mutation
+import qualified Test.Muskell.MutationSpec.Helpers as H
 
 main :: IO ()
 main = hspec spec

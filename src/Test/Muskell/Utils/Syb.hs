@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 -- | SYB (Scrap Your Boilerplate) utilities for AST traversal
-module Test.MuCheck.Utils.Syb (relevantOps, once) where
+module Test.Muskell.Utils.Syb (relevantOps, once) where
 
 import Control.Monad (MonadPlus, mplus, mzero)
 import Data.Generics (Data, GenericM, gmapMo, mkQ)
@@ -9,8 +9,8 @@ import Data.Generics (Data, GenericM, gmapMo, mkQ)
 import GHC.Hs (HsDecl (..), LHsDecl, GhcPs)
 import GHC.Types.SrcLoc (GenLocated (..))
 
-import Test.MuCheck.Config (MuVar)
-import Test.MuCheck.MuOp (MuOp, same)
+import Test.Muskell.Config (MuVar)
+import Test.Muskell.MuOp (MuOp, same)
 
 -- | Returns @True@ for declaration forms that should never be traversed into
 -- for mutations: type\/class\/instance heads, type signatures, standalone

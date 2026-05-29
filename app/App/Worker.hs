@@ -21,10 +21,10 @@ import System.Environment (getExecutablePath)
 import System.Exit (ExitCode(..))
 import System.Process (createProcess, proc, waitForProcess)
 
-import Test.MuCheck.AnalysisSummary (MAnalysisSummary)
-import Test.MuCheck.Interpreter (MutantSummary(..), summaryFromMutantSummaries)
-import Test.MuCheck.TestAdapter (Mutant(..), Summary(..))
-import Test.MuCheck.Utils.Common (hash)
+import Test.Muskell.AnalysisSummary (MAnalysisSummary)
+import Test.Muskell.Interpreter (MutantSummary(..), summaryFromMutantSummaries)
+import Test.Muskell.TestAdapter (Mutant(..), Summary(..))
+import Test.Muskell.Utils.Common (hash)
 
 -- | Run mutant evaluation using N parallel worker subprocesses.
 -- Each worker is a fresh mucheck process that evaluates a single mutant via

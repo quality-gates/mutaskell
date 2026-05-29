@@ -24,7 +24,7 @@ jobs:
           cabal update
           cabal haddock all --haddock-html --haddock-hyperlinked-source
           mkdir -p docs
-          cp -r dist-newstyle/build/*/*/MuCheck-*/doc/html/MuCheck/* docs/ || true
+          cp -r dist-newstyle/build/*/*/muskell-*/doc/html/muskell/* docs/ || true
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:

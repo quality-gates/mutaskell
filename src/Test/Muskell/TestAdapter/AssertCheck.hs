@@ -1,5 +1,5 @@
 -- | Module for using demonstration of using the TestAdapter
-module Test.MuCheck.TestAdapter.AssertCheck where
+module Test.Muskell.TestAdapter.AssertCheck where
 
 import Control.Exception
 

@@ -9,7 +9,7 @@ import Data.Maybe (isJust)
 import System.Exit (ExitCode(..), exitWith)
 
 import App.Opts (Opts(..))
-import Test.MuCheck.AnalysisSummary (MAnalysisSummary(..))
+import Test.Muskell.AnalysisSummary (MAnalysisSummary(..))
 
 -- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
 isSingleMutantMode :: Opts -> Bool

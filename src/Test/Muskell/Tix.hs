@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Read the HPC Tix and Mix files.
-module Test.MuCheck.Tix where
+module Test.Muskell.Tix where
 
 import Control.Exception (catch, SomeException)
 import Data.List (isSuffixOf)

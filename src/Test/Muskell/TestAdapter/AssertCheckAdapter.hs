@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, TypeSynonymInstances, MultiParamTypeClasses #-}
 -- | Module for using quickcheck properties
-module Test.MuCheck.TestAdapter.AssertCheckAdapter where
+module Test.Muskell.TestAdapter.AssertCheckAdapter where
 
-import Test.MuCheck.TestAdapter
-import Test.MuCheck.TestAdapter.AssertCheck as A
+import Test.Muskell.TestAdapter
+import Test.Muskell.TestAdapter.AssertCheck as A
 
 -- ----------------------
 

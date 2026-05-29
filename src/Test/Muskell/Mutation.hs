@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- | This module handles the mutation of different patterns.
-module Test.MuCheck.Mutation where
+module Test.Muskell.Mutation where
 
 import Data.Generics (Typeable, listify, mkMp)
 import Data.List (isPrefixOf, nub, nubBy, partition, permutations)
@@ -37,12 +37,12 @@ import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString)
 import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
 
-import Test.MuCheck.Config
-import Test.MuCheck.MuOp
-import Test.MuCheck.TestAdapter
-import Test.MuCheck.Tix
-import Test.MuCheck.Utils.Common
-import Test.MuCheck.Utils.Syb
+import Test.Muskell.Config
+import Test.Muskell.MuOp
+import Test.Muskell.TestAdapter
+import Test.Muskell.Tix
+import Test.Muskell.Utils.Common
+import Test.Muskell.Utils.Syb
 
 -- ---------------------------------------------------------------------------
 -- Helpers for constructing synthetic GHC AST nodes

@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Test.MuCheck.Utils.SybSpec where
+module Test.Muskell.Utils.SybSpec where
 
 import Control.Monad (MonadPlus, mzero)
 import Data.Data (Data)
 import Data.Generics (mkMp)
 import Data.Typeable (Typeable)
 import Test.Hspec
-import qualified Test.MuCheck.Utils.Syb as S
+import qualified Test.Muskell.Utils.Syb as S
 
 -- Simple binary-tree type for testing generic traversal without depending on
 -- GHC's AST types.  'isSkippedDecl' never fires for this type, so we test

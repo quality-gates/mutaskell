@@ -9,14 +9,14 @@
 -- 'withCurrentDirectory' block pointing at the project root so that the hint
 -- interpreter can resolve the MuCheck library modules via the GHC environment
 -- file written by @cabal build --write-ghc-environment-files=always@.
-module Test.MuCheck.IntegrationSpec where
+module Test.Muskell.IntegrationSpec where
 
 import System.Directory (withCurrentDirectory, getCurrentDirectory)
 import Test.Hspec
 
-import Test.MuCheck (mucheck)
-import Test.MuCheck.AnalysisSummary (MAnalysisSummary (..))
-import Test.MuCheck.TestAdapter.AssertCheckAdapter (AssertCheckRun (..))
+import Test.Muskell (mucheck)
+import Test.Muskell.AnalysisSummary (MAnalysisSummary (..))
+import Test.Muskell.TestAdapter.AssertCheckAdapter (AssertCheckRun (..))
 
 spec :: Spec
 spec = describe "integration" $ do

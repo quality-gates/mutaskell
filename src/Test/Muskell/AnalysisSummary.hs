@@ -3,9 +3,9 @@
 {- | The AnalysisSummary declares the mutation result datatype, and its
 instances.
 -}
-module Test.MuCheck.AnalysisSummary where
+module Test.Muskell.AnalysisSummary where
 
-import Test.MuCheck.Utils.Print
+import Test.Muskell.Utils.Print
 
 -- | Datatype to hold results of the entire run
 data MAnalysisSummary = MAnalysisSummary {

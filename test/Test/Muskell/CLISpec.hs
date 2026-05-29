@@ -1,4 +1,4 @@
-module Test.MuCheck.CLISpec where
+module Test.Muskell.CLISpec where
 
 import Test.Hspec
 import App.Opts

@@ -4,7 +4,7 @@
 {- | The Interpreter module is responible for invoking the Hint interpreter to
 evaluate mutants.
 -}
-module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, summaryFromMutantSummaries, MutantSummary (..), isSkippedSummary) where
+module Test.Muskell.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, summaryFromMutantSummaries, MutantSummary (..), isSkippedSummary) where
 
 import Control.Exception (IOException, try)
 import Control.Monad (when)
@@ -20,10 +20,10 @@ import System.Environment (withArgs)
 import System.IO.Temp (getCanonicalTemporaryDirectory)
 import System.Timeout (timeout)
 
-import Test.MuCheck.AnalysisSummary
-import Test.MuCheck.TestAdapter
-import Test.MuCheck.Utils.Common
-import Test.MuCheck.Utils.Print
+import Test.Muskell.AnalysisSummary
+import Test.Muskell.TestAdapter
+import Test.Muskell.Utils.Common
+import Test.Muskell.Utils.Print
 
 -- | Data type to hold results of a single test execution
 data MutantSummary = MSumError Mutant String [Summary]         -- ^ Interpreter or runtime error

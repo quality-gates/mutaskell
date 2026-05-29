@@ -1,12 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Test.MuCheck.MuVarCoverageSpec where
+module Test.Muskell.MuVarCoverageSpec where
 
 import Here
 import Test.Hspec
-import Test.MuCheck.Config (defaultConfig, muOp)
-import Test.MuCheck.Mutation
-import qualified Test.MuCheck.MutationSpec.Helpers as H
+import Test.Muskell.Config (defaultConfig, muOp)
+import Test.Muskell.Mutation
+import qualified Test.Muskell.MutationSpec.Helpers as H
 
 -- | Minimal source snippets that each trigger a specific mutator.
 

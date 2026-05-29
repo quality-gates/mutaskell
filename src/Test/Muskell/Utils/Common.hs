@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 -- | Common functions used by MuCheck
-module Test.MuCheck.Utils.Common where
+module Test.Muskell.Utils.Common where
 
 import qualified Data.Hashable as H
 import Data.List
