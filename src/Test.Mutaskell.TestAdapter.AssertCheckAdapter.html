@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wno-orphans #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, TypeSynonymInstances, MultiParamTypeClasses #-}</span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Module for using quickcheck properties</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html"><span class="hs-identifier">Test.Mutaskell.TestAdapter.AssertCheckAdapter</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html"><span class="hs-identifier">Test.Mutaskell.TestAdapter</span></a></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html"><span class="hs-identifier">Test.Mutaskell.TestAdapter.AssertCheck</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">A</span></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- ----------------------</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="annot"><span class="hs-comment">-- | These are the things you need to do to make a new adapter.</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">type</span><span> </span><span id="AssertCheckSummary"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-var">AssertCheckSummary</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertStatus"><span class="hs-identifier hs-type">A.AssertStatus</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="annot"><span class="hs-comment">-- | Summarizable instance of `AssertCheck.AssertStatus`</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Summarizable"><span class="hs-identifier hs-type">Summarizable</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>    </span><span id="local-6989586621679267168"><span class="annot"><span class="annottext">testSummary :: Mutant
+-&gt; TestStr -&gt; InterpreterOutput AssertCheckSummary -&gt; Summary
+</span><a href="#local-6989586621679267168"><span class="hs-identifier hs-var hs-var hs-var">testSummary</span></a></span></span><span> </span><span id="local-6989586621679267170"><span class="annot"><span class="annottext">Mutant
+</span><a href="#local-6989586621679267170"><span class="hs-identifier hs-var">_mutant</span></a></span></span><span> </span><span id="local-6989586621679267171"><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267171"><span class="hs-identifier hs-var">_test</span></a></span></span><span> </span><span id="local-6989586621679267172"><span class="annot"><span class="annottext">InterpreterOutput AssertCheckSummary
+</span><a href="#local-6989586621679267172"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TestStr -&gt; Summary
+</span><a href="Test.Mutaskell.TestAdapter.html#Summary"><span class="hs-identifier hs-var">Summary</span></a></span><span> </span><span class="annot"><span class="annottext">(TestStr -&gt; Summary) -&gt; TestStr -&gt; Summary
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">InterpreterOutput AssertCheckSummary -&gt; TestStr
+forall a. Summarizable a =&gt; InterpreterOutput a -&gt; TestStr
+</span><a href="Test.Mutaskell.TestAdapter.html#_ioLog"><span class="hs-identifier hs-var">_ioLog</span></a></span><span> </span><span class="annot"><span class="annottext">InterpreterOutput AssertCheckSummary
+</span><a href="#local-6989586621679267172"><span class="hs-identifier hs-var">result</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span id="local-6989586621679267176"><span class="annot"><span class="annottext">isSuccess :: AssertCheckSummary -&gt; Bool
+</span><a href="#local-6989586621679267176"><span class="hs-identifier hs-var hs-var hs-var">isSuccess</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool)
+-&gt; (AssertCheckSummary -&gt; Bool) -&gt; AssertCheckSummary -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary -&gt; Bool
+forall s. Summarizable s =&gt; s -&gt; Bool
+</span><a href="Test.Mutaskell.TestAdapter.html#isFailure"><span class="hs-identifier hs-var">isFailure</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span id="local-6989586621679267181"><span class="annot"><span class="annottext">isFailure :: AssertCheckSummary -&gt; Bool
+</span><a href="Test.Mutaskell.TestAdapter.html#isFailure"><span class="hs-identifier hs-var hs-var hs-var">isFailure</span></a></span></span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary
+</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertFailure"><span class="hs-identifier hs-var">A.AssertFailure</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-19"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#isFailure"><span class="hs-identifier hs-var">isFailure</span></a></span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary
+</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertSuccess"><span class="hs-identifier hs-var">A.AssertSuccess</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-20"></span><span>    </span><span id="local-6989586621679267184"><span class="annot"><span class="annottext">isOther :: AssertCheckSummary -&gt; Bool
+</span><a href="#local-6989586621679267184"><span class="hs-identifier hs-var hs-var hs-var">isOther</span></a></span></span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="annot"><span class="hs-comment">-- | A run of AssertCheck, wrapping the test function name</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">newtype</span><span> </span><span id="AssertCheckRun"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckRun"><span class="hs-identifier hs-var">AssertCheckRun</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AssertCheckRun"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckRun"><span class="hs-identifier hs-var">AssertCheckRun</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#TRun"><span class="hs-identifier hs-type">TRun</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckRun"><span class="hs-identifier hs-type">AssertCheckRun</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>    </span><span id="local-6989586621679267196"><span class="annot"><span class="annottext">genTest :: AssertCheckRun -&gt; TestStr -&gt; TestStr
+</span><a href="#local-6989586621679267196"><span class="hs-identifier hs-var hs-var hs-var">genTest</span></a></span></span><span> </span><span id="local-6989586621679267198"><span class="annot"><span class="annottext">AssertCheckRun
+</span><a href="#local-6989586621679267198"><span class="hs-identifier hs-var">_m</span></a></span></span><span> </span><span id="local-6989586621679267199"><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267199"><span class="hs-identifier hs-var">tstfn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TestStr
+</span><span class="hs-string">&quot;assertCheckResult &quot;</span></span><span> </span><span class="annot"><span class="annottext">TestStr -&gt; TestStr -&gt; TestStr
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267199"><span class="hs-identifier hs-var">tstfn</span></a></span><span>
+</span><span id="line-27"></span><span>    </span><span id="local-6989586621679267200"><span class="annot"><span class="annottext">getName :: AssertCheckRun -&gt; TestStr
+</span><a href="#local-6989586621679267200"><span class="hs-identifier hs-var hs-var hs-var">getName</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckRun"><span class="hs-identifier hs-type">AssertCheckRun</span></a></span><span> </span><span id="local-6989586621679267202"><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267202"><span class="hs-identifier hs-var">str</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267202"><span class="hs-identifier hs-var">str</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span id="local-6989586621679267203"><span class="annot"><span class="annottext">toRun :: TestStr -&gt; AssertCheckRun
+</span><a href="#local-6989586621679267203"><span class="hs-identifier hs-var hs-var hs-var">toRun</span></a></span></span><span> </span><span id="local-6989586621679267205"><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267205"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TestStr -&gt; AssertCheckRun
+</span><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckRun"><span class="hs-identifier hs-var">AssertCheckRun</span></a></span><span> </span><span class="annot"><span class="annottext">TestStr
+</span><a href="#local-6989586621679267205"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>    </span><span id="local-6989586621679267208"><span class="annot"><span class="annottext">summarize_ :: Summarizable AssertCheckSummary =&gt;
+AssertCheckRun
+-&gt; Mutant
+-&gt; TestStr
+-&gt; InterpreterOutput AssertCheckSummary
+-&gt; Summary
+</span><a href="#local-6989586621679267208"><span class="hs-identifier hs-var hs-var hs-var">summarize_</span></a></span></span><span> </span><span id="local-6989586621679267210"><span class="annot"><span class="annottext">AssertCheckRun
+</span><a href="#local-6989586621679267210"><span class="hs-identifier hs-var">_m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mutant
+-&gt; TestStr -&gt; InterpreterOutput AssertCheckSummary -&gt; Summary
+forall s.
+Summarizable s =&gt;
+Mutant -&gt; TestStr -&gt; InterpreterOutput s -&gt; Summary
+</span><a href="Test.Mutaskell.TestAdapter.html#testSummary"><span class="hs-identifier hs-var">testSummary</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#TestStr"><span class="hs-identifier hs-type">TestStr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#InterpreterOutput"><span class="hs-identifier hs-type">InterpreterOutput</span></a></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Summary"><span class="hs-identifier hs-type">Summary</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span id="local-6989586621679267213"><span class="annot"><span class="annottext">success_ :: Summarizable AssertCheckSummary =&gt;
+AssertCheckRun -&gt; AssertCheckSummary -&gt; Bool
+</span><a href="#local-6989586621679267213"><span class="hs-identifier hs-var hs-var hs-var">success_</span></a></span></span><span> </span><span id="local-6989586621679267215"><span class="annot"><span class="annottext">AssertCheckRun
+</span><a href="#local-6989586621679267215"><span class="hs-identifier hs-var">_m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary -&gt; Bool
+forall s. Summarizable s =&gt; s -&gt; Bool
+</span><a href="Test.Mutaskell.TestAdapter.html#isSuccess"><span class="hs-identifier hs-var">isSuccess</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-32"></span><span>    </span><span id="local-6989586621679267218"><span class="annot"><span class="annottext">failure_ :: Summarizable AssertCheckSummary =&gt;
+AssertCheckRun -&gt; AssertCheckSummary -&gt; Bool
+</span><a href="#local-6989586621679267218"><span class="hs-identifier hs-var hs-var hs-var">failure_</span></a></span></span><span> </span><span id="local-6989586621679267220"><span class="annot"><span class="annottext">AssertCheckRun
+</span><a href="#local-6989586621679267220"><span class="hs-identifier hs-var">_m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary -&gt; Bool
+forall s. Summarizable s =&gt; s -&gt; Bool
+</span><a href="Test.Mutaskell.TestAdapter.html#isFailure"><span class="hs-identifier hs-var">isFailure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-33"></span><span>    </span><span id="local-6989586621679267223"><span class="annot"><span class="annottext">other_ :: Summarizable AssertCheckSummary =&gt;
+AssertCheckRun -&gt; AssertCheckSummary -&gt; Bool
+</span><a href="#local-6989586621679267223"><span class="hs-identifier hs-var hs-var hs-var">other_</span></a></span></span><span> </span><span id="local-6989586621679267225"><span class="annot"><span class="annottext">AssertCheckRun
+</span><a href="#local-6989586621679267225"><span class="hs-identifier hs-var">_m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AssertCheckSummary -&gt; Bool
+forall s. Summarizable s =&gt; s -&gt; Bool
+</span><a href="Test.Mutaskell.TestAdapter.html#isOther"><span class="hs-identifier hs-var">isOther</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheckAdapter.html#AssertCheckSummary"><span class="hs-identifier hs-type">AssertCheckSummary</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-34"></span></pre></body></html>

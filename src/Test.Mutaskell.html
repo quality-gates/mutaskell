@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE RecordWildCards #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | MuCheck base module</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Test.Mutaskell.html"><span class="hs-identifier">Test.Mutaskell</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.html#mucheck"><span class="hs-identifier">mucheck</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Test.Mutaskell.html#sampler"><span class="hs-identifier">sampler</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.AnalysisSummary.html"><span class="hs-identifier">Test.Mutaskell.AnalysisSummary</span></a></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html"><span class="hs-identifier">Test.Mutaskell.Config</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.Interpreter.html"><span class="hs-identifier">Test.Mutaskell.Interpreter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Interpreter.html#MutantSummary"><span class="hs-identifier">MutantSummary</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Test.Mutaskell.Interpreter.html#evaluateMutants"><span class="hs-identifier">evaluateMutants</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.Mutation.html"><span class="hs-identifier">Test.Mutaskell.Mutation</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html"><span class="hs-identifier">Test.Mutaskell.TestAdapter</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Test.Mutaskell.Utils.Common.html"><span class="hs-identifier">Test.Mutaskell.Utils.Common</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">{- | Perform mutation analysis using any of the test frameworks that support
+Summarizable (essentially, after running it on haskell, we should be able to
+distinguish a successful run without failures from one with failures.)
+E.g. using the mucheck-quickcheck adapter
+
+&gt; tFn :: Mutant -&gt; TestStr -&gt; InterpreterOutput QuickCheckSummary`
+&gt; tFn = testSummary
+&gt; mucheck tFn &quot;Examples/QuickCheckTest.hs&quot; [&quot;quickCheckResult revProp&quot;]
+-}</span></span><span>
+</span><span id="line-22"></span><span id="local-6989586621679270355"><span id="local-6989586621679270357"><span class="annot"><a href="Test.Mutaskell.html#mucheck"><span class="hs-identifier hs-type">mucheck</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679270355"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Summarizable"><span class="hs-identifier hs-type">Summarizable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679270355"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#TRun"><span class="hs-identifier hs-type">TRun</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679270357"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679270355"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><span class="hs-comment">-- | The module we are mutating</span></span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><a href="#local-6989586621679270357"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="hs-comment">-- | The HPC &lt;coverage&gt;.tix file</span></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="hs-comment">-- | Returns a tuple of full summary, and individual mutant results.</span></span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.AnalysisSummary.html#MAnalysisSummary"><span class="hs-identifier hs-type">MAnalysisSummary</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Test.Mutaskell.Interpreter.html#MutantSummary"><span class="hs-identifier hs-type">MutantSummary</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-30"></span><span id="mucheck"><span class="annot"><span class="annottext">mucheck :: forall b a.
+(Show b, Summarizable b, TRun a b) =&gt;
+a
+-&gt; FilePath
+-&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary]))
+</span><a href="Test.Mutaskell.html#mucheck"><span class="hs-identifier hs-var hs-var">mucheck</span></a></span></span><span> </span><span id="local-6989586621679270427"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679270427"><span class="hs-identifier hs-var">moduleFile</span></a></span></span><span> </span><span id="local-6989586621679270428"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270428"><span class="hs-identifier hs-var">tix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-comment">-- get tix here.</span><span>
+</span><span id="line-32"></span><span>  </span><span id="local-6989586621679270429"><span class="annot"><a href="#local-6989586621679270429"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; FilePath -&gt; IO (Either FilePath (Int, [Mutant]))
+</span><a href="Test.Mutaskell.Mutation.html#genMutants"><span class="hs-identifier hs-var">genMutants</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; FilePath
+forall a s. TRun a s =&gt; a -&gt; FilePath
+</span><a href="Test.Mutaskell.TestAdapter.html#getName"><span class="hs-identifier hs-var">getName</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679270427"><span class="hs-identifier hs-var">moduleFile</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270428"><span class="hs-identifier hs-var">tix</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621679270429"><span class="hs-identifier hs-type">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679270432"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270432"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either FilePath (MAnalysisSummary, [MutantSummary])
+-&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary]))
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either FilePath (MAnalysisSummary, [MutantSummary])
+ -&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary])))
+-&gt; Either FilePath (MAnalysisSummary, [MutantSummary])
+-&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary]))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Either FilePath (MAnalysisSummary, [MutantSummary])
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270432"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679270433"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679270433"><span class="hs-identifier hs-var">len</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679270434"><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270434"><span class="hs-identifier hs-var">mutants</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-36"></span><span>      </span><span class="hs-comment">-- Should we do random sample on covering alone or on the full?</span><span>
+</span><span id="line-37"></span><span>      </span><span id="local-6989586621679270435"><span class="annot"><a href="#local-6989586621679270435"><span class="hs-identifier hs-var">smutants</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Config -&gt; [Mutant] -&gt; IO [Mutant]
+</span><a href="Test.Mutaskell.html#sampler"><span class="hs-identifier hs-var">sampler</span></a></span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="Test.Mutaskell.Config.html#defaultConfig"><span class="hs-identifier hs-var">defaultConfig</span></a></span><span> </span><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270434"><span class="hs-identifier hs-var">mutants</span></a></span><span>
+</span><span id="line-38"></span><span>      </span><span id="local-6989586621679270437"><span class="annot"><a href="#local-6989586621679270437"><span class="hs-identifier hs-var">testRes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><a href="Test.Mutaskell.Mutation.html#getAllTests"><span class="hs-identifier hs-type">getAllTests</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#getName"><span class="hs-identifier hs-type">getName</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679270427"><span class="hs-identifier hs-type">moduleFile</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><a href="#local-6989586621679270437"><span class="hs-identifier hs-type">testRes</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-40"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679270439"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270439"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either FilePath (MAnalysisSummary, [MutantSummary])
+-&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary]))
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either FilePath (MAnalysisSummary, [MutantSummary])
+ -&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary])))
+-&gt; Either FilePath (MAnalysisSummary, [MutantSummary])
+-&gt; IO (Either FilePath (MAnalysisSummary, [MutantSummary]))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Either FilePath (MAnalysisSummary, [MutantSummary])
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679270439"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-41"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679270440"><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621679270440"><span class="hs-identifier hs-var">tests</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-42"></span><span>          </span><span class="hs-special">(</span><span id="local-6989586621679270441"><span class="annot"><a href="#local-6989586621679270441"><span class="hs-identifier hs-var">fsum'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679270442"><span class="annot"><a href="#local-6989586621679270442"><span class="hs-identifier hs-var">msum</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int
+-&gt; Maybe Int
+-&gt; Maybe FilePath
+-&gt; [FilePath]
+-&gt; Maybe (MutantSummary -&gt; IO ())
+-&gt; a
+-&gt; [Mutant]
+-&gt; [FilePath]
+-&gt; IO (MAnalysisSummary, [MutantSummary])
+forall b a.
+(Show b, Summarizable b, TRun a b) =&gt;
+Int
+-&gt; Maybe Int
+-&gt; Maybe FilePath
+-&gt; [FilePath]
+-&gt; Maybe (MutantSummary -&gt; IO ())
+-&gt; a
+-&gt; [Mutant]
+-&gt; [FilePath]
+-&gt; IO (MAnalysisSummary, [MutantSummary])
+</span><a href="Test.Mutaskell.Interpreter.html#evaluateMutants"><span class="hs-identifier hs-var">evaluateMutants</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe FilePath
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Maybe (MutantSummary -&gt; IO ())
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679270427"><span class="hs-identifier hs-var">moduleFile</span></a></span><span> </span><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270435"><span class="hs-identifier hs-var">smutants</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(FilePath -&gt; FilePath) -&gt; [FilePath] -&gt; [FilePath]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; FilePath -&gt; FilePath
+forall a s. TRun a s =&gt; a -&gt; FilePath -&gt; FilePath
+</span><a href="Test.Mutaskell.TestAdapter.html#genTest"><span class="hs-identifier hs-var">genTest</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679270427"><span class="hs-identifier hs-var">moduleFile</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[FilePath]
+</span><a href="#local-6989586621679270440"><span class="hs-identifier hs-var">tests</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>          </span><span class="hs-comment">-- set the original size of mutants. (We report the results based on original</span><span>
+</span><span id="line-44"></span><span>          </span><span class="hs-comment">-- number of mutants, not just the covered ones.)</span><span>
+</span><span id="line-45"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679270452"><span class="annot"><a href="#local-6989586621679270452"><span class="hs-identifier hs-var hs-var">fsum</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679270433"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-46"></span><span>               </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MAnalysisSummary
+</span><a href="#local-6989586621679270441"><span class="hs-identifier hs-var">fsum'</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Test.Mutaskell.AnalysisSummary.html#_maCoveredNumMutants"><span class="hs-identifier hs-var">_maCoveredNumMutants</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="hs-number">1</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span><span>               </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">MAnalysisSummary
+</span><a href="#local-6989586621679270441"><span class="hs-identifier hs-var">fsum'</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Test.Mutaskell.AnalysisSummary.html#_maCoveredNumMutants"><span class="hs-identifier hs-var">_maCoveredNumMutants</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">length</span></span><span> </span><span class="annot"><a href="#local-6989586621679270434"><span class="hs-identifier hs-type">mutants</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-48"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">return</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">$</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679270452"><span class="hs-identifier hs-type">fsum</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679270442"><span class="hs-identifier hs-type">msum</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><span class="hs-comment">{- | Wrapper around sampleF that returns correct sampling ratios according to
+configuration passed. TODO: Actually use the sampling configuration.
+-}</span></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Test.Mutaskell.html#sampler"><span class="hs-identifier hs-type">sampler</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="hs-comment">-- | Configuration</span></span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><span class="hs-comment">-- | The original list of mutation operators</span></span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-special">[</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="hs-comment">-- | Returns the sampled mutation operators</span></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-60"></span><span id="sampler"><span class="annot"><span class="annottext">sampler :: Config -&gt; [Mutant] -&gt; IO [Mutant]
+</span><a href="Test.Mutaskell.html#sampler"><span class="hs-identifier hs-var hs-var">sampler</span></a></span></span><span> </span><span id="local-6989586621679270455"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679270455"><span class="hs-identifier hs-var">config</span></a></span></span><span> </span><span id="local-6989586621679270456"><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270456"><span class="hs-identifier hs-var">mv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>    </span><span id="local-6989586621679270457"><span class="annot"><a href="#local-6989586621679270457"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-62"></span><span>        </span><span class="annot"><span class="annottext">[[Mutant]] -&gt; [Mutant]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span>
+</span><span id="line-63"></span><span>            </span><span class="annot"><span class="annottext">([[Mutant]] -&gt; [Mutant]) -&gt; IO [[Mutant]] -&gt; IO [Mutant]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(MuVar -&gt; IO [Mutant]) -&gt; [MuVar] -&gt; IO [[Mutant]]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span>
+</span><span id="line-64"></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Config -&gt; [Mutant] -&gt; MuVar -&gt; IO [Mutant]
+</span><a href="Test.Mutaskell.html#getSampled"><span class="hs-identifier hs-var">getSampled</span></a></span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679270455"><span class="hs-identifier hs-var">config</span></a></span><span> </span><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270456"><span class="hs-identifier hs-var">mv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>                </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="Test.Mutaskell.Config.html#MutatePatternMatch"><span class="hs-identifier hs-var">MutatePatternMatch</span></a></span><span>
+</span><span id="line-66"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="Test.Mutaskell.Config.html#MutateValues"><span class="hs-identifier hs-var">MutateValues</span></a></span><span>
+</span><span id="line-67"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="Test.Mutaskell.Config.html#MutateFunctions"><span class="hs-identifier hs-var">MutateFunctions</span></a></span><span>
+</span><span id="line-68"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="Test.Mutaskell.Config.html#MutateNegateIfElse"><span class="hs-identifier hs-var">MutateNegateIfElse</span></a></span><span>
+</span><span id="line-69"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="Test.Mutaskell.Config.html#MutateNegateGuards"><span class="hs-identifier hs-var">MutateNegateGuards</span></a></span><span>
+</span><span id="line-70"></span><span>                </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; MuVar
+</span><a href="Test.Mutaskell.Config.html#MutateOther"><span class="hs-identifier hs-var">MutateOther</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-71"></span><span>                </span><span class="hs-special">]</span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="Test.Mutaskell.Utils.Common.html#rSample"><span class="hs-identifier hs-type">rSample</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Test.Mutaskell.Config.html#maxNumMutants"><span class="hs-identifier hs-var">maxNumMutants</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679270455"><span class="hs-identifier hs-type">config</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679270457"><span class="hs-identifier hs-type">ms</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Test.Mutaskell.html#getSampled"><span class="hs-identifier hs-type">getSampled</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#Config"><span class="hs-identifier hs-type">Config</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.Config.html#MuVar"><span class="hs-identifier hs-type">MuVar</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-75"></span><span id="getSampled"><span class="annot"><span class="annottext">getSampled :: Config -&gt; [Mutant] -&gt; MuVar -&gt; IO [Mutant]
+</span><a href="Test.Mutaskell.html#getSampled"><span class="hs-identifier hs-var hs-var">getSampled</span></a></span></span><span> </span><span id="local-6989586621679270470"><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679270470"><span class="hs-identifier hs-var">config</span></a></span></span><span> </span><span id="local-6989586621679270471"><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270471"><span class="hs-identifier hs-var">ms</span></a></span></span><span> </span><span id="local-6989586621679270472"><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270472"><span class="hs-identifier hs-var">muvar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rational -&gt; [Mutant] -&gt; IO [Mutant]
+forall t. Rational -&gt; [t] -&gt; IO [t]
+</span><a href="Test.Mutaskell.Utils.Common.html#rSampleF"><span class="hs-identifier hs-var">rSampleF</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MuVar -&gt; Config -&gt; Rational
+</span><a href="Test.Mutaskell.Config.html#getSample"><span class="hs-identifier hs-var">getSample</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270472"><span class="hs-identifier hs-var">muvar</span></a></span><span> </span><span class="annot"><span class="annottext">Config
+</span><a href="#local-6989586621679270470"><span class="hs-identifier hs-var">config</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Mutant] -&gt; IO [Mutant]) -&gt; [Mutant] -&gt; IO [Mutant]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Mutant -&gt; Bool) -&gt; [Mutant] -&gt; [Mutant]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MuVar -&gt; Mutant -&gt; Bool
+</span><a href="#local-6989586621679270475"><span class="hs-identifier hs-var">mutantIs</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270472"><span class="hs-identifier hs-var">muvar</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Mutant]
+</span><a href="#local-6989586621679270471"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>    </span><span id="local-6989586621679270475"><span class="annot"><span class="annottext">mutantIs :: MuVar -&gt; Mutant -&gt; Bool
+</span><a href="#local-6989586621679270475"><span class="hs-identifier hs-var hs-var">mutantIs</span></a></span></span><span> </span><span id="local-6989586621679270476"><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270476"><span class="hs-identifier hs-var">mvar</span></a></span></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.html#Mutant"><span class="hs-identifier hs-type">Mutant</span></a></span><span class="hs-special">{</span><span id="local-6989586621679270478"><span id="local-6989586621679270479"><span id="local-6989586621679270480"><span class="annot"><span class="annottext">FilePath
+Span
+MuVar
+_mutant :: FilePath
+_mtype :: MuVar
+_mspan :: Span
+_mspan :: Mutant -&gt; Span
+_mtype :: Mutant -&gt; MuVar
+_mutant :: Mutant -&gt; FilePath
+</span><a href="#local-6989586621679270478"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270476"><span class="hs-identifier hs-var">mvar</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar -&gt; MuVar -&gt; Bool
+</span><a href="Test.Mutaskell.Config.html#similar"><span class="hs-operator hs-var">`similar`</span></a></span><span> </span><span class="annot"><span class="annottext">MuVar
+</span><a href="#local-6989586621679270479"><span class="hs-identifier hs-var">_mtype</span></a></span><span>
+</span><span id="line-78"></span></pre></body></html>
