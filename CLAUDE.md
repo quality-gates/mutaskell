@@ -5,9 +5,11 @@ Mutation testing for Haskell. Parses Haskell source, applies mutations (literal 
 ## Build & test
 
 ```bash
-cabal build all
+cabal build --write-ghc-environment-files=always all
 cabal test all --test-show-details=direct
 ```
+
+The `--write-ghc-environment-files=always` flag is required: the integration test (`IntegrationSpec`) runs the full `mucheck` pipeline, and the `hint` interpreter needs the generated `.ghc.environment.*` file to resolve the mutaskell library modules at runtime. A plain `cabal build all` does not write that file, so the integration test fails until it is present.
 
 All tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) is the only tested compiler; CI runs GHC 9.12.1 only.
 
