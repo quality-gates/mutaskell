@@ -9,7 +9,7 @@ description:         This package defines a mutation analysis library for haskel
                      the testsuite to check whether the difference has been
                      detected.
 homepage:            https://github.com/jonbaldie/mucheck
-license:             GPL-2.0-or-later
+license:             MIT
 license-file:        LICENSE
 author:              Duc Lee <ledu@onid.oregonstate.edu>,
                      Rahul Gopinath <rahul@gopinath.org>,
