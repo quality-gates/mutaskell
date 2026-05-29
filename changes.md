@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.2]
+  * Fixed: licence reverted to GPL-2.0-or-later with full GPLv2 text; MIT relicensing was not permissible without consent from original copyright holders
+
 ## [0.6.1]
   * Fixed: removed committed internal tool files (`.claude/scheduled_tasks.lock`, `.serena/project.yml`, `todo.md`, `old.md`); added `.claude/` and `.serena/` to `.gitignore`
   * Fixed: stale `MuCheck.cabal` references in `haskell-ci.yml` comment header
