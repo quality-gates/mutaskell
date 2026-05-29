@@ -1,4 +1,4 @@
-# mutaskell [![CI](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml/badge.svg)](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml) [![Docs](https://github.com/quality-gates/mutaskell/actions/workflows/pages.yml/badge.svg)](https://quality-gates.github.io/mutaskell) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+# mutaskell [![CI](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml/badge.svg)](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml) [![Docs](https://github.com/quality-gates/mutaskell/actions/workflows/pages.yml/badge.svg)](https://quality-gates.github.io/mutaskell) [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 
 mutaskell is a mutation testing tool for Haskell. It tweaks your source in small ways and checks whether your tests catch the change. If they don't, that's a gap in your test suite worth closing.
 
