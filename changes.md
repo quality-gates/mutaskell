@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.3]
+  * Fixed: documented `Build & test` command in `CLAUDE.md` now uses `--write-ghc-environment-files=always`; a plain `cabal build all` does not write the `.ghc.environment.*` file the integration test needs, so following the old instructions on a fresh tree made `IntegrationSpec` fail
+  * Fixed: `IntegrationSpec` now fails with an actionable message when the `.ghc.environment.*` file is missing, and distinguishes "all mutants skipped as non-compilable" (a misconfigured interpreter environment) from a genuine zero-kill result, instead of surfacing only an opaque `killed == 0` failure
+
 ## [0.6.2]
   * Fixed: licence reverted to GPL-2.0-or-later with full GPLv2 text; MIT relicensing was not permissible without consent from original copyright holders
 
