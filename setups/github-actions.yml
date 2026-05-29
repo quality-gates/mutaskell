@@ -6,8 +6,8 @@
 #
 #   source-repository-package
 #     type: git
-#     location: https://github.com/jonbaldie/mucheck.git
-#     tag: v0.6.0   # check https://github.com/jonbaldie/mucheck/releases for the latest tag
+#     location: https://github.com/quality-gates/mutaskell.git
+#     tag: v0.6.0   # check https://github.com/quality-gates/mutaskell/releases for the latest tag
 
 name: Mutation Testing
 

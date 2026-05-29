@@ -8,7 +8,7 @@ description:         This package defines a mutation analysis library for haskel
                      with other, but similar operators and functions, and running
                      the testsuite to check whether the difference has been
                      detected.
-homepage:            https://github.com/jonbaldie/mucheck
+homepage:            https://github.com/quality-gates/mutaskell
 license:             MIT
 license-file:        LICENSE
 author:              Duc Lee <ledu@onid.oregonstate.edu>,
@@ -24,11 +24,11 @@ tested-with:         GHC ==9.12.1
 
 source-repository    head
   type:              git
-  location:          https://github.com/jonbaldie/mucheck.git
+  location:          https://github.com/quality-gates/mutaskell.git
 
 source-repository    this
   type:              git
-  location:          https://github.com/jonbaldie/mucheck.git
+  location:          https://github.com/quality-gates/mutaskell.git
   tag:               0.6.0
 
 common dependencies

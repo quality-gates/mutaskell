@@ -1,6 +1,8 @@
-# mutaskell [![CI](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml) [![Docs](https://github.com/jonbaldie/mucheck/actions/workflows/pages.yml/badge.svg)](https://jonbaldie.github.io/mucheck) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+# mutaskell [![CI](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml/badge.svg)](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml) [![Docs](https://github.com/quality-gates/mutaskell/actions/workflows/pages.yml/badge.svg)](https://quality-gates.github.io/mutaskell) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 mutaskell is a mutation testing tool for Haskell. It tweaks your source in small ways and checks whether your tests catch the change. If they don't, that's a gap in your test suite worth closing.
+
+mutaskell started as a fork of [MuCheck](https://github.com/vrthra/mucheck) by Duc Lee and Rahul Gopinath, rewritten to use the GHC parser and extended with a full CLI, coverage-guided mutation, parallel evaluation, and CI integrations.
 
 # Why mutation testing?
 
@@ -100,7 +102,7 @@ The `--write-ghc-environment-files=always` flag is required so the `hint` interp
 
 # Documentation
 
-Full documentation is available on the [mutaskell GitHub Pages site](https://jonbaldie.github.io/mucheck).
+Full documentation is available on the [mutaskell GitHub Pages site](https://quality-gates.github.io/mutaskell).
 
 # Install required packages:
 
