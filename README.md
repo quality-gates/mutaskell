@@ -2,6 +2,102 @@
 [![Docs](https://github.com/jonbaldie/mucheck/actions/workflows/pages.yml/badge.svg)](https://jonbaldie.github.io/mucheck)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 
+# Why mutation testing?
+
+Code coverage tells you which lines executed during a test run. It tells you nothing about whether the tests would catch a bug. A test suite that calls every function without ever checking return values will show 100% coverage while catching nothing.
+
+Mutation testing answers the harder question: **if the code were wrong, would the tests fail?** MuCheck makes small, deliberate changes to your source — flipping `+` to `-`, swapping `True` to `False`, dropping a base case, replacing `Just x` with `Nothing` — and re-runs the test suite. If the tests still pass, that mutation *escaped*. An escaped mutant means a real bug of that shape would go undetected in production too.
+
+## It catches AI-generated test slop
+
+LLMs are good at producing tests that pass. They're not optimising for tests that would catch bugs — they're producing code that looks like tests. Mutation testing exposes the difference.
+
+**Testing existence instead of value.** An LLM asked to test a lookup function will often write:
+
+```haskell
+it "finds the user" $
+  Map.lookup userId db `shouldSatisfy` isJust
+```
+
+Mutate the value stored in the map — wrong role, wrong email, anything — and this test still passes. It only checks that *something* came back. `shouldBe (Just expectedUser)` kills the mutant; `shouldSatisfy isJust` does not.
+
+**Avoiding boundary values.** Given a validation function:
+
+```haskell
+isValidEmail :: String -> Bool
+isValidEmail s = '@' `elem` s && '.' `elem` s
+```
+
+An LLM writes ``isValidEmail "user@example.com" `shouldBe` True``. Mutate `&&` to `||` — the test input has both characters, so it still returns `True` and the test still passes. The mutant only dies when you test an input like `"user@example"` (has `@` but no `.`), which the LLM never thought to include.
+
+**Testing the wrong property.** For a sort function, an LLM often asserts on length rather than order:
+
+```haskell
+it "sorts a list" $
+  length (qsort [3,1,2]) `shouldBe` 3
+```
+
+Mutate the comparator so equal elements end up in the wrong partition. Length is still 3. The test passes. ``qsort [3,1,2] `shouldBe` [1,2,3]`` kills it immediately.
+
+**Testing each function in isolation with cherry-picked inputs.** A pipeline `parse → validate → process` gets three separate unit tests, each with a hand-crafted input that happens to work. Mutate `parse` to return a slightly wrong value — a default port of `0` instead of `80` — and all three tests still pass because `validate` and `process` are fed their own canned inputs, not `parse`'s output. Only an end-to-end test that feeds a real input through the whole pipeline and checks the final result would catch it.
+
+The common thread: the tests verify that code ran, not that it produced the right answer. Mutation testing forces that distinction into the open.
+
+## The metric to track: covered-MSI
+
+Raw MSI counts mutations in code your tests never execute. Add a new function with no tests yet, and your score drops — not because your existing tests got weaker, but because there's more untested code. That's a coverage problem, not a test quality problem, and conflating the two makes the number hard to act on.
+
+Covered-MSI only counts mutations in lines your test suite actually ran through, using GHC's HPC coverage data. It stays flat when you add untested code and drops when your existing tests stop catching things they used to catch. That's the signal worth gating on in CI.
+
+Use `--min-covered-msi 70` as a starting point. To get covered-MSI, build your test suite with `--enable-coverage` and pass the resulting `.tix` file via `--tix` — the get-started section below shows the exact commands.
+
+## Get started
+
+**Minimal run** (no coverage data):
+
+```bash
+cabal build --write-ghc-environment-files=always all
+cabal run mucheck -- src/YourModule.hs
+```
+
+**With coverage** (recommended — unlocks covered-MSI):
+
+```bash
+# Build and run your test suite with coverage instrumentation
+echo "package your-package-name" > cabal.project.local
+echo "  coverage: True" >> cabal.project.local
+cabal run exe:your-test-suite
+rm -f cabal.project.local
+
+# Copy .mix files where mucheck can find them
+mkdir -p .hpc
+find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+
+# Pass the generated .tix file to mucheck
+cabal run mucheck -- --tix your-test-suite.tix src/YourModule.hs
+```
+
+**With a config file** — drop a `.mucheck.yaml` in your project root:
+
+```yaml
+min_covered_msi: 70    # fail CI if covered-MSI drops below 70%
+timeout: 30            # kill slow mutant evaluations after 30s
+workers: 4             # evaluate 4 mutants in parallel
+quiet: true            # only print surviving mutants, not every kill
+```
+
+**CI and config examples** — the `setups/` directory in this repo contains ready-to-use files:
+
+| File | What it is |
+| :--- | :--- |
+| `setups/github-actions.yml` | Complete GitHub Actions workflow; copy to `.github/workflows/mutation.yml` |
+| `setups/gitlab-ci.yml` | GitLab CI job with Code Quality artifact; paste into `.gitlab-ci.yml` |
+| `setups/conservative.mucheck.yaml` | Low bar for first adoption; rename to `.mucheck.yaml` and raise the threshold over time |
+| `setups/strict.mucheck.yaml` | High bar for mature or greenfield projects |
+| `setups/diff-only.mucheck.yaml` | Only mutates changed lines; pair with `--git-diff-base` for fast PR checks |
+
+The `--write-ghc-environment-files=always` flag is required so the `hint` interpreter can find your project's modules at runtime. The `.ghc.environment.*` file it generates is already in `.gitignore`.
+
 # Documentation
 
 Full documentation is available on the [MuCheck GitHub Pages site](https://jonbaldie.github.io/mucheck).

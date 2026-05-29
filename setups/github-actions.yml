@@ -1,0 +1,69 @@
+# Drop this into .github/workflows/mutation.yml in your project.
+# Replace MY_TEST_SUITE with your executable name (the cabal target you run tests with)
+# and src/MyModule.hs with the path to the module you want to mutate.
+#
+# Requires GHC 9.12.1. Add mucheck as a source-repository-package in your cabal.project:
+#
+#   source-repository-package
+#     type: git
+#     location: https://github.com/jonbaldie/mucheck.git
+#     tag: v0.5.4   # check https://github.com/jonbaldie/mucheck/releases for the latest tag
+
+name: Mutation Testing
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.12.1'
+          cabal-version: 'latest'
+
+      - name: Cache cabal store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: ${{ runner.os }}-ghc-9.12.1-${{ hashFiles('**/*.cabal') }}
+          restore-keys: ${{ runner.os }}-ghc-9.12.1-
+
+      - name: Build
+        run: cabal build --write-ghc-environment-files=always all
+
+      # Build the test executable with HPC coverage instrumentation,
+      # then flatten all .mix files into .hpc/ so mucheck can find them.
+      # Use your actual package name, not "*" — enabling coverage for all
+      # packages including dependencies causes spurious build failures.
+      - name: Run tests with coverage
+        run: |
+          echo "package MY_PACKAGE_NAME" > cabal.project.local
+          echo "  coverage: True" >> cabal.project.local
+          cabal run exe:MY_TEST_SUITE
+          rm -f cabal.project.local
+          mkdir -p .hpc
+          find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+
+      - name: Mutation testing
+        run: |
+          cabal run mucheck -- \
+            --tix MY_TEST_SUITE.tix \
+            --min-covered-msi 70 \
+            --workers 4 \
+            --timeout 30 \
+            --logger-github mutation-annotations.txt \
+            src/MyModule.hs
+
+      # Surviving mutants appear as inline warnings on the PR diff.
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: mutation-annotations.txt

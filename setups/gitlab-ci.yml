@@ -1,0 +1,35 @@
+# Paste this job into your .gitlab-ci.yml.
+# Replace MY_TEST_SUITE and src/MyModule.hs with your own values.
+#
+# Surviving mutants are reported as GitLab Code Quality findings,
+# visible in the merge request diff view.
+
+mutation:
+  stage: test
+  image: haskell:9.12.1
+  cache:
+    key: cabal-${CI_COMMIT_REF_SLUG}
+    paths:
+      - ~/.cabal/store
+      - dist-newstyle
+  script:
+    - cabal update
+    - cabal build --write-ghc-environment-files=always all
+    - echo "package *" > cabal.project.local
+    - echo "  coverage: True" >> cabal.project.local
+    - cabal run exe:MY_TEST_SUITE
+    - rm -f cabal.project.local
+    - mkdir -p .hpc
+    - find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
+    - >
+      cabal run mucheck --
+      --tix MY_TEST_SUITE.tix
+      --min-covered-msi 70
+      --workers 4
+      --timeout 30
+      --logger-gitlab gl-code-quality.json
+      src/MyModule.hs
+  artifacts:
+    reports:
+      codequality: gl-code-quality.json
+    when: always

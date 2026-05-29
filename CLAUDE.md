@@ -9,7 +9,7 @@ cabal build all
 cabal test all --test-show-details=direct
 ```
 
-All 24 tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) works locally; CI tests 9.2.8, 9.4.8, 9.6.3, and 9.8.2.
+All tests in the `spec` suite must pass. GHC 9.12.1 (Homebrew) is the only tested compiler; CI runs GHC 9.12.1 only.
 
 ## Key modules
 
@@ -46,15 +46,16 @@ Some errors are expected and normal — for example, the `/` operator mutation o
 
 Follow these steps in order when landing a change:
 
-1. **Build and test locally** — `cabal build all` and `cabal test all --test-show-details=direct`. All 24 tests must pass.
+1. **Build and test locally** — `cabal build all` and `cabal test all --test-show-details=direct`. All tests must pass.
 2. **Run the smoke test** — build with `--write-ghc-environment-files=always`, then `cabal run mucheck -- Examples/AssertCheckTest.hs`. Confirm the kill count has not dropped.
 3. **Run haddock** — `cabal haddock all`. Confirm no new undocumented export warnings.
 4. **Update docs if needed** — if your change adds, removes, or renames a mutator, flag, config key, or user-facing behaviour, update `README.md` to match before committing.
 5. **Update changes.md** — add an entry describing what changed (Added / Fixed / Changed). Keep entries concise.
-6. **Commit and push** — fix forward only. No `--force-push` and no `--amend` on published commits. If a hook or check fails, fix it in a new commit. **The `master` branch has push protection — all changes must land via a PR.**
-7. **Watch CI** — wait for the Actions run to go green before merging. Run `gh pr checks <number>` to confirm every workflow passes; do not merge if any is red. Also check for inline code-scanning comments (HLint posts findings as PR review comments); fix any warnings before merging. Use `gh api repos/jonbaldie/mucheck/pulls/<number>/comments --jq '.[].body'` to list them.
-8. **Merge to master** — squash or merge commit, then push master.
-9. **Tag and release** — pick the next semver tag. Update the `version:` field and `source-repository this` tag in `MuCheck.cabal` to match. Create a GitHub release: succinct style, plain English, list what changed.
+6. **Bump the version in the PR** — pick the next semver tag and update the `version:` field and `source-repository this` tag in `MuCheck.cabal` *before opening the PR*. This must land in the same PR as the change, not after. Verify with `git diff $(git describe --tags --abbrev=0)..HEAD -- MuCheck.cabal | grep version` that the version moves forward, not backward. If the bump is deferred until after merge, branches cut from master for follow-up fixes will start from the old version and silently revert it when they land.
+7. **Commit and push** — fix forward only. No `--force-push` and no `--amend` on published commits. Do not use `reset --hard` either. Do not ask the user to run destructive git commands for you. If a hook or check fails, fix it in a new commit. **The `master` branch has push protection — all changes must land via a PR.**
+8. **Watch CI** — wait for the Actions run to go green before merging. Run `gh pr checks <number>` to confirm every workflow passes; do not merge if any is red. Also check for inline code-scanning comments (HLint posts findings as PR review comments); fix any warnings before merging. Use `gh api repos/jonbaldie/mucheck/pulls/<number>/comments --jq '.[].body'` to list them.
+9. **Merge to master** — squash or merge commit, then push master. Ensure local master is in sync with new origin/master.
+10. **Tag and release** — apply the semver tag chosen in step 6 to the merge commit. Create a GitHub release: succinct style, plain English, list what changed.
 
 ## Conventions
 
