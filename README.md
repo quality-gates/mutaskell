@@ -1,6 +1,4 @@
-[![Mutation Analysis](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml)
-[![HLint](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/hlint.yml)
-[![OSV-Scanner](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/osv-scanner.yml)
+[![CI](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml/badge.svg)](https://github.com/jonbaldie/mucheck/actions/workflows/mutation.yml)
 [![Docs](https://github.com/jonbaldie/mucheck/actions/workflows/pages.yml/badge.svg)](https://jonbaldie.github.io/mucheck)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 
@@ -105,6 +103,229 @@ MuCheck currently supports:
 21. Exception handler removal: `catch`, `handle`, `try` replaced with no-ops (`error-guard`)
 22. Mutable argument replacement: `IORef`/`MVar`/`TVar` replaced with `undefined` (`replace-mutable-arg`)
 23. Zero-return: replace each function match body with the zero value for its declared return type — `False`, `0`, `""`, `Nothing`, `[]`, or `return undefined` for IO (`zero-return`)
+
+### Mutation Types: Before & After
+
+Each mutant is a single, minimal change to your source. Below is a concrete example for every mutation type.
+
+**1. Literal values** — substitutes nearby numeric, char, string, or bool literals
+
+```haskell
+-- Before
+threshold = 10
+-- After
+threshold = 11
+```
+
+**2. Functions and operators** — swaps operators or functions with similar ones
+
+```haskell
+-- Before
+x = a + b
+-- After
+x = a - b
+```
+
+**3. If-else swapping** — swaps the then and else branches
+
+```haskell
+-- Before
+if valid then "ok" else "fail"
+-- After
+if valid then "fail" else "ok"
+```
+
+**4. Guarded boolean negation** — negates a guard condition
+
+```haskell
+-- Before
+f x | x > 0 = "positive"
+-- After
+f x | not (x > 0) = "positive"
+```
+
+**5. Pattern match permutation and removal** — reorders clauses or drops one
+
+```haskell
+-- Before
+classify 0 = "zero"
+classify n = "nonzero"
+-- After (permutation)
+classify n = "nonzero"
+classify 0 = "zero"
+```
+
+**6. `not` removal** (`remove-not`) — strips `not` from a negated predicate
+
+```haskell
+-- Before
+guard (not (null xs))
+-- After
+guard (null xs)
+```
+
+**7. `negate` removal** (`remove-negation`) — strips `negate` from an expression
+
+```haskell
+-- Before
+abs (negate x)
+-- After
+abs x
+```
+
+**8. `case...of` alternative removal** (`case-alt-remove`) — removes one branch
+
+```haskell
+-- Before
+case x of { Just v -> v; Nothing -> 0 }
+-- After
+case x of { Nothing -> 0 }
+```
+
+**9. Default alternative removal** (`case-default-remove`) — removes the `_` or `otherwise` branch
+
+```haskell
+-- Before
+case x of { 0 -> "zero"; _ -> "other" }
+-- After
+case x of { 0 -> "zero" }
+```
+
+**10. Do-block statement removal** (`remove-stmt`) — removes one statement from a `do` block
+
+```haskell
+-- Before
+do
+  logEvent ev
+  processEvent ev
+-- After
+do
+  processEvent ev
+```
+
+**11. Let-binding removal** (`remove-let-binding`) — removes one binding from a `let...in` or `do let`
+
+```haskell
+-- Before
+let result = compute x
+    adjusted = result + 1
+in adjusted
+-- After
+let adjusted = result + 1
+in adjusted
+```
+
+**12. Where-binding removal** (`remove-where-binding`) — removes one binding from a `where` clause
+
+```haskell
+-- Before
+f x = g y
+  where y = x + 1
+-- After
+f x = g y
+```
+
+**13. Self-assignment removal** (`remove-self-assign`) — removes `let x = x` or `x <- return x`
+
+```haskell
+-- Before
+do
+  x <- return x
+  process x
+-- After
+do
+  process x
+```
+
+**14. Numeric literal negation** (`negate-literal`) — wraps a numeric literal with `negate`
+
+```haskell
+-- Before
+offset = 42
+-- After
+offset = negate 42
+```
+
+**15. String literal replacement** (`string-literal`) — replaces the string in a comparison with `""`
+
+```haskell
+-- Before
+x == "hello"
+-- After
+x == ""
+```
+
+**16. Boolean operand replacement** (`bool-operand`) — replaces one operand of `&&` or `||` with `True` or `False`
+
+```haskell
+-- Before
+valid && authorised
+-- After
+True && authorised
+```
+
+**17. `Maybe` flipping** (`flip-maybe`) — swaps `Just x` and `Nothing`
+
+```haskell
+-- Before
+Just result
+-- After
+Nothing
+```
+
+**18. `Either` flipping** (`flip-either`) — swaps `Right x` and `Left x`
+
+```haskell
+-- Before
+Right result
+-- After
+Left result
+```
+
+**19. Concurrency wrapper removal** (`remove-forkIO`) — drops `forkIO`, `async`, or `withAsync`
+
+```haskell
+-- Before
+forkIO (worker queue)
+-- After
+worker queue
+```
+
+**20. Resource bracket degeneration** (`bracket-degenerate`) — removes the release action from `bracket`
+
+```haskell
+-- Before
+bracket acquire release action
+-- After
+acquire >>= action
+```
+
+**21. Exception handler removal** (`error-guard`) — replaces `catch`/`handle`/`try` with a no-op
+
+```haskell
+-- Before
+catch (riskyOp x) handler
+-- After
+riskyOp x
+```
+
+**22. Mutable argument replacement** (`replace-mutable-arg`) — replaces an `IORef`/`MVar`/`TVar` argument with `undefined`
+
+```haskell
+-- Before
+modifyIORef ref (+1)
+-- After
+modifyIORef undefined (+1)
+```
+
+**23. Zero-return** (`zero-return`) — replaces the body of a function clause with the zero value for its return type
+
+```haskell
+-- Before
+isValid x = x > 0
+-- After
+isValid x = False
+```
 
 ### Language Extensions
 

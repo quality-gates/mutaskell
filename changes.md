@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.5]
+  * Changed: README badges consolidated from five (Mutation Analysis, HLint, OSV-Scanner, Docs, License) to three (CI, Docs, License); HLint and OSV-Scanner badges removed
+  * Added: "Mutation Types: Before & After" section in README with a concrete Haskell before/after example for each of the 23 mutation types
+  * Changed: Haddock pages deployment now passes `--haddock-hyperlinked-source` so each identifier in the hosted docs links to a syntax-highlighted source view
+
 ## [0.5.4]
   * Fixed: `selectRemoveStmtOps` no longer applies to list comprehensions (`HsDo ListComp`); the previous `isValidDo` check incorrectly allowed removing the mandatory result `LastStmt` from a comprehension, leaving a body-less comprehension that triggered a GHC 9.12.1 `pprComp` panic; `isDo` is now restricted to `DoExpr`/`MDoExpr` only
   * Fixed: `--noop` pre-flight failure now prints the actual interpreter error to stderr so users can diagnose test format problems (e.g. wrong return type, missing imports) instead of receiving only the generic "test suite does not pass" message

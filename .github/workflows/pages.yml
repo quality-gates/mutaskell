@@ -22,7 +22,7 @@ jobs:
       - name: Build Haddock
         run: |
           cabal update
-          cabal haddock all --haddock-html
+          cabal haddock all --haddock-html --haddock-hyperlinked-source
           mkdir -p docs
           cp -r dist-newstyle/build/*/*/MuCheck-*/doc/html/MuCheck/* docs/ || true
       - name: Deploy to gh-pages
