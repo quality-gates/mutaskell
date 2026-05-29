@@ -22,7 +22,7 @@ mutation:
     - mkdir -p .hpc
     - find dist-newstyle -name "*.mix" -exec cp {} .hpc/ \;
     - >
-      cabal run mucheck --
+      cabal run mutaskell --
       --tix MY_TEST_SUITE.tix
       --min-covered-msi 70
       --workers 4

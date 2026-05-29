@@ -12,7 +12,7 @@
 -- This file demonstrates both paths.
 module Examples.AssertCheckTest where
 
-import Test.MuCheck.TestAdapter.AssertCheck
+import Test.Mutaskell.TestAdapter.AssertCheck
 
 qsort :: [Int] -> [Int]
 qsort [] = []

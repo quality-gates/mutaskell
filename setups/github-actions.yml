@@ -2,12 +2,12 @@
 # Replace MY_TEST_SUITE with your executable name (the cabal target you run tests with)
 # and src/MyModule.hs with the path to the module you want to mutate.
 #
-# Requires GHC 9.12.1. Add mucheck as a source-repository-package in your cabal.project:
+# Requires GHC 9.12.1. Add mutaskell as a source-repository-package in your cabal.project:
 #
 #   source-repository-package
 #     type: git
 #     location: https://github.com/jonbaldie/mucheck.git
-#     tag: v0.5.4   # check https://github.com/jonbaldie/mucheck/releases for the latest tag
+#     tag: v0.6.0   # check https://github.com/jonbaldie/mucheck/releases for the latest tag
 
 name: Mutation Testing
 
@@ -38,7 +38,7 @@ jobs:
         run: cabal build --write-ghc-environment-files=always all
 
       # Build the test executable with HPC coverage instrumentation,
-      # then flatten all .mix files into .hpc/ so mucheck can find them.
+      # then flatten all .mix files into .hpc/ so mutaskell can find them.
       # Use your actual package name, not "*" — enabling coverage for all
       # packages including dependencies causes spurious build failures.
       - name: Run tests with coverage
@@ -52,7 +52,7 @@ jobs:
 
       - name: Mutation testing
         run: |
-          cabal run mucheck -- \
+          cabal run mutaskell -- \
             --tix MY_TEST_SUITE.tix \
             --min-covered-msi 70 \
             --workers 4 \

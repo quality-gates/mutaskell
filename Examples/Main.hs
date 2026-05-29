@@ -1,7 +1,7 @@
 module Main where
 
 import Examples.AssertCheckTest
-import Test.MuCheck.TestAdapter.AssertCheck
+import Test.Mutaskell.TestAdapter.AssertCheck
 
 main :: IO ()
 main = mapM_ assertCheckResult
