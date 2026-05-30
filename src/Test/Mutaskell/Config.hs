@@ -49,6 +49,52 @@ bitSymbols = [".&.", ".|."]
 bitIdents :: [String]
 bitIdents = ["xor", "shiftL", "shiftR", "complement"]
 
+-- | Monadic conditionals ["when", "unless"]. Polarity-inverting twins from
+-- @Control.Monad@; the @do@-block analogue of an if/else branch swap.
+monadicConds :: [String]
+monadicConds = ["when", "unless"]
+
+-- | Foldable quantifiers ["all", "any"]. Differ on mixed and empty inputs.
+quantifiers :: [String]
+quantifiers = ["all", "any"]
+
+-- | Boolean list folds ["and", "or"].
+boolFolds :: [String]
+boolFolds = ["and", "or"]
+
+-- | List slicing by count ["take", "drop"]. Same type, complementary result.
+listSlice :: [String]
+listSlice = ["take", "drop"]
+
+-- | List edge removal ["tail", "init"].
+listEdges :: [String]
+listEdges = ["tail", "init"]
+
+-- | Predicate-driven slicing ["takeWhile", "dropWhile"].
+whileSlice :: [String]
+whileSlice = ["takeWhile", "dropWhile"]
+
+-- | Membership tests ["elem", "notElem"] (negation swap, not argument flip).
+membership :: [String]
+membership = ["elem", "notElem"]
+
+-- | Integral division variants ["div", "quot"]. Differ only on negative
+-- operands (floor vs truncate) — a focused probe for negative-input coverage.
+divVariants :: [String]
+divVariants = ["div", "quot"]
+
+-- | Integral remainder variants ["mod", "rem"]. Differ only on negative operands.
+remVariants :: [String]
+remVariants = ["mod", "rem"]
+
+-- | Text splitters ["words", "lines"].
+textSplit :: [String]
+textSplit = ["words", "lines"]
+
+-- | Text joiners ["unwords", "unlines"].
+textJoin :: [String]
+textJoin = ["unwords", "unlines"]
+
 {- | The configuration options
 if 1 is provided, all mutants are selected for that kind, and 0 ensures that
 no mutants are picked for that kind. Any fraction in between causes that
@@ -118,6 +164,17 @@ defaultConfig =
             , FnOp{_type = FnIdent, _fns = bitIdents}
             , FnOp{_type = FnSymbol, _fns = logicOps}
             , FnOp{_type = FnIdent, _fns = foldFns}
+            , FnOp{_type = FnIdent, _fns = monadicConds}
+            , FnOp{_type = FnIdent, _fns = quantifiers}
+            , FnOp{_type = FnIdent, _fns = boolFolds}
+            , FnOp{_type = FnIdent, _fns = listSlice}
+            , FnOp{_type = FnIdent, _fns = listEdges}
+            , FnOp{_type = FnIdent, _fns = whileSlice}
+            , FnOp{_type = FnIdent, _fns = membership}
+            , FnOp{_type = FnIdent, _fns = divVariants}
+            , FnOp{_type = FnIdent, _fns = remVariants}
+            , FnOp{_type = FnIdent, _fns = textSplit}
+            , FnOp{_type = FnIdent, _fns = textJoin}
             ]
         , doMutatePatternMatches = 1.0
         , doMutateValues = 1.0

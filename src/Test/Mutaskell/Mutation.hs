@@ -584,9 +584,15 @@ selectIdentFnOps m idents = selectValOps isIdent convert m
     isIdent (L _ (HsVar _ (L _ rdr))) = rdrStr rdr `elem` idents
     isIdent _                         = False
 
+    -- Preserve the original located wrappers (entry delta and, crucially, the
+    -- name's backquote adornment for infix use such as @x `div` y@) and swap
+    -- only the 'OccName'.  Building a fresh 'mkVar' instead would drop the
+    -- backquotes, emitting @x quot y@ — a type error that is silently skipped.
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
-    convert (L _ (HsVar _ (L _ rdr))) =
-        [ mkVar s | s <- filter (/= rdrStr rdr) idents ]
+    convert (L l (HsVar x (L lr rdr))) =
+        [ L l (HsVar x (L lr (mkRdrUnqual (mkVarOcc s))))
+        | s <- filter (/= rdrStr rdr) idents
+        ]
     convert _ = []
 
 -- | Combined function/operator substitution based on 'Config' 'FnOp' entries.
