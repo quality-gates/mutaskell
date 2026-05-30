@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.0]
+  * Added: idiomatic same-type neighbour-swap groups to the default function-substitution config — `all`/`any`, `and`/`or`, `take`/`drop`, `tail`/`init`, `takeWhile`/`dropWhile`, `elem`/`notElem`, `div`/`quot`, `mod`/`rem`, `words`/`lines`, `unwords`/`unlines`, and `when`/`unless`. These are the "right shape, wrong neighbour" mistakes that compile and slip past weak tests; `div`/`quot` and `mod`/`rem` are focused negative-operand probes
+  * Fixed: identifier substitution dropped the name's backquote adornment, so an infix use such as `x ``div`` y` was emitted as the ill-typed `x quot y` and silently skipped. The substitution now preserves the original located node and swaps only the name, so backtick-infix functions (`div`, `mod`, `quot`, `rem`, `elem`, `notElem`) mutate correctly
+  * Note: the `when`/`unless` swap only fires when `unless` is in scope; a module importing just `when` will see that mutant skipped as non-compilable
+
 ## [0.6.4]
   * Fixed: `negate-if-else` no longer drops the `else` branch. The then/else swap reused each branch's original layout delta, producing source that never compiled (silently counted as skipped); it now transfers the correct entry delta so the swapped `if` compiles and is actually evaluated
   * Fixed: `negate-guards` now parenthesises the negated guard. A guard such as `n > 0` was mutated to `not n > 0` (parsed `(not n) > 0`), a precedence error that never compiled; it is now correctly emitted as `not (n > 0)`
