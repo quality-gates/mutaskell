@@ -227,3 +227,32 @@ myFn = GT
 |]
             ast <- H.ast text
             selectOrderingLitOps ast `shouldSatisfy` (not . null)
+
+    describe "default neighbour-swap groups" $ do
+        -- Regression: identifier substitution built a fresh node and dropped
+        -- the name's backquote adornment, so `x `div` y` was emitted as the
+        -- ill-typed `x quot y` and silently skipped.
+        it "preserves backquotes when substituting an infix identifier" $ do
+            let text =
+                    [e|
+module Prop where
+
+halve x = x `div` 2
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("x `quot` 2" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("x quot 2" `isInfixOf`))
+
+        it "swaps idiomatic neighbour functions via the default config" $ do
+            let text =
+                    [e|
+module Prop where
+
+f xs = all even xs
+g xs = take 3 xs
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("any even" `isInfixOf`)
+            srcs `shouldSatisfy` any ("drop 3" `isInfixOf`)

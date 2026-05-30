@@ -179,7 +179,7 @@ module to be.
 mutaskell currently supports:
 
 1.  Literal values (Int, Float, Char, String, Bool)
-2.  Standard functions and operators substitution (includes `&&`/`||` swap, `foldl`/`foldr` swap, and all comparison, arithmetic, and bitwise operator groups)
+2.  Standard functions and operators substitution (includes `&&`/`||` swap, `foldl`/`foldr` swap, all comparison, arithmetic, and bitwise operator groups, and idiomatic same-type neighbour pairs: `all`/`any`, `and`/`or`, `take`/`drop`, `tail`/`init`, `takeWhile`/`dropWhile`, `elem`/`notElem`, `div`/`quot`, `mod`/`rem`, `words`/`lines`, `unwords`/`unlines`, and `when`/`unless`)
 3.  If-else swapping
 4.  Guarded boolean negation
 5.  Pattern match permutation and removal
@@ -239,6 +239,24 @@ sorted = foldl f z xs
 -- After (fold direction)
 sorted = foldr f z xs
 ```
+
+The group also includes idiomatic same-type **neighbour pairs** — the "right
+shape, wrong neighbour" mistakes that compile cleanly and slip past weak tests:
+
+```haskell
+ok    = all (> 0) xs    -- → any (> 0) xs      (quantifier)
+first = take 3 xs       -- → drop 3 xs         (list slicing)
+keep  = takeWhile p xs  -- → dropWhile p xs
+found = x `elem` xs     -- → x `notElem` xs    (membership)
+h     = x `div` 2       -- → x `quot` 2        (integral division)
+when c act             -- → unless c act       (monadic conditional)
+```
+
+Two of these are deliberately narrow probes. `div`/`quot` and `mod`/`rem`
+differ **only on negative operands** (floor vs truncate), so a surviving
+mutant means your tests never exercised a negative input. And `when`/`unless`
+only mutates when `unless` is in scope — a module that imports just `when` from
+`Control.Monad` will see that mutant skipped as non-compilable.
 
 **3. If-else swapping** — swaps the then and else branches
 
