@@ -240,13 +240,23 @@ This is 'IO' because sampling is randomised, exactly like 'Test.Mutaskell.sample
 everything and then sampled).
 -}
 genSampledMutants :: Config -> Module_ -> IO [Mutant]
-genSampledMutants config = genSampledMutantsWith config []
+genSampledMutants config = genSampledMutantsGated config Nothing
 
--- | 'genSampledMutants' with extra custom selectors.
+-- | 'genSampledMutants' with optional coverage gating: when @Just uncovered@ is
+-- supplied (the uncovered spans from an HPC @.tix@, see 'getUnCoveredPatches'),
+-- operators whose target span lies in uncovered code are dropped /before/
+-- sampling and rendering.  This is coverage-guided generation (AC 12): tests
+-- only kill mutants in code they exercise, so mutating uncovered code wastes the
+-- whole build/test cycle.  Filtering at the operator level also means the sample
+-- budget is spent only on covered code.
+genSampledMutantsGated :: Config -> Maybe [Span] -> Module_ -> IO [Mutant]
+genSampledMutantsGated config muncovered = genSampledMutantsWith config muncovered []
+
+-- | 'genSampledMutantsGated' with extra custom selectors.
 genSampledMutantsWith ::
-    Config -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
-genSampledMutantsWith config extraSels origAst = do
-    sampledOps <- sampleOps config ops
+    Config -> Maybe [Span] -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
+genSampledMutantsWith config muncovered extraSels origAst = do
+    sampledOps <- sampleOps config (gate ops)
     return $
         nubBy (\a b -> _mutant a == _mutant b) $
             filter (\m -> _mutant m /= origStr) $
@@ -258,6 +268,13 @@ genSampledMutantsWith config extraSels origAst = do
     opsAst  = putDecl origAst noAnnDecls
     ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
     origStr = exactPrint origAst
+    -- Drop operators whose span is inside an uncovered region.
+    gate os = case muncovered of
+        Nothing        -> os
+        Just uncovered -> filter (covered uncovered) os
+    covered uncovered (_, op) =
+        let sp = toSpan (getSpan op)
+        in not (any (insideSpan sp) uncovered)
 
 -- | Sample a list of mutation operators proportionally by mutator type and cap
 -- the total at 'maxNumMutants' — the operator-level analogue of

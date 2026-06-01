@@ -93,20 +93,31 @@ getMixedTix file = do
             let names = map tixModuleName tms
             return $ Right $ zipWith3 mixTix names mixs tms
 
-{- | getUnCoveredPatches returns the largest parts of the program that are not
-covered.  Returns 'Left' with a user-readable error if a .mix file is missing.
+{- | getUnCoveredPatches returns the largest parts of the named module that are
+not covered.  Only the requested module's @.mix@ is read, so coverage data for a
+multi-module @.tix@ (e.g. a cabal project whose test-suite modules' @.mix@ files
+live in a different directory) still works — previously a single missing @.mix@
+for /any/ module failed the whole lookup.  Returns 'Left' with a user-readable
+error only if the requested module's own @.mix@ cannot be found.
 -}
 getUnCoveredPatches :: String -> String -> IO (Either String (Maybe [Span]))
 getUnCoveredPatches file name = do
-    eVal <- getMixedTix file
-    case eVal of
-        Left err -> return (Left err)
-        Right val ->
-            let modSpan = getNamedModule name val
-                uncovSpan = filter (not . isCovered . snd) modSpan
-            in return $ Right $ case val of
-                [] -> Nothing
-                _ -> Just $ removeRedundantSpans $ map fst uncovSpan
+    tms <- parseTix file
+    case filter (matchesName name) tms of
+        []       -> return (Right Nothing)
+        (tm : _) -> do
+            emix <- getMix tm
+            case emix of
+                Left err  -> return (Left err)
+                Right mix ->
+                    let (_, modSpan) = mixTix (tixModuleName tm) mix tm
+                        uncovSpan    = filter (not . isCovered . snd) modSpan
+                    in return $ Right $ Just $ removeRedundantSpans $ map fst uncovSpan
+
+-- | Does a tix module's name match the requested (unqualified) module name?
+matchesName :: String -> TixModule -> Bool
+matchesName name tm =
+    let k = tixModuleName tm in name == k || (("/" ++ name) `isSuffixOf` k)
 
 -- | Get the span and covering information of the given module
 getNamedModule :: String -> [(String, [(Span, TCovered)])] -> [(Span, TCovered)]

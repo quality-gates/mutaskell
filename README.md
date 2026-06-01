@@ -622,6 +622,15 @@ mutaskell ~/code/pandoc --time-budget 1800         # stop after 30 minutes
 A budgeted run stops early and reports a partial score rather than running
 unbounded.
 
+Coverage-guided generation: with `--tix FILE` (or `--coverage` to auto-discover
+a `.tix` in the project root), operators in code the test suite does not exercise
+are dropped before sampling — tests can only kill mutants in code they run, so
+this skips wasted build/test cycles. Generate the `.tix` by running the suite
+with HPC first (e.g. `cabal test --enable-coverage`). Note: for cabal projects
+the `.mix` files live under `dist-newstyle`; point `.hpc` resolution at them (a
+symlink works) — fully automatic discovery of the cabal HPC layout is not yet
+done.
+
 ### Orchestrator mode (`--exec`)
 
 By default mutaskell evaluates each mutant by loading it into an in-process

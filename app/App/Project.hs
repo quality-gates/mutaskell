@@ -62,7 +62,8 @@ import App.Orchestrator
     , summarise
     )
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
-import Test.Mutaskell.Mutation (genSampledMutants, getASTFromFile)
+import Test.Mutaskell.Mutation (genSampledMutantsGated, getASTFromFile, getModuleName)
+import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
 -- | File recording fully-completed source files, for resume (AC 9).
@@ -184,8 +185,9 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
             remaining <- readIORef budgetRef
             let perFileCap = min remaining (maxNumMutants defaultConfig)
                 cfg        = defaultConfig { maxNumMutants = perFileCap }
+            muncov <- resolveUncovered opts (getModuleName ast)
             sampled <- genWithinBudget genBudgetSecs $ do
-                ms <- genSampledMutants cfg ast
+                ms <- genSampledMutantsGated cfg muncov ast
                 return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
             if null sampled
                 then do
@@ -239,8 +241,9 @@ dryCount opts file = do
         Right ast -> do
             let cap = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
                 cfg = defaultConfig { maxNumMutants = cap }
+            muncov <- resolveUncovered opts (getModuleName ast)
             sampled <- genWithinBudget genBudgetSecs $ do
-                ms <- genSampledMutants cfg ast
+                ms <- genSampledMutantsGated cfg muncov ast
                 return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
             return (Just (length sampled))
 
@@ -269,6 +272,30 @@ genWithinBudget secs act = do
         if now >= dl
             then return [m]
             else (m :) <$> forceUntil dl rest
+
+-- ---------------------------------------------------------------------------
+-- Coverage gating (AC 12)
+-- ---------------------------------------------------------------------------
+
+-- | Uncovered spans for a module, when coverage is enabled and a @.tix@ is
+-- available.  'Nothing' means "do not gate".  Driven by @--tix FILE@ or
+-- @--coverage@ (auto-discover a @.tix@ in the project root).
+resolveUncovered :: Opts -> String -> IO (Maybe [Span])
+resolveUncovered opts modName = do
+    mt <- resolveTix opts
+    case mt of
+        Nothing  -> return Nothing
+        Just tix -> either (const Nothing) id <$> getUnCoveredPatches tix modName
+
+resolveTix :: Opts -> IO (Maybe FilePath)
+resolveTix opts
+    | not (null (optTix opts)) = return (Just (optTix opts))
+    | optCoverage opts = do
+        fs <- listDirectory "."
+        return $ case filter (".tix" `isSuffixOf`) fs of
+            (f : _) -> Just f
+            []      -> Nothing
+    | otherwise = return Nothing
 
 -- ---------------------------------------------------------------------------
 -- Command auto-detection (AC 2)
