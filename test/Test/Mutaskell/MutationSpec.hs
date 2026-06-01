@@ -5,7 +5,7 @@ module Test.Mutaskell.MutationSpec where
 import Data.List (isInfixOf)
 import Here
 import Test.Hspec
-import Test.Mutaskell.Config (defaultConfig)
+import Test.Mutaskell.Config (defaultConfig, maxNumMutants)
 import Test.Mutaskell.Mutation
 import Test.Mutaskell.TestAdapter (Mutant (..))
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
@@ -256,3 +256,37 @@ g xs = take 3 xs
             let srcs = map (unwords . words . _mutant) mutants
             srcs `shouldSatisfy` any ("any even" `isInfixOf`)
             srcs `shouldSatisfy` any ("drop 3" `isInfixOf`)
+
+    describe "adjacentSwaps" $ do
+        it "produces n-1 adjacent-pair swaps, not the n! permutations" $
+            adjacentSwaps [1 :: Int, 2, 3] `shouldBe` [[2, 1, 3], [1, 3, 2]]
+        it "is empty for a singleton (nothing to reorder)" $
+            adjacentSwaps [1 :: Int] `shouldBe` []
+
+    describe "genSampledMutants" $ do
+        it "returns a non-empty, rendered mutant set for a module with mutables" $ do
+            let text =
+                    [e|
+module Prop where
+
+myFn x = if x == 1 then x + 2 else x - 3
+|]
+            ast <- H.ast text
+            ms <- genSampledMutants defaultConfig ast
+            ms `shouldSatisfy` (not . null)
+            map _mutant ms `shouldSatisfy` all (not . null)
+
+        it "never exceeds the configured maxNumMutants cap" $ do
+            let text =
+                    [e|
+module Prop where
+
+a = 10
+b = 20
+c = 30
+d = 40
+e = 50
+|]
+            ast <- H.ast text
+            ms <- genSampledMutants (defaultConfig { maxNumMutants = 3 }) ast
+            length ms `shouldSatisfy` (<= 3)
