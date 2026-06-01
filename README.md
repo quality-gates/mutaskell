@@ -576,6 +576,51 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
+*   `--exec`: Orchestrator mode — drive the project's real build/test commands instead of the `hint` interpreter (see below).
+*   `--build-cmd CMD`: Build command for `--exec` mode (default: `cabal build`).
+*   `--test-cmd CMD`: Test command for `--exec` mode (default: `cabal test`).
+
+### Orchestrator mode (`--exec`)
+
+By default mutaskell evaluates each mutant by loading it into an in-process
+`hint` interpreter.  That works for a single self-contained module but cannot
+cope with a real multi-package project: it does not see the project's
+dependencies, build configuration, or test suite.
+
+`--exec` switches to the model used by tools like Infection (PHP) and Stryker:
+it edits the source file in place, runs the project's **own** build and test
+commands, and classifies each mutant by what the real toolchain does with it.
+
+```bash
+# From the project root, with a green test suite:
+mutaskell src/MyModule.hs --exec \
+  --build-cmd "cabal build" \
+  --test-cmd  "cabal test"
+```
+
+Classification:
+
+| Toolchain result            | Outcome   |
+| :-------------------------- | :-------- |
+| build fails                 | `Skipped` (compiler rejected the mutant; not a real kill) |
+| build ok, tests fail        | `Killed`  |
+| build ok, tests pass        | `Alive`   (a gap in the tests) |
+| tests exceed `--timeout`    | `Killed`  (the change caused non-termination) |
+
+Notes and current limitations (being honest about the edges):
+
+*   The unmodified project **must build and its tests must pass** first;
+    otherwise a failure cannot be attributed to a mutation (exit 3).
+*   The original file is restored after every mutant **and** on interrupt, so a
+    cancelled run never leaves mutated source behind.  Build/test output for the
+    last command is written to `.mutaskell-exec.log`.
+*   It is **slow**: each mutant triggers a real (incremental) recompile plus a
+    test run.  Scope tightly with `--enable`, coverage, or a narrow test command
+    (e.g. `--test-cmd 'cabal test spec --test-options "--skip integration"'`).
+*   Mutant **generation** still uses the in-file parser, so files that rely on
+    **CPP** (`#if`/`#ifdef`) do not generate mutants yet — see
+    `docs/orchestrator-roadmap.md`.
+*   Operates on **one file** at a time; whole-directory runs are on the roadmap.
 
 ### JSON logger output
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+  * Added: orchestrator mode (`--exec`) that drives the project's real build and test commands instead of the `hint` interpreter. Mutants are written to the source file in place and classified by the real toolchain (build fails → skipped; tests fail → killed; tests pass → alive; test timeout → killed). New flags `--build-cmd` and `--test-cmd` (defaults `cabal build` / `cabal test`). This is what lets mutaskell run against a real multi-package project rather than a single self-contained module
+  * Added: safety/correctness invariants in `--exec` mode — the original file is restored after every mutant and on any exception or interrupt; mutant generation is forced under a timeout so files whose generation blows up abort with an actionable message instead of hanging; build/test output is redirected to `.mutaskell-exec.log` rather than an undrained pipe (avoids child-process deadlock on large output)
+  * Note: `--exec` mutant generation still uses the in-file parser, so files relying on CPP (`#if`/`#ifdef`) do not generate mutants yet; and each mutant triggers a real recompile + test run, so it is slow on large repos. See `docs/orchestrator-roadmap.md` for the measured evidence and next steps
+
 ## [0.7.0]
   * Added: idiomatic same-type neighbour-swap groups to the default function-substitution config — `all`/`any`, `and`/`or`, `take`/`drop`, `tail`/`init`, `takeWhile`/`dropWhile`, `elem`/`notElem`, `div`/`quot`, `mod`/`rem`, `words`/`lines`, `unwords`/`unlines`, and `when`/`unless`. These are the "right shape, wrong neighbour" mistakes that compile and slip past weak tests; `div`/`quot` and `mod`/`rem` are focused negative-operand probes
   * Fixed: identifier substitution dropped the name's backquote adornment, so an infix use such as `x ``div`` y` was emitted as the ill-typed `x quot y` and silently skipped. The substitution now preserves the original located node and swaps only the name, so backtick-infix functions (`div`, `mod`, `quot`, `rem`, `elem`, `notElem`) mutate correctly
