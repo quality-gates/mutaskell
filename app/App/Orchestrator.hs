@@ -51,7 +51,7 @@ import App.Opts (Opts (..))
 import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
-import Test.Mutaskell.Mutation (genMutantsFromAST, getASTFromStr)
+import Test.Mutaskell.Mutation (genMutantsFromAST, getASTFromFile)
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
 -- | Outcome of evaluating a single mutant against the real toolchain.
@@ -99,7 +99,8 @@ runOrchestrator opts = do
     putStrLn "Baseline OK.\n"
 
     -- Generate, force under a timeout to defend against generation blow-up.
-    ast <- either (abort 2 . ("Parse error: " ++)) return =<< getASTFromStr origSrc
+    -- getASTFromFile uses CPP-aware parsing so #if/#ifdef files still generate.
+    ast <- either (abort 2 . ("Parse error: " ++)) return =<< getASTFromFile file
     let cfg       = defaultConfig
         allM      = genMutantsFromAST cfg ast
         filtered  = applyDisableEnable (optDisable opts) (optEnable opts) allM

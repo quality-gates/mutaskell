@@ -7,8 +7,10 @@
 -- | This module handles the mutation of different patterns.
 module Test.Mutaskell.Mutation where
 
+import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
-import Data.List (isPrefixOf, nub, nubBy, partition, permutations)
+import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition, permutations)
+import System.Directory (doesDirectoryExist)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
 
 import GHC.Hs
@@ -34,7 +36,8 @@ import GHC.Utils.Outputable (showSDocUnsafe, ppr)
 import System.Process (readProcess)
 
 import Language.Haskell.GHC.ExactPrint (exactPrint)
-import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString)
+import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString, parseModuleWithCpp)
+import Language.Haskell.GHC.ExactPrint.Preprocess (CppOptions (..), defaultCppOptions)
 import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
 
 import Test.Mutaskell.Config
@@ -312,6 +315,56 @@ getASTFromStr src = do
     return $ case result of
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
         Right (L _ m)  -> Right m
+
+{- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
+the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
+files guarded by @#if@\/@#ifdef@ would otherwise fail to parse — this is the
+single biggest cause of parse failures on real repos (Pandoc, lens, aeson).
+
+@MIN_VERSION_*@ guards need cabal's generated @cabal_macros.h@; we auto-discover
+it under @dist-newstyle@ (present once the project has been built, which
+orchestrator mode requires anyway).  CPP files using only @__GLASGOW_HASKELL__@
+or OS guards parse even without it.
+-}
+getASTFromFile :: FilePath -> IO (Either String Module_)
+getASTFromFile path = do
+    src <- readFile path
+    if usesCpp src
+        then do
+            libdir <- getLibdir
+            macros <- discoverCabalMacros
+            let opts = defaultCppOptions { cppFile = macros }
+            result <- parseModuleWithCpp libdir opts path
+            return $ case result of
+                Left msgs     -> Left (showSDocUnsafe (ppr msgs))
+                Right (L _ m) -> Right m
+        else getASTFromStr src
+
+-- | Does this source use the C preprocessor?  Detected via the @CPP@ language
+-- pragma (the canonical, unambiguous marker).
+usesCpp :: String -> Bool
+usesCpp = any isCppPragma . lines
+  where
+    isCppPragma l =
+        let s = dropWhile (== ' ') l
+        in "{-# LANGUAGE" `isPrefixOf` s && "CPP" `isInfixOf` s
+
+{- | Find cabal-generated @cabal_macros.h@ headers under @dist-newstyle@ so that
+@MIN_VERSION_*@ guards in CPP files preprocess correctly.  Returns @[]@ when the
+project has not been built.  Each header guards its macros with @#ifndef@, so
+force-including several (from multiple components) is safe.
+-}
+discoverCabalMacros :: IO [FilePath]
+discoverCabalMacros = do
+    hasDist <- doesDirectoryExist "dist-newstyle"
+    if not hasDist
+        then return []
+        else do
+            e <- try (readProcess "find" ["dist-newstyle", "-name", "cabal_macros.h"] "")
+                    :: IO (Either IOException String)
+            return $ case e of
+                Left _    -> []
+                Right out -> take 20 (lines out)
 
 -- | Get all test function names from a source file (by path).
 getAllTests :: String -> IO (Either String [String])

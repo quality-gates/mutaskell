@@ -45,7 +45,7 @@ import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
 import Test.Mutaskell.Config (Config(..), defaultConfig, showMuVar)
 import Test.Mutaskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.Mutaskell.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
+import Test.Mutaskell.Mutation (genMutants, genMutantsFromAST, getASTFromFile, getAllTests)
 import Test.Mutaskell.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.Mutaskell.TestAdapter.AssertCheckAdapter
 
@@ -237,15 +237,16 @@ resolveTimeout opts file modFile testNames =
 
 dryRun :: FilePath -> IO ()
 dryRun file = do
-  src <- readFile file
-  result <- getASTFromStr src
+  result <- getASTFromFile file
   case result of
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right ast -> do
       let mutants = genMutantsFromAST defaultConfig ast
           byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
           byType' = sortBy (comparing (Down . snd)) byType
-          colW    = max 7 $ maximum $ map (length . showMuVar . fst) byType'
+          -- 7 is seeded into the list so 'maximum' never sees [] (a zero-mutant
+          -- file, e.g. a pure re-export module, used to crash here).
+          colW    = maximum (7 : map (length . showMuVar . fst) byType')
           pad s   = s ++ replicate (colW - length s + 2) ' '
           sep     = replicate (colW + 10) '-'
           rows    = map (\(v, n) -> "  " ++ pad (showMuVar v) ++ show n) byType'
