@@ -622,6 +622,17 @@ mutaskell ~/code/pandoc --time-budget 1800         # stop after 30 minutes
 A budgeted run stops early and reports a partial score rather than running
 unbounded.
 
+Parallel runs: `--jobs N` shards the files across N isolated copies of the repo
+(one worker subprocess each) and merges the results. Isolation is required
+because the orchestrator edits files in place. Each worker pays a cold first
+build (`dist-newstyle` is not copied), so the speedup shows once per-mutant
+build+test dominates; sharding is per-file, so very uneven file sizes limit the
+gain on small repos.
+
+```bash
+mutaskell ~/code/megaparsec --jobs 4 --max-mutants 200
+```
+
 Coverage-guided generation: with `--tix FILE` (or `--coverage` to auto-discover
 a `.tix` in the project root), operators in code the test suite does not exercise
 are dropped before sampling — tests can only kill mutants in code they run, so

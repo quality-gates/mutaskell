@@ -32,7 +32,7 @@ module App.Project
     ) where
 
 import Control.Exception (SomeException, evaluate, finally, try)
-import Control.Monad (filterM, foldM, forM, unless, when)
+import Control.Monad (filterM, foldM, forM, forM_, unless, when)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.List (isInfixOf, isSuffixOf, nub, sort)
 import Data.Maybe (fromMaybe)
@@ -43,12 +43,17 @@ import System.Directory
     , createDirectoryIfMissing
     , doesDirectoryExist
     , doesFileExist
+    , getTemporaryDirectory
     , listDirectory
+    , removeDirectoryRecursive
+    , removeFile
     , setCurrentDirectory
     )
+import System.Environment (getExecutablePath)
 import System.Exit (ExitCode (..), exitWith)
 import System.FilePath (takeExtension, takeFileName, (</>))
 import System.IO (hPutStrLn, readFile', stderr)
+import System.Process (callProcess, createProcess, proc, waitForProcess)
 
 import App.Exit (applyExitPolicy)
 import App.Filter (applyDisableEnable)
@@ -61,6 +66,7 @@ import App.Orchestrator
     , stateDir
     , summarise
     )
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
 import Test.Mutaskell.Mutation (genSampledMutantsGated, getASTFromFile, getModuleName)
 import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
@@ -74,9 +80,18 @@ progressFile = stateDir ++ "/progress"
 survivorsFile :: FilePath
 survivorsFile = stateDir ++ "/survivors.txt"
 
--- | Run mutation testing across a whole project directory.
+-- | Run mutation testing across a whole project directory.  With @--jobs N@ (and
+-- when this is not itself a worker) the work is split across N isolated copies of
+-- the repo (see 'runParallel'); otherwise it runs in this process.
 runProject :: Opts -> IO ()
-runProject opts = do
+runProject opts
+    | optJobs opts > 1 && optOnlyFiles opts == Nothing = runParallel opts
+    | otherwise                                        = runSerial opts
+
+-- | Single-process project run (also used as each parallel worker, restricted to
+-- its shard via @--only-files@).
+runSerial :: Opts -> IO ()
+runSerial opts = do
     root <- canonicalizePath (optFile opts)
     setCurrentDirectory root
     createDirectoryIfMissing True stateDir
@@ -89,9 +104,11 @@ runProject opts = do
     reportBudget opts
     putStrLn ""
 
-    files <- discoverSources opts
+    allFiles <- discoverSources opts
+    files <- restrictToShard opts allFiles
     when (null files) $ do
         hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
+        maybe (return ()) (`writeFile` "0 0 0 0") (optResultOut opts)
         exitWith ExitSuccess
 
     done <- readProgress
@@ -128,6 +145,7 @@ runProject opts = do
     print msum
     putStrLn $ "Surviving mutants written to " ++ survivorsFile
         ++ " (when any survived)."
+    writeResult opts msum
     applyExitPolicy opts msum
 
 -- | Walk pending files, accumulating outcomes and honouring the budget.
@@ -272,6 +290,130 @@ genWithinBudget secs act = do
         if now >= dl
             then return [m]
             else (m :) <$> forceUntil dl rest
+
+-- ---------------------------------------------------------------------------
+-- Parallel evaluation (AC 14)
+-- ---------------------------------------------------------------------------
+
+-- | Run @--jobs N@: shard the discovered files across N isolated copies of the
+-- repo and spawn one worker subprocess per shard, then merge their results.
+--
+-- Isolation is mandatory because the orchestrator edits files in place — workers
+-- cannot share a working tree.  Each worker gets an rsync'd copy (minus @.git@,
+-- @dist-newstyle@, @.mutaskell@) and runs the ordinary single-process path on
+-- its shard.  The trade-off is N copies + a cold first build per worker; the win
+-- appears once per-mutant build+test dominates, which it does on real repos.
+runParallel :: Opts -> IO ()
+runParallel opts = do
+    root <- canonicalizePath (optFile opts)
+    setCurrentDirectory root
+    createDirectoryIfMissing True stateDir
+    allFiles <- discoverSources opts
+    let n      = optJobs opts
+        shards = filter (not . null) (distribute n allFiles)
+    if null shards
+        then hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
+        else do
+            self <- getExecutablePath
+            tmp  <- getTemporaryDirectory
+            putStrLn $ "Project mode (parallel: " ++ show (length shards)
+                ++ " job(s)) on " ++ root
+            putStrLn $ "Discovered " ++ show (length allFiles)
+                ++ " source file(s); sharding across workers.\n"
+            let perJobMax = fmap (\m -> max 1 (m `div` length shards)) (optMaxMutants opts)
+            jobs <- forM (zip [1 :: Int ..] shards) $ \(i, shard) -> do
+                let wdir  = tmp </> ("mutaskell-job-" ++ show i)
+                    listF = wdir ++ ".files"
+                    resF  = wdir ++ ".result"
+                removeIfExists wdir
+                callProcess "rsync"
+                    [ "-a", "--delete"
+                    , "--exclude", ".git", "--exclude", "dist-newstyle"
+                    , "--exclude", ".mutaskell"
+                    , root ++ "/", wdir ++ "/" ]
+                writeFile listF (unlines shard)
+                let args = [ wdir, "--jobs", "1", "--only-files", listF
+                           , "--result-out", resF ] ++ passThrough opts perJobMax
+                (_, _, _, ph) <- createProcess (proc self args)
+                return (ph, resF, wdir, listF)
+            forM_ jobs $ \(ph, _, _, _) -> waitForProcess ph
+            tallies <- forM jobs $ \(_, resF, wdir, listF) -> do
+                t <- readResult resF
+                mergeSurvivors wdir
+                mapM_ removeIfExists [wdir, listF, resF]
+                return t
+            let (k, a, s, tot) = foldr add4 (0, 0, 0, 0) tallies
+                msum = MAnalysisSummary
+                    { _maCoveredNumMutants = -1, _maNumMutants = tot
+                    , _maAlive = a, _maKilled = k, _maErrors = 0, _maSkipped = s }
+            putStrLn ""
+            putStrLn "==== Project mutation summary (parallel) ===="
+            print msum
+            putStrLn $ "Surviving mutants merged into " ++ survivorsFile
+                ++ " (when any survived)."
+            applyExitPolicy opts msum
+
+-- | Round-robin a list into @n@ buckets.
+distribute :: Int -> [a] -> [[a]]
+distribute n xs =
+    [ [x | (j, x) <- zip [0 :: Int ..] xs, j `mod` n == i] | i <- [0 .. n - 1] ]
+
+-- | Build the worker argument list from the master's options (per-job mutant cap).
+passThrough :: Opts -> Maybe Int -> [String]
+passThrough opts mMax = concat
+    [ optArg "--timeout"     (show <$> optTimeout opts)
+    , optArg "--time-budget" (show <$> optTimeBudget opts)
+    , optArg "--build-cmd"   (optBuildCmd opts)
+    , optArg "--test-cmd"    (optTestCmd opts)
+    , optArg "--max-mutants" (show <$> mMax)
+    , if null (optTix opts) then [] else ["--tix", optTix opts]
+    , ["--coverage" | optCoverage opts]
+    , concatMap (\d -> ["--disable", d]) (optDisable opts)
+    , concatMap (\e -> ["--enable", e]) (optEnable opts)
+    ]
+  where optArg flag = maybe [] (\v -> [flag, v])
+
+-- | Read a worker's @killed alive skipped total@ result line.
+readResult :: FilePath -> IO (Int, Int, Int, Int)
+readResult p = do
+    e <- try (readFile' p) :: IO (Either SomeException String)
+    return $ case e of
+        Right s | [k, a, sk, t] <- map read (words s) -> (k, a, sk, t)
+        _ -> (0, 0, 0, 0)
+
+-- | Append a worker's survivor report to the master's.
+mergeSurvivors :: FilePath -> IO ()
+mergeSurvivors wdir = do
+    let wsv = wdir </> stateDir </> "survivors.txt"
+    e <- try (readFile' wsv) :: IO (Either SomeException String)
+    case e of
+        Right c -> appendFile survivorsFile c
+        Left _  -> return ()
+
+add4 :: (Int, Int, Int, Int) -> (Int, Int, Int, Int) -> (Int, Int, Int, Int)
+add4 (a, b, c, d) (w, x, y, z) = (a + w, b + x, c + y, d + z)
+
+removeIfExists :: FilePath -> IO ()
+removeIfExists p = do
+    isDir  <- doesDirectoryExist p
+    isFile <- doesFileExist p
+    when isDir  (removeDirectoryRecursive p)
+    when isFile (removeFile p)
+
+-- | Restrict the discovered files to this worker's shard (@--only-files@).
+restrictToShard :: Opts -> [FilePath] -> IO [FilePath]
+restrictToShard opts files = case optOnlyFiles opts of
+    Nothing -> return files
+    Just p  -> do
+        wanted <- lines <$> readFile' p
+        return (filter (`elem` wanted) files)
+
+-- | Write this run's @killed alive skipped total@ for the parent (@--result-out@).
+writeResult :: Opts -> MAnalysisSummary -> IO ()
+writeResult opts msum = case optResultOut opts of
+    Nothing -> return ()
+    Just p  -> writeFile p $ unwords $ map show
+        [_maKilled msum, _maAlive msum, _maSkipped msum, _maNumMutants msum]
 
 -- ---------------------------------------------------------------------------
 -- Coverage gating (AC 12)

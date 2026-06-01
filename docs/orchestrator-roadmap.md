@@ -25,7 +25,7 @@ A 16-point acceptance list was agreed (DX 1–9, performance 10–16). Honest st
 | 13 | Generation bounded | **done** | n! clause perms → adjacent swaps; operators sampled before rendering; 5s/file soft budget. pandoc Shared.hs ~139s → ~5s |
 | 15 | Hard budget | **done** | `--max-mutants` / `--time-budget`; megaparsec "Budget exhausted; stopping" |
 | 11 | No cold cabal per mutant | **NOT done** | see below |
-| 14 | Parallel `--jobs N` | **NOT done** | see below |
+| 14 | Parallel `--jobs N` | **done (mechanism); threshold not proven** | worker subprocesses on isolated copies, results merged; ~1.5× @ N=2 on demo. ≥2×@4 needs a balanced many-file workload |
 | 16 | Throughput floor on built Pandoc | **BLOCKED** | pandoc does not solve deps on GHC 9.12.1 here; floor pending AC 11 |
 
 ### The three remaining items, honestly
@@ -42,13 +42,18 @@ suites are not) **without losing the build-fail→SKIPPED classification** that 
 real `cabal build` gives us (a GHCi reload error is not the same signal). This is
 a genuine design fork, not a small patch.
 
-**AC 14 — parallel `--jobs N`.** The orchestrator mutates one file in place, so
-workers cannot share a working tree. Each worker needs its own checkout
-(`git worktree add`) with its own `dist-newstyle`; mutants are sharded across
-workers and outcomes merged. The cost is N build trees (disk + first-build time);
-the payoff appears once build+test per mutant dominates. Design is clear;
-implementation + a credible "4 jobs ≥2× faster" measurement is a self-contained
-slice not yet done.
+**AC 14 — parallel `--jobs N`.** Implemented: the master shards discovered files
+across N isolated rsync'd copies (minus `.git`/`dist-newstyle`/`.mutaskell`), runs
+one worker subprocess per shard (`--jobs 1 --only-files … --result-out …`), and
+merges the tallies + survivor reports into one project score. Isolation is
+mandatory because the orchestrator edits files in place. Verified: ~1.5× at N=2
+on the demo with a correct merged summary. What is **not** proven is the
+"4 jobs ≥2× faster" threshold — the demo has only two uneven files (so it can't
+shard four ways or balance), and each worker pays a cold first build because
+`dist-newstyle` is not copied. Closing it cleanly needs (a) sharding balanced by
+estimated mutant count (a cheap dry-count pre-pass) and (b) a warm worker build
+(relocatable `dist-newstyle` or a shared store), measured on a balanced
+many-file repo.
 
 **AC 16 — stated throughput floor.** Wanted on a built Pandoc, but Pandoc's
 dependency set does not solve on GHC 9.12.1 in this environment
