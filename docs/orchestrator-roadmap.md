@@ -5,6 +5,59 @@ megaparsec, …) *and* on mutaskell itself, the way Infection (PHP) or a
 folder-level Go tool runs — point it at real code and let the project's own
 build and test suite do the work.
 
+## Acceptance-criteria status (2026-06)
+
+A 16-point acceptance list was agreed (DX 1–9, performance 10–16). Honest state:
+
+| AC | What | Status | Evidence |
+| :- | :--- | :----- | :------- |
+| 1 | One command on a dir, exit 0 | **done** | demo + megaparsec full runs exit 0 |
+| 2 | Auto-detect build/test | **done** | cabal/stack detection; runs show derived cmds |
+| 3 | Walks the package | **done** | megaparsec discovered 42 files; pandoc walk |
+| 4 | Survives bad files | **done** | pandoc dry-run logs `SKIP` and continues |
+| 5 | Project-level score | **done** | aggregate summary printed at end |
+| 6 | Tree restored | **done** | git clean after runs (only `.mutaskell/` left, gitignored) |
+| 7 | Generalises to ≥2 repos | **done** | megaparsec + self-host (mutaskell) |
+| 8 | Self-host | **done** | `mutaskell .` on this repo |
+| 9 | Resumable + report | **done** | `.mutaskell/progress` skips done files; `.mutaskell/survivors.txt` |
+| 10 | Baseline once | **done** | baseline build+test run once at startup |
+| 12 | Coverage-gated generation | **done (mechanism)** | demo Calc.hs 12→11 via `.tix`; magnitude scales with uncovered fraction; cabal HPC-path auto-discovery still manual |
+| 13 | Generation bounded | **done** | n! clause perms → adjacent swaps; operators sampled before rendering; 5s/file soft budget. pandoc Shared.hs ~139s → ~5s |
+| 15 | Hard budget | **done** | `--max-mutants` / `--time-budget`; megaparsec "Budget exhausted; stopping" |
+| 11 | No cold cabal per mutant | **NOT done** | see below |
+| 14 | Parallel `--jobs N` | **NOT done** | see below |
+| 16 | Throughput floor on built Pandoc | **BLOCKED** | pandoc does not solve deps on GHC 9.12.1 here; floor pending AC 11 |
+
+### The three remaining items, honestly
+
+**AC 11 — persistent compile/test session.** Today each mutant runs a fresh
+`cabal build` then `cabal test`. The build is incremental (cabal only recompiles
+the changed module), so the per-mutant cost is cabal startup + one module's
+recompile + relink + the test-suite run. The real win is a persistent
+`cabal repl`/GHCi session that `:reload`s only the mutated module in memory and
+runs the test expression there, paying startup once. The hard part — and the
+reason it is not done — is running the project's *own* test suite inside that
+session generically (hspec via `hspec spec` is easy; arbitrary `exitcode-stdio`
+suites are not) **without losing the build-fail→SKIPPED classification** that a
+real `cabal build` gives us (a GHCi reload error is not the same signal). This is
+a genuine design fork, not a small patch.
+
+**AC 14 — parallel `--jobs N`.** The orchestrator mutates one file in place, so
+workers cannot share a working tree. Each worker needs its own checkout
+(`git worktree add`) with its own `dist-newstyle`; mutants are sharded across
+workers and outcomes merged. The cost is N build trees (disk + first-build time);
+the payoff appears once build+test per mutant dominates. Design is clear;
+implementation + a credible "4 jobs ≥2× faster" measurement is a self-contained
+slice not yet done.
+
+**AC 16 — stated throughput floor.** Wanted on a built Pandoc, but Pandoc's
+dependency set does not solve on GHC 9.12.1 in this environment
+(`pandoc`/`commonmark-pandoc` goals unsatisfiable), so there is no built Pandoc
+to measure. The honest substitute is to publish a reproducible mutants/min on a
+built, green repo (megaparsec) on a named machine — but that number is dominated
+by per-mutant build+test until AC 11 lands, so it should be quoted *after* the
+persistent-session work, not before.
+
 This document records what is done, what is measured, and what is left. The
 numbers below come from a sweep of five shallow-cloned repos (pandoc, aeson,
 megaparsec, scotty, lens). They are evidence, not vibes; re-run before trusting.
