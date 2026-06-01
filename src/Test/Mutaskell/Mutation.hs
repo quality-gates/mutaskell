@@ -9,7 +9,7 @@ module Test.Mutaskell.Mutation where
 
 import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
-import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition, permutations)
+import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
 import System.Directory (doesDirectoryExist)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
 
@@ -223,6 +223,53 @@ genMutantsWithExtra config extraSels origAst =
     opsAst  = putDecl origAst noAnnDecls
     ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
     origStr = exactPrint origAst
+
+{- | Generate mutants but sample the mutation /operators/ before rendering, so
+the expensive 'exactPrint' and the string-equality dedup run on at most
+'maxNumMutants' operators rather than on the full (often huge) candidate set.
+
+On literal-dense modules the candidate set is enormous and rendering then
+deduping every candidate is super-linear in file size — rendering re-serialises
+the whole module per mutant, and @nubBy (\\a b -> _mutant a == _mutant b)@
+compares full module strings pairwise (O(n^2 * filesize)).  That is the AC 13
+generation blow-up (e.g. pandoc's @Shared.hs@ took >130s of CPU).  Sampling the
+operators first bounds the whole pipeline to the sample size.
+
+This is 'IO' because sampling is randomised, exactly like 'Test.Mutaskell.sampler'
+(which it replaces for the orchestrator/project paths — those previously rendered
+everything and then sampled).
+-}
+genSampledMutants :: Config -> Module_ -> IO [Mutant]
+genSampledMutants config = genSampledMutantsWith config []
+
+-- | 'genSampledMutants' with extra custom selectors.
+genSampledMutantsWith ::
+    Config -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
+genSampledMutantsWith config extraSels origAst = do
+    sampledOps <- sampleOps config ops
+    return $
+        nubBy (\a b -> _mutant a == _mutant b) $
+            filter (\m -> _mutant m /= origStr) $
+                map (toMutant . apTh exactPrint) $
+                    nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
+                        (mutatesN sampledOps origAst 1)
+  where
+    (_, noAnnDecls) = splitAnnotations origAst
+    opsAst  = putDecl origAst noAnnDecls
+    ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
+    origStr = exactPrint origAst
+
+-- | Sample a list of mutation operators proportionally by mutator type and cap
+-- the total at 'maxNumMutants' — the operator-level analogue of
+-- 'Test.Mutaskell.sampler', applied /before/ any rendering.
+sampleOps :: Config -> [(MuVar, MuOp)] -> IO [(MuVar, MuOp)]
+sampleOps config ops = do
+    perType <- concat <$> mapM pick
+        [ MutatePatternMatch, MutateValues, MutateFunctions
+        , MutateNegateIfElse, MutateNegateGuards, MutateOther [] ]
+    rSample (maxNumMutants config) perType
+  where
+    pick mv = rSampleF (getSample mv config) (filter (\(v, _) -> mv `similar` v) ops)
 
 -- | Produce all mutants using the default operator list.
 programMutants :: Config -> Module_ -> [(MuVar, Span, Module_)]
@@ -451,6 +498,18 @@ removeOneElem :: [t] -> [[t]]
 removeOneElem [_] = []
 removeOneElem l   = choose l (length l - 1)
 
+-- | Clause-order mutations by swapping each adjacent pair: @n-1@ variants for a
+-- list of length @n@.  This replaces the full @permutations@ ( @n!@ ) set used
+-- for reordering function clauses, which made generation blow up super-linearly
+-- on functions with many clauses (and then quadratically through the @nubBy@
+-- dedup).  Adjacent swaps still exercise clause-order sensitivity while keeping
+-- generation linear (AC 13).
+adjacentSwaps :: [a] -> [[a]]
+adjacentSwaps xs =
+    [ take i xs ++ [xs !! (i + 1), xs !! i] ++ drop (i + 2) xs
+    | i <- [0 .. length xs - 2]
+    ]
+
 -- | Replace the element at index @i@ with @x@.
 replaceAt :: Int -> a -> [a] -> [a]
 replaceAt i x xs = take i xs ++ [x] ++ drop (i + 1) xs
@@ -603,7 +662,7 @@ selectFnMatches m = selectValOps isFunDecl convert m
         -- position so that exactPrint places clauses on the correct lines
         -- whether we reorder or remove them.
         [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (fixEntries ms ms')))))
-        | ms' <- permutations ms ++ removeOneElem ms
+        | ms' <- adjacentSwaps ms ++ removeOneElem ms
         ]
     convert _ = []
 

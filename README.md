@@ -577,8 +577,50 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
 *   `--exec`: Orchestrator mode — drive the project's real build/test commands instead of the `hint` interpreter (see below).
-*   `--build-cmd CMD`: Build command for `--exec` mode (default: `cabal build`).
-*   `--test-cmd CMD`: Test command for `--exec` mode (default: `cabal test`).
+*   `--build-cmd CMD`: Build command for project/`--exec` mode (default: auto-detected, e.g. `cabal build all`).
+*   `--test-cmd CMD`: Test command for project/`--exec` mode (default: auto-detected, e.g. `cabal test all`).
+*   `--max-mutants N`: Cap the total number of mutants evaluated (in project mode, across the whole run).
+*   `--time-budget SECONDS`: Stop a project run after a wall-clock budget and report a partial score.
+
+### Project mode (run on a whole repository)
+
+Point mutaskell at a **directory** and it runs over the whole project the way
+Infection (PHP) or a folder-level Go tool does — no flags required:
+
+```bash
+mutaskell ~/code/pandoc      # a whole repo
+mutaskell .                  # the project you're standing in
+```
+
+In project mode mutaskell:
+
+*   **auto-detects** the build/test commands (cabal → `cabal build all` /
+    `cabal test all`; stack → `stack build` / `stack test`); override with
+    `--build-cmd` / `--test-cmd`;
+*   **discovers** source files from the `hs-source-dirs` declared in the
+    project's `.cabal` files, plus each package directory;
+*   runs the **baseline** build + test exactly once, then mutates each file in
+    turn, driving the real toolchain (same classification as `--exec` below);
+*   **survives bad files** — a file it cannot parse or whose generation blows up
+    is logged and skipped, and the run continues;
+*   is **resumable** — completed files are recorded in `.mutaskell/progress`, so
+    a re-run skips finished work; surviving mutants are written to
+    `.mutaskell/survivors.txt` with a before/after line diff;
+*   ends with a single **project-level score**.
+
+All run-state (progress, survivor report, build/test log) lives under a single
+`.mutaskell/` directory in the project root, so the rest of the tree stays clean.
+Add `.mutaskell/` to the target repo's `.gitignore`.
+
+Because each mutant drives a real build + test, scope large repos with a budget:
+
+```bash
+mutaskell ~/code/pandoc --max-mutants 200          # cap total mutants
+mutaskell ~/code/pandoc --time-budget 1800         # stop after 30 minutes
+```
+
+A budgeted run stops early and reports a partial score rather than running
+unbounded.
 
 ### Orchestrator mode (`--exec`)
 
@@ -613,7 +655,7 @@ Notes and current limitations (being honest about the edges):
     otherwise a failure cannot be attributed to a mutation (exit 3).
 *   The original file is restored after every mutant **and** on interrupt, so a
     cancelled run never leaves mutated source behind.  Build/test output for the
-    last command is written to `.mutaskell-exec.log`.
+    last command is written to `.mutaskell/exec.log`.
 *   It is **slow**: each mutant triggers a real (incremental) recompile plus a
     test run.  Scope tightly with `--enable`, coverage, or a narrow test command
     (e.g. `--test-cmd 'cabal test spec --test-options "--skip integration"'`).
@@ -623,7 +665,8 @@ Notes and current limitations (being honest about the edges):
     (which `--exec` requires anyway). Simple version/OS guards parse without it.
 *   Some files (dense literal tables) make **generation** itself blow up; `--exec`
     bounds it with a timeout and aborts with a message rather than hanging.
-*   Operates on **one file** at a time; whole-directory runs are on the roadmap.
+*   `--exec` operates on **one file**; to run over a whole repository, use
+    project mode (point mutaskell at a directory — see above).
 
 See `docs/orchestrator-roadmap.md` for measured evidence and the remaining work.
 

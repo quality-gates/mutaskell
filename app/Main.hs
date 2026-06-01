@@ -15,6 +15,7 @@ import App.Filter
     )
 import App.Opts
 import App.Orchestrator (runOrchestrator)
+import App.Project (runProject, runProjectDryRun)
 import App.Output
     ( printMutantDetails
     , printMutatorBreakdown
@@ -36,7 +37,7 @@ import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
 import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
-import System.Directory (listDirectory)
+import System.Directory (doesDirectoryExist, listDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
 import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
@@ -80,8 +81,17 @@ main = do
         Left err        -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
         Right validOpts -> runOpts validOpts
 
+-- | Dispatch on the target: a directory enters project mode (walk the whole
+-- repo, drive its real build/test); a file uses the per-file path below.
 runOpts :: Opts -> IO ()
-runOpts opts
+runOpts opts = do
+  isDir <- doesDirectoryExist (optFile opts)
+  if isDir
+    then if optDryRun opts then runProjectDryRun opts else runProject opts
+    else runOptsFile opts
+
+runOptsFile :: Opts -> IO ()
+runOptsFile opts
   | optDryRun opts = dryRun (optFile opts)
   | optExec opts   = runOrchestrator opts
   | otherwise      = do

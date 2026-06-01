@@ -26,13 +26,31 @@ worse than failing loudly:
   * Mutant generation is forced under a timeout.  Real files (symbol tables,
     large literal lists) can make generation blow up; we abort with an
     actionable message rather than hang.
+
+This module exposes both the single-file entry point ('runOrchestrator', used by
+@--exec FILE@) and the reusable building blocks ('evaluateFile', 'classify',
+'runCmd', 'restore', 'forceMutantsWithin', 'summarise') that the project-wide
+walker in "App.Project" composes to run over a whole repository.
 -}
-module App.Orchestrator (runOrchestrator) where
+module App.Orchestrator
+    ( runOrchestrator
+    , Outcome (..)
+    , evaluateFile
+    , classify
+    , runCmd
+    , restore
+    , summarise
+    , execLog
+    , stateDir
+    , genTimeoutSecs
+    ) where
 
 import Control.Exception (SomeException, evaluate, finally, try)
-import Control.Monad (forM, unless, when)
+import Control.Monad (unless, when)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
+import Data.Time.Clock (UTCTime, getCurrentTime)
+import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, readFile', stderr)
 import System.Process
@@ -48,10 +66,9 @@ import System.Timeout (timeout)
 import App.Exit (applyExitPolicy)
 import App.Filter (applyDisableEnable)
 import App.Opts (Opts (..))
-import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
-import Test.Mutaskell.Mutation (genMutantsFromAST, getASTFromFile)
+import Test.Mutaskell.Mutation (genSampledMutants, getASTFromFile)
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
 -- | Outcome of evaluating a single mutant against the real toolchain.
@@ -64,18 +81,27 @@ data Outcome = Killed | Alive | Skipped
 genTimeoutSecs :: Int
 genTimeoutSecs = 90
 
+-- | Directory under the project root holding all mutaskell run-state (exec log,
+-- progress, survivor report).  Consolidating into one directory keeps the rest
+-- of the working tree clean (AC 6) — the user gitignores a single entry, the way
+-- Stryker uses @.stryker-tmp@.
+stateDir :: FilePath
+stateDir = ".mutaskell"
+
 -- | Where each build/test invocation's combined output is written.  Overwritten
 -- per command; inspect it to see why a build failed or a test was killed.
 execLog :: FilePath
-execLog = ".mutaskell-exec.log"
+execLog = stateDir ++ "/exec.log"
 
--- | Entry point for @--exec@ mode.
+-- | Entry point for @--exec FILE@ mode (single file).
 runOrchestrator :: Opts -> IO ()
 runOrchestrator opts = do
     let file     = optFile opts
         buildCmd = fromMaybe "cabal build" (optBuildCmd opts)
         testCmd  = fromMaybe "cabal test"  (optTestCmd opts)
         mtimeout = fmap (* 1000000) (optTimeout opts)
+
+    createDirectoryIfMissing True stateDir
 
     -- Strict read: we are about to overwrite this file repeatedly, so we must
     -- not hold a lazy read handle open against it.
@@ -98,21 +124,23 @@ runOrchestrator opts = do
         "Baseline tests failed (or timed out) on unmodified source. The suite must be green to start."
     putStrLn "Baseline OK.\n"
 
-    -- Generate, force under a timeout to defend against generation blow-up.
-    -- getASTFromFile uses CPP-aware parsing so #if/#ifdef files still generate.
+    -- Generate (operators sampled before rendering) under a timeout to defend
+    -- against generation blow-up.  getASTFromFile uses CPP-aware parsing so
+    -- #if/#ifdef files still generate.
     ast <- either (abort 2 . ("Parse error: " ++)) return =<< getASTFromFile file
-    let cfg       = defaultConfig
-        allM      = genMutantsFromAST cfg ast
-        filtered  = applyDisableEnable (optDisable opts) (optEnable opts) allM
-    forced <- timeout (genTimeoutSecs * 1000000) (evaluate (forceMutants filtered))
-    mutants0 <- case forced of
+    let maxN = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
+        cfg  = defaultConfig { maxNumMutants = maxN }
+    forced <- timeout (genTimeoutSecs * 1000000) $ do
+        ms <- genSampledMutants cfg ast
+        let filtered = applyDisableEnable (optDisable opts) (optEnable opts) ms
+        _ <- evaluate (sum (map (length . _mutant) filtered))
+        return filtered
+    mutants <- case forced of
         Just ms -> return ms
         Nothing -> abort 6 $
             "Mutant generation exceeded " ++ show genTimeoutSecs
             ++ "s on this file (dense literals/tables are the usual cause). "
             ++ "Narrow scope with --max-mutants, --enable, or coverage."
-    let maxN = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
-    mutants <- sampler (cfg { maxNumMutants = maxN }) mutants0
 
     let total = length mutants
     when (total == 0) $ do
@@ -122,7 +150,7 @@ runOrchestrator opts = do
 
     -- The original is restored after every mutant and, crucially, in `finally`
     -- so an exception or Ctrl-C cannot leave the working tree mutated.
-    results <- evaluateAll file origSrc buildCmd testCmd mtimeout mutants
+    results <- evaluateFile file buildCmd testCmd mtimeout Nothing file origSrc mutants
         `finally` restore file origSrc
 
     let msum = summarise results
@@ -130,19 +158,46 @@ runOrchestrator opts = do
     print msum
     applyExitPolicy opts msum
 
--- | Evaluate every mutant in turn, restoring the original after each.
-evaluateAll
-    :: FilePath -> String -> String -> String -> Maybe Int -> [Mutant]
+-- | Evaluate every mutant for one file in turn, restoring the original after
+-- each one.  @label@ prefixes the per-mutant progress line (the file path, when
+-- driven by the project walker).  If a @deadline@ is supplied and passes, the
+-- remaining mutants are left unevaluated and only those done so far returned —
+-- this is how the wall-clock budget (AC 15) is honoured mid-file.
+evaluateFile
+    :: String            -- ^ progress label (e.g. the file path)
+    -> String            -- ^ build command
+    -> String            -- ^ test command
+    -> Maybe Int         -- ^ per-mutant test timeout (microseconds)
+    -> Maybe UTCTime     -- ^ optional run deadline
+    -> FilePath          -- ^ file to mutate in place
+    -> String            -- ^ original source (restored after each mutant)
+    -> [Mutant]
     -> IO [(Mutant, Outcome)]
-evaluateAll file origSrc buildCmd testCmd mtimeout mutants =
-    forM (zip [1 :: Int ..] mutants) $ \(i, m) -> do
+evaluateFile label buildCmd testCmd mtimeout deadline file origSrc mutants =
+    go (zip [1 :: Int ..] mutants)
+  where
+    n = length mutants
+    go [] = return []
+    go ((i, m) : rest) = do
+        past <- pastDeadline deadline
+        if past
+            then return []
+            else do
+                outcome <- runOne i m
+                ((m, outcome) :) <$> go rest
+    runOne i m = do
         writeFile file (_mutant m)
         outcome <- classify buildCmd testCmd mtimeout
             `finally` restore file origSrc
         hPutStrLn stderr $
-            "[" ++ show i ++ "/" ++ show (length mutants) ++ "] "
+            "[" ++ show i ++ "/" ++ show n ++ "] " ++ label ++ "  "
             ++ padTo 16 (showMuVar (_mtype m)) ++ "  " ++ show outcome
-        return (m, outcome)
+        return outcome
+
+-- | Has the optional deadline passed?
+pastDeadline :: Maybe UTCTime -> IO Bool
+pastDeadline Nothing   = return False
+pastDeadline (Just dl) = (> dl) <$> getCurrentTime
 
 -- | Build, then (if it builds) test, mapping toolchain results to outcomes.
 classify :: String -> String -> Maybe Int -> IO Outcome
@@ -192,11 +247,6 @@ runCmdTimeoutAware mt cmd = do
 -- | Restore the original file contents.
 restore :: FilePath -> String -> IO ()
 restore file orig = writeFile file orig
-
--- | Force the full mutant list, including each mutant's rendered source, so a
--- surrounding 'timeout' can bound generation cost.
-forceMutants :: [Mutant] -> [Mutant]
-forceMutants ms = sum (map (length . _mutant) ms) `seq` ms
 
 -- | Build an analysis summary from orchestrator outcomes.
 summarise :: [(Mutant, Outcome)] -> MAnalysisSummary
