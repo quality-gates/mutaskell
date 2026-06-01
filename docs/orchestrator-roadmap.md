@@ -44,26 +44,31 @@ mutant *generation* in time:
 | parse error                       | ~16%  |
 | generation exceeded 5 s (blow-up) | ~23%  |
 
-### 1. Parse coverage = CPP (verified: 20/20 failures)
+### 1. Parse coverage = CPP — DONE (partial), verified
 
 Every parse failure in the sample (20 of 20) was a file using CPP
 (`#if`/`#ifdef`/`#include` or `{-# LANGUAGE CPP #-}`). Zero were
 extension-only — `ghc-exactprint` already honours in-file `LANGUAGE` pragmas, so
 injecting cabal `default-extensions` would buy nothing.
 
-**Fix:** parse via `ghc-exactprint`'s CPP-aware path —
-`Language.Haskell.GHC.ExactPrint.Parsers.parseModuleWithCpp :: LibDir ->
-CppOptions -> FilePath -> IO ...` with
-`CppOptions{cppDefine, cppInclude, cppFile}`. `ghc-exactprint`'s CPP handling
-round-trips the original source (CPP'd-out regions preserved), so `exactPrint`
-still reproduces the file faithfully for write-back.
+**Implemented:** `getASTFromFile` (in `Test.Mutaskell.Mutation`) parses CPP files
+via `parseModuleWithCpp`, auto-discovering `cabal_macros.h` under `dist-newstyle`
+and force-including it (`cppFile`) for `MIN_VERSION_*` guards. Used by `--exec`
+and `--dry-run`. Verified build-free on the Pandoc clone:
+`Class/CommonState.hs` went from a parse error to 8 generated mutants.
 
-**Caveat not to gloss over:** Pandoc-class CPP relies on `MIN_VERSION_*` macros
-that live in cabal's generated `dist-newstyle/.../autogen/cabal_macros.h`. A
-complete fix must locate that header (present after a build, which `--exec`
-requires anyway) and pass it via `cppInclude`/`cppFile`. Without it, version
-guards still fail. Verify by re-running the parse sweep and confirming the CPP
-failures drop.
+**Still open (honest edges):**
+* Of the sampled CPP failures, 14/20 use `MIN_VERSION_*` and therefore need a
+  built `dist-newstyle`; only 6/20 (simple `__GLASGOW_HASKELL__`/OS guards) parse
+  without it. So full coverage on an *unbuilt* checkout is not achievable — but
+  `--exec` requires a build anyway.
+* Multi-package repos (pandoc, pandoc-cli, …) produce several `cabal_macros.h`
+  with *different* package version macros. We currently force-include the first
+  20 found; each header `#ifndef`-guards its macros so this is safe, but the
+  "right" macros for the file's own package are not specifically selected. If a
+  file mis-resolves a version guard, this is why.
+* Re-run the parse sweep against a *built* repo to quantify the remaining
+  failure rate.
 
 ### 2. Generation blow-up (~23% of files)
 

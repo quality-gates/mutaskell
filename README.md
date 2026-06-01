@@ -617,10 +617,15 @@ Notes and current limitations (being honest about the edges):
 *   It is **slow**: each mutant triggers a real (incremental) recompile plus a
     test run.  Scope tightly with `--enable`, coverage, or a narrow test command
     (e.g. `--test-cmd 'cabal test spec --test-options "--skip integration"'`).
-*   Mutant **generation** still uses the in-file parser, so files that rely on
-    **CPP** (`#if`/`#ifdef`) do not generate mutants yet — see
-    `docs/orchestrator-roadmap.md`.
+*   **CPP** files (`#if`/`#ifdef`) are parsed via `ghc-exactprint`'s CPP path.
+    `MIN_VERSION_*` guards additionally need cabal's generated `cabal_macros.h`,
+    which is auto-discovered under `dist-newstyle` once the project is built
+    (which `--exec` requires anyway). Simple version/OS guards parse without it.
+*   Some files (dense literal tables) make **generation** itself blow up; `--exec`
+    bounds it with a timeout and aborts with a message rather than hanging.
 *   Operates on **one file** at a time; whole-directory runs are on the roadmap.
+
+See `docs/orchestrator-roadmap.md` for measured evidence and the remaining work.
 
 ### JSON logger output
 
