@@ -14,6 +14,7 @@ import App.Filter
     , parseAnnotations
     )
 import App.Opts
+import App.Orchestrator (runOrchestrator)
 import App.Output
     ( printMutantDetails
     , printMutatorBreakdown
@@ -82,6 +83,7 @@ main = do
 runOpts :: Opts -> IO ()
 runOpts opts
   | optDryRun opts = dryRun (optFile opts)
+  | optExec opts   = runOrchestrator opts
   | otherwise      = do
       let file = optFile opts
           excDirs = optExcludeDirs opts

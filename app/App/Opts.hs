@@ -67,6 +67,9 @@ data Opts = Opts
   , optExcludeDirs  :: [String]
   , optWorkers      :: Int
   , optWorkerOutput :: Maybe FilePath
+  , optExec         :: Bool
+  , optBuildCmd     :: Maybe String
+  , optTestCmd      :: Maybe String
   } deriving (Eq, Show)
 
 -- | Default options: no flags set, no file.
@@ -111,6 +114,9 @@ defaultOpts = Opts
   , optExcludeDirs  = []
   , optWorkers      = 1
   , optWorkerOutput = Nothing
+  , optExec         = False
+  , optBuildCmd     = Nothing
+  , optTestCmd      = Nothing
   }
 
 -- Private list of valid config keys; used for unknown-key rejection.
@@ -353,6 +359,17 @@ optsParser base = Opts
           ( long "worker-output" <> metavar "FILE"
           <> value (optWorkerOutput base)
           <> internal )
+    <*> flag (optExec base) True
+          ( long "exec"
+          <> help "Orchestrator mode: drive the project's real build/test commands instead of the hint interpreter" )
+    <*> option (Just <$> str)
+          ( long "build-cmd" <> metavar "CMD"
+          <> value (optBuildCmd base)
+          <> help "Build command for --exec mode (default: 'cabal build')" )
+    <*> option (Just <$> str)
+          ( long "test-cmd" <> metavar "CMD"
+          <> value (optTestCmd base)
+          <> help "Test command for --exec mode (default: 'cabal test')" )
 
 -- | 'ParserInfo' wrapping 'optsParser'.  Use with 'execParser' in 'Main' or
 -- 'execParserPure' in tests.

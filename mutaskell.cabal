@@ -73,6 +73,7 @@ executable mutaskell
   other-modules:    App.Opts
                     App.Exit
                     App.Filter
+                    App.Orchestrator
                     App.Output
                     App.Worker
   ghc-options:      -Wall
