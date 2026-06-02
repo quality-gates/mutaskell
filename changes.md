@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2]
+  * Fixed: baseline build-failure hints are now targeted to the specific failure. A dependency solver failure ("Could not resolve dependencies") surfaces `cabal update` as the primary fix; a missing-compiler error surfaces `ghcup run --ghc <version>`; other failures fall back to a generic suggestion. Previously all build failures showed the same generic list regardless of cause.
+  * Fixed: stdout is now line-buffered from startup, so project-mode progress lines and error messages appear in the correct order when output is piped or redirected.
+
 ## [0.8.1]
   * Fixed: baseline build and test failures in project mode now print the last 15 lines of the captured output inline, point to the full log at `.mutaskell/exec.log`, and include actionable hints (GHC version mismatch, wrong command, override flags `--build-cmd`/`--test-cmd`). Previously the error was a single terse line with no log reference and no suggested remediation.
 

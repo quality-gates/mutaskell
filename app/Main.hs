@@ -40,7 +40,7 @@ import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
-import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
+import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
 
 import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
@@ -69,6 +69,7 @@ extractConfigArg []                    = Nothing
 
 main :: IO ()
 main = do
+  hSetBuffering stdout LineBuffering
   args <- getArgs
   let configPath = extractConfigArg args
   eConfigFn <- loadConfig configPath
