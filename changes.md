@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0]
   * Fixed: project discovery no longer drops a source directory that a library/executable shares with a test-suite. mutaskell's own `test-suite spec` lists `hs-source-dirs: test app`, and the earlier test-exclusion logic wrongly excluded `app` (the executable's own code). Test/bench dirs are now excluded only when no library/executable also builds from them
   * Changed: function/operator substitution makes a single whole-AST traversal matching every configured group, instead of one traversal per group (~20 SYB sweeps). Combined with hash-keyed mutant de-duplication (replacing an O(n²) full-source string compare), this speeds up generation, especially on large modules
   * Changed: per-file generation is bounded in two separate phases — operator selection (capped at 30s) then rendering (the soft budget) — and rendered mutants accumulate as they are produced, so a large module yields a representative sample rather than zero (e.g. `app/App/Output.hs`/`App/Project.hs` now yield ~30 mutants each). Project `--dry-run` reports true per-file counts and marks files that exceed the timeout as skipped
