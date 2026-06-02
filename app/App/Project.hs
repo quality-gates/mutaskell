@@ -264,10 +264,15 @@ dryCount opts file = do
             let cap = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
                 cfg = defaultConfig { maxNumMutants = cap }
             muncov <- resolveUncovered opts (getModuleName ast)
-            (_, sampled) <- genWithinBudget genBudgetSecs $ do
+            -- A dry run reports what generation actually produces, bounded only by
+            -- a generous timeout (not the per-file render budget used by real runs);
+            -- a file that needs longer than that to fully generate is reported as a
+            -- skip (e.g. very large modules — see notes in genWithinBudget).
+            r <- timeout (genSetupCeilingSecs * 1000000) $ do
                 ms <- genSampledMutantsGated cfg muncov ast
-                return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
-            return (Just (length sampled))
+                let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
+                evaluate (length ms')
+            return r
 
 -- | Soft per-file generation budget (seconds).  Generation is bounded so no
 -- single file dominates the run: the operator-level sampling caps the candidate
@@ -277,27 +282,48 @@ dryCount opts file = do
 genBudgetSecs :: Int
 genBudgetSecs = 5
 
--- | Run a mutant-generating action and force rendered mutants one at a time
--- until @secs@ elapses, returning @(completed, mutants)@.  @completed@ is 'False'
--- if the soft deadline cut generation short or the hard ceiling (3x the budget,
--- guarding a runaway up-front operator build) fired — so the caller can avoid
--- recording a time-truncated file as fully done (which would skip it forever on
--- resume even though nothing, or only part, was generated).
+-- | Generate mutants in two separately-bounded phases and return
+-- @(completed, mutants)@.  @completed@ is 'False' if either phase was cut short,
+-- so the caller avoids recording a time-truncated file as fully done (which would
+-- skip it forever on resume).
+--
+-- Phase 1 (setup): operator selection + sampling.  On a large module this is
+-- several whole-AST traversals and can take many seconds; it is bounded by
+-- 'genSetupCeilingSecs'.  Crucially the render budget does /not/ start until this
+-- finishes — otherwise setup eats the whole budget and the file yields zero
+-- mutants (which is exactly what happened to mutaskell's own @Mutation.hs@).
+--
+-- Phase 2 (render): force mutants one at a time into an accumulator until @secs@
+-- elapses, so a module with many mutants still completes promptly with a
+-- representative sample.  Accumulating into an 'IORef' means a hard-timeout (a
+-- single pathological render that overruns the soft deadline) still yields the
+-- mutants rendered so far instead of discarding everything.
 genWithinBudget :: Int -> IO [Mutant] -> IO (Bool, [Mutant])
 genWithinBudget secs act = do
-    deadline <- addUTCTime (fromIntegral secs) <$> getCurrentTime
-    r <- timeout (3 * secs * 1000000) (act >>= forceUntil deadline)
-    return (fromMaybe (False, []) r)
+    mlist <- timeout (genSetupCeilingSecs * 1000000) act
+    case mlist of
+        Nothing -> return (False, [])   -- setup itself ran away
+        Just ms -> do
+            acc <- newIORef []
+            deadline <- addUTCTime (fromIntegral secs) <$> getCurrentTime
+            done <- timeout (4 * secs * 1000000) (forceInto acc deadline ms)
+            got  <- reverse <$> readIORef acc
+            return (done == Just True, got)
   where
-    forceUntil _ [] = return (True, [])
-    forceUntil dl (m : rest) = do
-        _ <- evaluate (length (_mutant m))
-        now <- getCurrentTime
-        if now >= dl
-            then return (False, [m])
-            else do
-                (full, ms) <- forceUntil dl rest
-                return (full, m : ms)
+    forceInto acc dl = go
+      where
+        go []       = return True
+        go (m : ms) = do
+            _ <- evaluate (length (_mutant m))
+            modifyIORef' acc (m :)
+            now <- getCurrentTime
+            if now >= dl then return False else go ms
+
+-- | Hard ceiling (seconds) on operator selection for a single file, independent
+-- of the render budget.  Generous because it is a fixed cost paid once per file;
+-- only pathologically large modules approach it.
+genSetupCeilingSecs :: Int
+genSetupCeilingSecs = 30
 
 -- ---------------------------------------------------------------------------
 -- Parallel evaluation (AC 14)
@@ -526,8 +552,10 @@ discoverSources opts = do
     let libDirs  = concatMap fst parsed
         -- Test/bench source dirs to skip.  Drop "." (a test-suite with no
         -- hs-source-dirs defaults to the package dir) so we never exclude the
-        -- whole tree.
-        testDirs = filter (`notElem` [".", ""]) (concatMap snd parsed)
+        -- whole tree, and drop any dir that a library/executable also builds
+        -- from (e.g. mutaskell's `test-suite` lists `test app`, but `app` is the
+        -- executable's own code and must still be mutated).
+        testDirs = filter (`notElem` ([".", ""] ++ libDirs)) (concatMap snd parsed)
         pkgDirs  = nub (map dirOf cabals)
         -- With no cabal files (or none yielding a directory) fall back to walking
         -- the project root, so a plain directory of Haskell still works.

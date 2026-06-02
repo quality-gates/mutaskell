@@ -9,6 +9,7 @@ module Test.Mutaskell.Mutation where
 
 import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
+import qualified Data.Hashable as H
 import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
 import System.Directory (doesDirectoryExist)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
@@ -258,7 +259,7 @@ genSampledMutantsWith ::
 genSampledMutantsWith config muncovered extraSels origAst = do
     sampledOps <- sampleOps config (gate ops)
     return $
-        nubBy (\a b -> _mutant a == _mutant b) $
+        nubRendered $
             filter (\m -> _mutant m /= origStr) $
                 map (toMutant . apTh exactPrint) $
                     nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
@@ -275,6 +276,20 @@ genSampledMutantsWith config muncovered extraSels origAst = do
     covered uncovered (_, op) =
         let sp = toSpan (getSpan op)
         in not (any (insideSpan sp) uncovered)
+
+-- | Deduplicate mutants by rendered source, keyed on a hash so the cost is
+-- ~O(n) hashing + O(n^2) cheap 'Int' comparisons instead of O(n^2) /full-source/
+-- string comparisons.  On a large module the latter dominated generation — every
+-- pair compared two ~50KB module renderings.  A 64-bit hash collision between
+-- distinct renderings is astronomically unlikely at these list sizes.
+nubRendered :: [Mutant] -> [Mutant]
+nubRendered = go []
+  where
+    go _ [] = []
+    go seen (m : ms)
+        | h `elem` seen = go seen ms
+        | otherwise     = m : go (h : seen) ms
+      where h = H.hash (_mutant m) :: Int
 
 -- | Sample a list of mutation operators proportionally by mutator type and cap
 -- the total at 'maxNumMutants' — the operator-level analogue of
@@ -725,12 +740,37 @@ selectIdentFnOps m idents = selectValOps isIdent convert m
     convert _ = []
 
 -- | Combined function/operator substitution based on 'Config' 'FnOp' entries.
+--
+-- This makes a /single/ traversal over the module, matching each variable
+-- occurrence against every configured group, rather than one whole-AST traversal
+-- per group (which is ~20 SYB sweeps on a real config and dominated generation
+-- cost on large modules — e.g. mutaskell's own @Mutation.hs@ timed out at 0
+-- mutants).  'selectIdentFnOps' / 'selectSymbolFnOps' remain for the per-group
+-- API used elsewhere.
 selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
-selectFunctionOps fos m = concatMap (selectIdentFnOps m) idents
-                       ++ concatMap (selectSymbolFnOps m) syms
+selectFunctionOps fos m = selectValOps isTarget convert m
   where
-    idents = map _fns $ filter (\a -> _type a == FnIdent)  fos
-    syms   = map _fns $ filter (\a -> _type a == FnSymbol) fos
+    identGroups = map _fns $ filter (\a -> _type a == FnIdent)  fos
+    symGroups   = map _fns $ filter (\a -> _type a == FnSymbol) fos
+    -- Neighbours to substitute for a name: every other member of any group it
+    -- belongs to.
+    identNeighbours n = [ x | g <- identGroups, n `elem` g, x <- g, x /= n ]
+    symNeighbours   n = [ x | g <- symGroups,   n `elem` g, x <- g, x /= n ]
+
+    isTarget :: LHsExpr GhcPs -> Bool
+    isTarget (L _ (HsVar _ (L _ rdr))) =
+        let n = rdrStr rdr
+        in not (null (identNeighbours n)) || not (null (symNeighbours n))
+    isTarget _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L l (HsVar x (L lr rdr))) =
+        -- Identifier swaps preserve the located wrapper (entry delta + backquote
+        -- adornment); symbol swaps build a fresh var (as 'selectSymbolFnOps').
+        [ L l (HsVar x (L lr (mkRdrUnqual (mkVarOcc s)))) | s <- identNeighbours n ]
+        ++ [ mkVar s | s <- symNeighbours n ]
+      where n = rdrStr rdr
+    convert _ = []
 
 -- ---------------------------------------------------------------------------
 -- Logical operator mutations

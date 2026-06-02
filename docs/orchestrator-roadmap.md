@@ -128,6 +128,23 @@ and `--dry-run`. Verified build-free on the Pandoc clone:
 * Re-run the parse sweep against a *built* repo to quantify the remaining
   failure rate.
 
+### 1b. Generation cost on very large modules (open)
+
+Generation makes a fixed set of whole-AST SYB traversals (operator selection)
+and then renders each mutant by re-serialising the /entire/ module with
+`exactPrint` (~0.5s on a ~1500-line file).  So a very large module costs
+roughly `selection + mutants × full-module-render`.  Mitigations landed:
+function-substitution collapsed to one traversal; mutant de-dup keyed on a hash
+instead of O(n²) full-string compares; per-file budget split into a setup cap
+plus a render budget that accumulates partial results.  Net effect: large files
+now yield a representative sample instead of zero — except the largest
+(mutaskell's own 1454-line `Mutation.hs`), where rendering even one mutant
+exceeds the budget, so it still yields zero.  The real fix is to stop storing the
+full rendered module per mutant (incremental / diff-based rendering), or to fuse
+the remaining ~10 selectors into a single traversal.  Until then, very large
+modules are under-sampled or skipped, and the project `--dry-run` marks them as
+skipped after the timeout.
+
 ### 2. Generation blow-up (~23% of files)
 
 Generation is CPU-super-linear on files dense in literals (symbol tables, large
