@@ -33,9 +33,11 @@ module App.Project
 
 import Control.Exception (SomeException, evaluate, finally, try)
 import Control.Monad (filterM, foldM, forM, unless, when)
+import Data.Char (toLower)
+import Data.Either (fromRight)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nub, sort)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import System.Timeout (timeout)
 import Text.Read (readMaybe)
@@ -51,7 +53,7 @@ import System.Directory
     , setCurrentDirectory
     )
 import System.Environment (getExecutablePath)
-import System.Exit (ExitCode (..), exitWith)
+import System.Exit (ExitCode (..), exitSuccess, exitWith)
 import System.FilePath (takeExtension, takeFileName, (</>))
 import System.IO (hPutStrLn, readFile', stderr)
 import System.Process (callProcess, createProcess, proc, waitForProcess)
@@ -86,7 +88,7 @@ survivorsFile = stateDir ++ "/survivors.txt"
 -- the repo (see 'runParallel'); otherwise it runs in this process.
 runProject :: Opts -> IO ()
 runProject opts
-    | optJobs opts > 1 && optOnlyFiles opts == Nothing = runParallel opts
+    | optJobs opts > 1 && isNothing (optOnlyFiles opts) = runParallel opts
     | otherwise                                        = runSerial opts
 
 -- | Single-process project run (also used as each parallel worker, restricted to
@@ -110,7 +112,7 @@ runSerial opts = do
     when (null files) $ do
         hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
         maybe (return ()) (`writeFile` "0 0 0 0") (optResultOut opts)
-        exitWith ExitSuccess
+        exitSuccess
 
     done <- readProgress
     let pending = filter (`notElem` done) files
@@ -268,11 +270,10 @@ dryCount opts file = do
             -- a generous timeout (not the per-file render budget used by real runs);
             -- a file that needs longer than that to fully generate is reported as a
             -- skip (e.g. very large modules — see notes in genWithinBudget).
-            r <- timeout (genSetupCeilingSecs * 1000000) $ do
+            timeout (genSetupCeilingSecs * 1000000) $ do
                 ms <- genSampledMutantsGated cfg muncov ast
                 let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
                 evaluate (length ms')
-            return r
 
 -- | Soft per-file generation budget (seconds).  Generation is bounded so no
 -- single file dominates the run: the operator-level sampling caps the candidate
@@ -498,7 +499,7 @@ resolveUncovered opts modName = do
     mt <- resolveTix opts
     case mt of
         Nothing  -> return Nothing
-        Just tix -> either (const Nothing) id <$> getUnCoveredPatches tix modName
+        Just tix -> fromRight Nothing <$> getUnCoveredPatches tix modName
 
 resolveTix :: Opts -> IO (Maybe FilePath)
 resolveTix opts
@@ -555,7 +556,7 @@ discoverSources opts = do
         -- whole tree, and drop any dir that a library/executable also builds
         -- from (e.g. mutaskell's `test-suite` lists `test app`, but `app` is the
         -- executable's own code and must still be mutated).
-        testDirs = filter (`notElem` ([".", ""] ++ libDirs)) (concatMap snd parsed)
+        testDirs = concatMap (filter (`notElem` ([".", ""] ++ libDirs)) . snd) parsed
         pkgDirs  = nub (map dirOf cabals)
         -- With no cabal files (or none yielding a directory) fall back to walking
         -- the project root, so a plain directory of Haskell still works.
@@ -593,18 +594,17 @@ cabalDirsOf cabal = do
   where
     base = let d = reverse (dropWhile (/= '/') (reverse cabal))
            in if null d then "." else init d
-    toLowerC c = if c >= 'A' && c <= 'Z' then toEnum (fromEnum c + 32) else c
     -- A stanza header starts at column 0 (no leading space/tab).
     isHeader l = case l of
         (c : _) -> c /= ' ' && c /= '\t'
         []      -> False
     -- test-suite / benchmark stanzas hold test code, not code-under-test.
     headerBuildable l =
-        map toLowerC (takeWhile (/= ' ') l) `notElem` ["test-suite", "benchmark"]
+        map toLower (takeWhile (/= ' ') l) `notElem` ["test-suite", "benchmark"]
     go _ libs tests [] = (reverse libs, reverse tests)
     go buildable libs tests (l : ls)
         | isHeader l = go (headerBuildable l) libs tests ls
-        | "hs-source-dirs:" `isInfixOf` map toLowerC l =
+        | "hs-source-dirs:" `isInfixOf` map toLower l =
             let ds = [ normalise (base </> d) | d <- splitFields (afterColon l), not (null d) ]
             in if buildable
                 then go buildable (reverse ds ++ libs) tests ls
@@ -668,7 +668,7 @@ recordSurvivors :: String -> FilePath -> [(Mutant, Outcome)] -> IO ()
 recordSurvivors origSrc file rs = do
     let alive = [m | (m, Alive) <- rs]
     unless (null alive) $
-        mapM_ (\m -> appendFile survivorsFile (survivorLine origSrc file m)) alive
+        mapM_ (appendFile survivorsFile . survivorLine origSrc file) alive
 
 survivorLine :: String -> FilePath -> Mutant -> String
 survivorLine origSrc file m =

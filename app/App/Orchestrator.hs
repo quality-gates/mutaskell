@@ -51,7 +51,7 @@ import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Time.Clock (UTCTime, getCurrentTime)
 import System.Directory (createDirectoryIfMissing)
-import System.Exit (ExitCode (..), exitWith)
+import System.Exit (ExitCode (..), exitSuccess, exitWith)
 import System.IO (hPutStrLn, readFile', stderr)
 import System.Process
     ( createProcess
@@ -145,7 +145,7 @@ runOrchestrator opts = do
     let total = length mutants
     when (total == 0) $ do
         putStrLn "No mutants generated for this file."
-        exitWith ExitSuccess
+        exitSuccess
     putStrLn $ "Evaluating " ++ show total ++ " mutant(s) against the real build...\n"
 
     -- The original is restored after every mutant and, crucially, in `finally`
