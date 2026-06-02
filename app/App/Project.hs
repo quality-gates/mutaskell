@@ -64,6 +64,7 @@ import App.Opts (Opts (..))
 import App.Orchestrator
     ( Outcome (..)
     , evaluateFile
+    , execLog
     , runCmd
     , restore
     , stateDir
@@ -123,12 +124,10 @@ runSerial opts = do
     -- Baseline runs exactly once for the whole project (AC 10), not per file.
     putStrLn "Baseline: building unmodified project..."
     b0 <- runCmd Nothing buildCmd
-    when (b0 /= ExitSuccess) $ abort 3
-        "Baseline build failed on the unmodified project. Fix the build first."
+    when (b0 /= ExitSuccess) $ baselineBuildFailed buildCmd
     putStrLn "Baseline: running the test suite on unmodified project..."
     t0 <- runCmd mtimeout testCmd
-    when (t0 /= ExitSuccess) $ abort 3
-        "Baseline tests failed (or timed out) on the unmodified project. The suite must be green to start."
+    when (t0 /= ExitSuccess) $ baselineTestFailed testCmd (t0 == ExitFailure 124)
     putStrLn "Baseline OK.\n"
 
     -- Budget state shared across files.
@@ -704,7 +703,69 @@ reportBudget opts = do
 firstLine :: String -> String
 firstLine = takeWhile (/= '\n')
 
-abort :: Int -> String -> IO a
-abort code msg = do
-    hPutStrLn stderr msg
-    exitWith (if code == 0 then ExitSuccess else ExitFailure code)
+-- | Abort because the baseline build failed.  Prints the last lines of the
+-- captured build log and actionable diagnostic hints.  Never returns.
+baselineBuildFailed :: String -> IO a
+baselineBuildFailed cmd = do
+    hPutStrLn stderr $ unlines
+        [ ""
+        , "Baseline build FAILED."
+        , ""
+        , "  Command: " ++ cmd
+        ]
+    printLogTail
+    hPutStrLn stderr $ unlines
+        [ "  Hints:"
+        , "    - Run the command above in this directory to see the full error"
+        , "      without mutaskell in the way."
+        , "    - GHC version mismatch: the project's dependencies may not yet"
+        , "      support the installed GHC.  Try:"
+        , "        ghcup run --ghc <version> -- " ++ cmd
+        , "    - Wrong build command (auto-detected from cabal/stack files)."
+        , "      Override: --build-cmd \"<your command>\""
+        , ""
+        , "  Full output: " ++ execLog
+        ]
+    exitWith (ExitFailure 3)
+
+-- | Abort because the baseline test run failed or timed out.  Never returns.
+baselineTestFailed :: String -> Bool -> IO a
+baselineTestFailed cmd timedOut = do
+    hPutStrLn stderr $ unlines
+        [ ""
+        , if timedOut
+            then "Baseline test suite TIMED OUT."
+            else "Baseline test suite FAILED."
+        , ""
+        , "  Command: " ++ cmd
+        ]
+    printLogTail
+    hPutStrLn stderr $ unlines $
+        [ "  Hints:" ] ++
+        ( if timedOut
+            then [ "    - The test suite exceeded the configured --timeout."
+                 , "      Remove --timeout to wait indefinitely, or narrow the scope:"
+                 , "        --test-cmd \"cabal test <pkg> --test-show-details=direct\""
+                 ]
+            else [ "    - The suite must be green before mutation testing can start."
+                 , "    - Fix failing tests first, or narrow the scope:"
+                 , "        --test-cmd \"cabal test <pkg> --test-show-details=direct\""
+                 ] ) ++
+        [ ""
+        , "  Full output: " ++ execLog
+        ]
+    exitWith (ExitFailure 3)
+
+-- | Print the last 15 lines of 'execLog' to stderr, prefixed for readability.
+printLogTail :: IO ()
+printLogTail = do
+    exists <- doesFileExist execLog
+    when exists $ do
+        ls <- lines <$> readFile' execLog
+        let tailLines = drop (max 0 (length ls - 15)) ls
+        unless (null tailLines) $ do
+            hPutStrLn stderr "  Last output:"
+            mapM_ (hPutStrLn stderr . ("    " ++)) tailLines
+            hPutStrLn stderr ""
+
+
