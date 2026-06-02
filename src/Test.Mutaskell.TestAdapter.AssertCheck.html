@@ -7,7 +7,7 @@
 </span><span id="line-7"></span><span class="hs-keyword">data</span><span> </span><span id="AssertStatus"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertStatus"><span class="hs-identifier hs-var">AssertStatus</span></a></span></span><span>
 </span><span id="line-8"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="AssertSuccess"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertSuccess"><span class="hs-identifier hs-var">AssertSuccess</span></a></span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Assertion passed</span></span><span>
 </span><span id="line-9"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="AssertFailure"><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertFailure"><span class="hs-identifier hs-var">AssertFailure</span></a></span></span><span> </span><span class="annot"><span class="hs-comment">-- ^ Assertion failed</span></span><span>
-</span><span id="line-10"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679268145"><span id="local-6989586621679268150"><span class="annot"><span class="annottext">AssertStatus -&gt; AssertStatus -&gt; Bool
+</span><span id="line-10"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679268185"><span id="local-6989586621679268190"><span class="annot"><span class="annottext">AssertStatus -&gt; AssertStatus -&gt; Bool
 (AssertStatus -&gt; AssertStatus -&gt; Bool)
 -&gt; (AssertStatus -&gt; AssertStatus -&gt; Bool) -&gt; Eq AssertStatus
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
@@ -15,7 +15,7 @@ $c== :: AssertStatus -&gt; AssertStatus -&gt; Bool
 == :: AssertStatus -&gt; AssertStatus -&gt; Bool
 $c/= :: AssertStatus -&gt; AssertStatus -&gt; Bool
 /= :: AssertStatus -&gt; AssertStatus -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679268155"><span id="local-6989586621679268157"><span id="local-6989586621679268161"><span class="annot"><span class="annottext">Int -&gt; AssertStatus -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679268195"><span id="local-6989586621679268197"><span id="local-6989586621679268201"><span class="annot"><span class="annottext">Int -&gt; AssertStatus -&gt; ShowS
 [AssertStatus] -&gt; ShowS
 AssertStatus -&gt; String
 (Int -&gt; AssertStatus -&gt; ShowS)
@@ -35,9 +35,9 @@ showList :: [AssertStatus] -&gt; ShowS
 </span><span id="line-12"></span><span class="annot"><span class="hs-comment">-- | Convert a boolean to an AssertStatus</span></span><span>
 </span><span id="line-13"></span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheck"><span class="hs-identifier hs-type">assertCheck</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertStatus"><span class="hs-identifier hs-type">AssertStatus</span></a></span><span>
 </span><span id="line-14"></span><span id="assertCheck"><span class="annot"><span class="annottext">assertCheck :: Bool -&gt; AssertStatus
-</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheck"><span class="hs-identifier hs-var hs-var">assertCheck</span></a></span></span><span> </span><span id="local-6989586621679268166"><span class="annot"><span class="annottext">Bool
-</span><a href="#local-6989586621679268166"><span class="hs-identifier hs-var">fn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Bool
-</span><a href="#local-6989586621679268166"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheck"><span class="hs-identifier hs-var hs-var">assertCheck</span></a></span></span><span> </span><span id="local-6989586621679268206"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679268206"><span class="hs-identifier hs-var">fn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679268206"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-15"></span><span>    </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AssertStatus
 </span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertSuccess"><span class="hs-identifier hs-var">AssertSuccess</span></a></span><span>
@@ -48,13 +48,13 @@ showList :: [AssertStatus] -&gt; ShowS
 </span><span id="line-18"></span><span class="annot"><span class="hs-comment">-- | Print the result of an assertion check and handle exceptions</span></span><span>
 </span><span id="line-19"></span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheckResult"><span class="hs-identifier hs-type">assertCheckResult</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertStatus"><span class="hs-identifier hs-type">AssertStatus</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertStatus"><span class="hs-identifier hs-type">AssertStatus</span></a></span><span>
 </span><span id="line-20"></span><span id="assertCheckResult"><span class="annot"><span class="annottext">assertCheckResult :: AssertStatus -&gt; IO AssertStatus
-</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheckResult"><span class="hs-identifier hs-var hs-var">assertCheckResult</span></a></span></span><span> </span><span id="local-6989586621679268168"><span class="annot"><span class="annottext">AssertStatus
-</span><a href="#local-6989586621679268168"><span class="hs-identifier hs-var">fn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO AssertStatus -&gt; IO AssertStatus
-</span><a href="#local-6989586621679268169"><span class="hs-identifier hs-var">withCheck</span></a></span><span> </span><span class="annot"><span class="annottext">(IO AssertStatus -&gt; IO AssertStatus)
+</span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#assertCheckResult"><span class="hs-identifier hs-var hs-var">assertCheckResult</span></a></span></span><span> </span><span id="local-6989586621679268208"><span class="annot"><span class="annottext">AssertStatus
+</span><a href="#local-6989586621679268208"><span class="hs-identifier hs-var">fn</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO AssertStatus -&gt; IO AssertStatus
+</span><a href="#local-6989586621679268209"><span class="hs-identifier hs-var">withCheck</span></a></span><span> </span><span class="annot"><span class="annottext">(IO AssertStatus -&gt; IO AssertStatus)
 -&gt; IO AssertStatus -&gt; IO AssertStatus
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AssertStatus
-</span><a href="#local-6989586621679268168"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679268208"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-21"></span><span>    </span><span class="annot"><span class="annottext">AssertStatus
 </span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertSuccess"><span class="hs-identifier hs-var">AssertSuccess</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-22"></span><span>        </span><span class="annot"><span class="annottext">String -&gt; IO ()
@@ -76,21 +76,21 @@ forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">AssertStatus
 </span><a href="Test.Mutaskell.TestAdapter.AssertCheck.html#AssertFailure"><span class="hs-identifier hs-var">AssertFailure</span></a></span><span>
 </span><span id="line-27"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-28"></span><span>    </span><span id="local-6989586621679268169"><span class="annot"><span class="annottext">withCheck :: IO AssertStatus -&gt; IO AssertStatus
-</span><a href="#local-6989586621679268169"><span class="hs-identifier hs-var hs-var">withCheck</span></a></span></span><span> </span><span id="local-6989586621679268177"><span class="annot"><span class="annottext">IO AssertStatus
-</span><a href="#local-6989586621679268177"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO AssertStatus
+</span><span id="line-28"></span><span>    </span><span id="local-6989586621679268209"><span class="annot"><span class="annottext">withCheck :: IO AssertStatus -&gt; IO AssertStatus
+</span><a href="#local-6989586621679268209"><span class="hs-identifier hs-var hs-var">withCheck</span></a></span></span><span> </span><span id="local-6989586621679268217"><span class="annot"><span class="annottext">IO AssertStatus
+</span><a href="#local-6989586621679268217"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO AssertStatus
 -&gt; (SomeException -&gt; IO AssertStatus) -&gt; IO AssertStatus
 forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
 </span><span class="hs-identifier hs-var">catch</span></span><span> </span><span class="annot"><span class="annottext">IO AssertStatus
-</span><a href="#local-6989586621679268177"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">((SomeException -&gt; IO AssertStatus) -&gt; IO AssertStatus)
+</span><a href="#local-6989586621679268217"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">((SomeException -&gt; IO AssertStatus) -&gt; IO AssertStatus)
 -&gt; (SomeException -&gt; IO AssertStatus) -&gt; IO AssertStatus
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679268179"><span class="annot"><span class="annottext">SomeException
-</span><a href="#local-6989586621679268179"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679268219"><span class="annot"><span class="annottext">SomeException
+</span><a href="#local-6989586621679268219"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-29"></span><span>        </span><span class="annot"><span class="annottext">SomeException -&gt; IO ()
 forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SomeException
-</span><a href="#local-6989586621679268179"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SomeException</span></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679268219"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SomeException</span></span><span class="hs-special">)</span><span>
 </span><span id="line-30"></span><span>        </span><span class="annot"><span class="annottext">AssertStatus -&gt; IO AssertStatus
 forall a. a -&gt; IO a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
