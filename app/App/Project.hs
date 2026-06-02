@@ -317,10 +317,16 @@ runParallel opts = do
     setCurrentDirectory root
     createDirectoryIfMissing True stateDir
     allFiles <- discoverSources opts
-    let n      = optJobs opts
-        shards = filter (not . null) (distribute n allFiles)
+    done <- readProgress
+    let n       = optJobs opts
+        pending = filter (`notElem` done) allFiles
+        shards  = filter (not . null) (distribute n pending)
     if null shards
-        then hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
+        then putStrLn $ if null allFiles
+            then "No Haskell source files discovered. Nothing to do."
+            else "All " ++ show (length allFiles)
+                ++ " discovered file(s) already done (per "
+                ++ progressFile ++ "). Nothing to do."
         else do
             self <- getExecutablePath
             tmp  <- getTemporaryDirectory
@@ -353,6 +359,7 @@ runParallel opts = do
                 ec <- waitForProcess ph
                 t  <- readResult resF
                 mergeSurvivors wdir
+                mergeProgress wdir
                 mapM_ removeIfExists [wdir, listF, resF]
                 return (i, ec, t)
             let failed   = [i | (i, ec, _) <- outcomes, ec /= ExitSuccess]
@@ -415,6 +422,17 @@ mergeSurvivors wdir = do
     e <- try (readFile' wsv) :: IO (Either SomeException String)
     case e of
         Right c -> appendFile survivorsFile c
+        Left _  -> return ()
+
+-- | Append a worker's completed-file list to the master's progress, so a
+-- subsequent parallel run resumes (skips files finished by a previous run).
+-- The worker's copy mirrors the repo layout, so its relative paths match.
+mergeProgress :: FilePath -> IO ()
+mergeProgress wdir = do
+    let wp = wdir </> stateDir </> "progress"
+    e <- try (readFile' wp) :: IO (Either SomeException String)
+    case e of
+        Right c -> appendFile progressFile c
         Left _  -> return ()
 
 add4 :: (Int, Int, Int, Int) -> (Int, Int, Int, Int) -> (Int, Int, Int, Int)

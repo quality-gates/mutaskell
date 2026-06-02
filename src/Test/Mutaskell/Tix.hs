@@ -103,9 +103,12 @@ error only if the requested module's own @.mix@ cannot be found.
 getUnCoveredPatches :: String -> String -> IO (Either String (Maybe [Span]))
 getUnCoveredPatches file name = do
     tms <- parseTix file
+    -- Only gate on an *unambiguous* match.  In a multi-package repo two modules
+    -- can share the same name; picking the first would apply the wrong module's
+    -- coverage (dropping covered mutants or keeping uncovered ones), which is
+    -- worse than not gating.  0 or >1 matches => do not gate.
     case filter (matchesName name) tms of
-        []       -> return (Right Nothing)
-        (tm : _) -> do
+        [tm] -> do
             emix <- getMix tm
             case emix of
                 Left err  -> return (Left err)
@@ -113,6 +116,7 @@ getUnCoveredPatches file name = do
                     let (_, modSpan) = mixTix (tixModuleName tm) mix tm
                         uncovSpan    = filter (not . isCovered . snd) modSpan
                     in return $ Right $ Just $ removeRedundantSpans $ map fst uncovSpan
+        _ -> return (Right Nothing)
 
 -- | Does a tix module's name match the requested (unqualified) module name?
 matchesName :: String -> TixModule -> Bool
