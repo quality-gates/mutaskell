@@ -32,12 +32,13 @@ module App.Project
     ) where
 
 import Control.Exception (SomeException, evaluate, finally, try)
-import Control.Monad (filterM, foldM, forM, forM_, unless, when)
+import Control.Monad (filterM, foldM, forM, unless, when)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
-import Data.List (isInfixOf, isSuffixOf, nub, sort)
+import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Maybe (fromMaybe)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import System.Timeout (timeout)
+import Text.Read (readMaybe)
 import System.Directory
     ( canonicalizePath
     , createDirectoryIfMissing
@@ -204,12 +205,15 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
             let perFileCap = min remaining (maxNumMutants defaultConfig)
                 cfg        = defaultConfig { maxNumMutants = perFileCap }
             muncov <- resolveUncovered opts (getModuleName ast)
-            sampled <- genWithinBudget genBudgetSecs $ do
+            (genComplete, sampled) <- genWithinBudget genBudgetSecs $ do
                 ms <- genSampledMutantsGated cfg muncov ast
                 return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
             if null sampled
                 then do
-                    recordDone file
+                    -- Record done only if generation genuinely finished (zero
+                    -- mutants), not if it was time-truncated — otherwise a slow
+                    -- file is silently skipped forever on resume.
+                    when genComplete (recordDone file)
                     return []
                 else do
                     hPutStrLn stderr $ "FILE " ++ file ++ ": "
@@ -219,9 +223,9 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
                         `finally` restore file origSrc
                     modifyIORef' budgetRef (subtract (length rs))
                     recordSurvivors origSrc file rs
-                    -- Only record as done if we evaluated the whole file
-                    -- (a budget cut mid-file leaves it for the resume).
-                    when (length rs == length sampled) (recordDone file)
+                    -- Record done only if generation finished and we evaluated
+                    -- the whole file (a budget cut mid-file leaves it for resume).
+                    when (genComplete && length rs == length sampled) (recordDone file)
                     return rs
 
 -- | Dry run over a project: discover files and report per-file generation counts
@@ -260,7 +264,7 @@ dryCount opts file = do
             let cap = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
                 cfg = defaultConfig { maxNumMutants = cap }
             muncov <- resolveUncovered opts (getModuleName ast)
-            sampled <- genWithinBudget genBudgetSecs $ do
+            (_, sampled) <- genWithinBudget genBudgetSecs $ do
                 ms <- genSampledMutantsGated cfg muncov ast
                 return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
             return (Just (length sampled))
@@ -274,22 +278,26 @@ genBudgetSecs :: Int
 genBudgetSecs = 5
 
 -- | Run a mutant-generating action and force rendered mutants one at a time
--- until @secs@ elapses, returning however many were produced in time.  A hard
--- ceiling at 3x the budget guards against the up-front operator-building cost
--- running away on a pathological file.
-genWithinBudget :: Int -> IO [Mutant] -> IO [Mutant]
+-- until @secs@ elapses, returning @(completed, mutants)@.  @completed@ is 'False'
+-- if the soft deadline cut generation short or the hard ceiling (3x the budget,
+-- guarding a runaway up-front operator build) fired — so the caller can avoid
+-- recording a time-truncated file as fully done (which would skip it forever on
+-- resume even though nothing, or only part, was generated).
+genWithinBudget :: Int -> IO [Mutant] -> IO (Bool, [Mutant])
 genWithinBudget secs act = do
     deadline <- addUTCTime (fromIntegral secs) <$> getCurrentTime
     r <- timeout (3 * secs * 1000000) (act >>= forceUntil deadline)
-    return (fromMaybe [] r)
+    return (fromMaybe (False, []) r)
   where
-    forceUntil _ [] = return []
+    forceUntil _ [] = return (True, [])
     forceUntil dl (m : rest) = do
         _ <- evaluate (length (_mutant m))
         now <- getCurrentTime
         if now >= dl
-            then return [m]
-            else (m :) <$> forceUntil dl rest
+            then return (False, [m])
+            else do
+                (full, ms) <- forceUntil dl rest
+                return (full, m : ms)
 
 -- ---------------------------------------------------------------------------
 -- Parallel evaluation (AC 14)
@@ -326,23 +334,30 @@ runParallel opts = do
                     listF = wdir ++ ".files"
                     resF  = wdir ++ ".result"
                 removeIfExists wdir
+                -- Exclude build state and, crucially, .ghc.environment.* /
+                -- cabal.project.local: those bake in absolute paths to the
+                -- ORIGINAL repo's dist-newstyle and would misdirect the worker's
+                -- toolchain (and any hint-based tests) to the wrong build.
                 callProcess "rsync"
                     [ "-a", "--delete"
                     , "--exclude", ".git", "--exclude", "dist-newstyle"
-                    , "--exclude", ".mutaskell"
+                    , "--exclude", ".mutaskell", "--exclude", ".ghc.environment.*"
+                    , "--exclude", "cabal.project.local"
                     , root ++ "/", wdir ++ "/" ]
                 writeFile listF (unlines shard)
                 let args = [ wdir, "--jobs", "1", "--only-files", listF
                            , "--result-out", resF ] ++ passThrough opts perJobMax
                 (_, _, _, ph) <- createProcess (proc self args)
                 return (ph, resF, wdir, listF)
-            forM_ jobs $ \(ph, _, _, _) -> waitForProcess ph
-            tallies <- forM jobs $ \(_, resF, wdir, listF) -> do
-                t <- readResult resF
+            outcomes <- forM (zip [1 :: Int ..] jobs) $ \(i, (ph, resF, wdir, listF)) -> do
+                ec <- waitForProcess ph
+                t  <- readResult resF
                 mergeSurvivors wdir
                 mapM_ removeIfExists [wdir, listF, resF]
-                return t
-            let (k, a, s, tot) = foldr add4 (0, 0, 0, 0) tallies
+                return (i, ec, t)
+            let failed   = [i | (i, ec, _) <- outcomes, ec /= ExitSuccess]
+                tallies  = [t | (_, _, t) <- outcomes]
+                (k, a, s, tot) = foldr add4 (0, 0, 0, 0) tallies
                 msum = MAnalysisSummary
                     { _maCoveredNumMutants = -1, _maNumMutants = tot
                     , _maAlive = a, _maKilled = k, _maErrors = 0, _maSkipped = s }
@@ -351,7 +366,17 @@ runParallel opts = do
             print msum
             putStrLn $ "Surviving mutants merged into " ++ survivorsFile
                 ++ " (when any survived)."
-            applyExitPolicy opts msum
+            -- A worker that fails its baseline (or crashes) exits non-zero and
+            -- writes no result; its shard would otherwise vanish silently.
+            if null failed
+                then applyExitPolicy opts msum
+                else do
+                    hPutStrLn stderr $ "ERROR: " ++ show (length failed)
+                        ++ " of " ++ show (length jobs)
+                        ++ " worker(s) failed (baseline failure or crash); their"
+                        ++ " shards were NOT evaluated. Worker numbers: "
+                        ++ show failed ++ ". The score above is incomplete."
+                    exitWith (ExitFailure 3)
 
 -- | Round-robin a list into @n@ buckets.
 distribute :: Int -> [a] -> [[a]]
@@ -377,8 +402,10 @@ passThrough opts mMax = concat
 readResult :: FilePath -> IO (Int, Int, Int, Int)
 readResult p = do
     e <- try (readFile' p) :: IO (Either SomeException String)
+    -- Parse defensively: a worker killed mid-write leaves a partial line, and a
+    -- bare `read` there would throw and take the whole master run down.
     return $ case e of
-        Right s | [k, a, sk, t] <- map read (words s) -> (k, a, sk, t)
+        Right s | Just [k, a, sk, t] <- mapM readMaybe (words s) -> (k, a, sk, t)
         _ -> (0, 0, 0, 0)
 
 -- | Append a worker's survivor report to the master's.
@@ -477,15 +504,20 @@ isCabalProject = do
 discoverSources :: Opts -> IO [FilePath]
 discoverSources opts = do
     cabals <- cabalFilesIn "."
-    parsedDirs <- concat <$> mapM hsSourceDirsOf cabals
-    let pkgDirs = nub (map dirOf cabals)
+    parsed <- mapM cabalDirsOf cabals
+    let libDirs  = concatMap fst parsed
+        -- Test/bench source dirs to skip.  Drop "." (a test-suite with no
+        -- hs-source-dirs defaults to the package dir) so we never exclude the
+        -- whole tree.
+        testDirs = filter (`notElem` [".", ""]) (concatMap snd parsed)
+        pkgDirs  = nub (map dirOf cabals)
         -- With no cabal files (or none yielding a directory) fall back to walking
         -- the project root, so a plain directory of Haskell still works.
-        roots0  = case nub (parsedDirs ++ pkgDirs) of
+        roots0   = case nub (libDirs ++ pkgDirs) of
                       [] -> ["."]
                       rs -> rs
     roots <- filterM doesDirectoryExist roots0
-    files <- concat <$> mapM (findHaskell opts) roots
+    files <- concat <$> mapM (findHaskell opts testDirs) roots
     return (sort (nub files))
   where
     dirOf c = let d = reverse (dropWhile (/= '/') (reverse c))
@@ -500,26 +532,38 @@ cabalFilesIn dir = do
         let cs = filter ((== ".cabal") . takeExtension) es
         return [normalise (dir </> c) | c <- cs]
 
--- | Parse @hs-source-dirs@ values from a cabal file (same-line values only;
--- comma/space separated).  Good enough for the common layout; the package-root
--- fallback in 'discoverSources' covers the rest.
-hsSourceDirsOf :: FilePath -> IO [FilePath]
-hsSourceDirsOf cabal = do
+-- | Parse @(buildable-dirs, test\/bench-dirs)@ from a cabal file (same-line
+-- @hs-source-dirs@ values; comma/space separated).  Stanza-aware: dirs under
+-- @library@/@executable@ are code to mutate; dirs under @test-suite@/@benchmark@
+-- are returned separately so the walker can skip them — we must not mutate the
+-- test code itself.  Good enough for the common layout; the package-root
+-- fallback in 'discoverSources' covers files not reached by parsing.
+cabalDirsOf :: FilePath -> IO ([FilePath], [FilePath])
+cabalDirsOf cabal = do
     e <- try (readFile' cabal) :: IO (Either SomeException String)
     case e of
-        Left _    -> return []
-        Right txt -> return
-            [ normalise (base </> d)
-            | l <- lines txt
-            , let low = map toLowerC l
-            , "hs-source-dirs:" `isInfixOf` low
-            , d <- splitFields (afterColon l)
-            , not (null d)
-            ]
+        Left _    -> return ([], [])
+        Right txt -> return (go True [] [] (lines txt))
   where
     base = let d = reverse (dropWhile (/= '/') (reverse cabal))
            in if null d then "." else init d
     toLowerC c = if c >= 'A' && c <= 'Z' then toEnum (fromEnum c + 32) else c
+    -- A stanza header starts at column 0 (no leading space/tab).
+    isHeader l = case l of
+        (c : _) -> c /= ' ' && c /= '\t'
+        []      -> False
+    -- test-suite / benchmark stanzas hold test code, not code-under-test.
+    headerBuildable l =
+        map toLowerC (takeWhile (/= ' ') l) `notElem` ["test-suite", "benchmark"]
+    go _ libs tests [] = (reverse libs, reverse tests)
+    go buildable libs tests (l : ls)
+        | isHeader l = go (headerBuildable l) libs tests ls
+        | "hs-source-dirs:" `isInfixOf` map toLowerC l =
+            let ds = [ normalise (base </> d) | d <- splitFields (afterColon l), not (null d) ]
+            in if buildable
+                then go buildable (reverse ds ++ libs) tests ls
+                else go buildable libs (reverse ds ++ tests) ls
+        | otherwise = go buildable libs tests ls
 
 afterColon :: String -> String
 afterColon = drop 1 . dropWhile (/= ':')
@@ -528,8 +572,11 @@ splitFields :: String -> [String]
 splitFields = words . map (\c -> if c == ',' then ' ' else c)
 
 -- | Recursively find @.hs@/@.lhs@ files under a directory, honouring exclusions.
-findHaskell :: Opts -> FilePath -> IO [FilePath]
-findHaskell opts dir = do
+-- @testDirs@ are test\/benchmark source dirs to prune (so test code is not
+-- mutated); they are matched as path prefixes, not bare components, to avoid
+-- excluding an unrelated @src\/Test@.
+findHaskell :: Opts -> [FilePath] -> FilePath -> IO [FilePath]
+findHaskell opts testDirs dir = do
     isDir <- doesDirectoryExist dir
     if not isDir || excluded dir
         then return []
@@ -539,11 +586,13 @@ findHaskell opts dir = do
                 let p = normalise (dir </> e)
                 d <- doesDirectoryExist p
                 if d
-                    then findHaskell opts p
+                    then findHaskell opts testDirs p
                     else return [p | isHaskell p]
   where
     excluded p =
         any (`elem` pathParts p) (["dist-newstyle", ".git", ".stack-work"] ++ optExcludeDirs opts)
+        || normalise p `elem` map normalise testDirs
+        || any (\t -> (normalise t ++ "/") `isPrefixOf` (normalise p ++ "/")) testDirs
     pathParts = foldr splitSlash [""] . normalise
     splitSlash '/' acc = "" : acc
     splitSlash c (x:xs) = (c : x) : xs
