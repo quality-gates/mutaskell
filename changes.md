@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.3]
+  * Fixed: CPP files that use `MIN_VERSION_*` macros no longer flood stderr with a multi-line GHC internal-error trace when `cabal_macros.h` is not available (e.g. during `--dry-run` on an unbuilt project). mutaskell now detects the missing macros before invoking the preprocessor and returns a clean skip message instead. Files using only `__GLASGOW_HASKELL__` or OS guards are unaffected.
+
 ## [0.8.2]
   * Fixed: baseline build-failure hints are now targeted to the specific failure. A dependency solver failure ("Could not resolve dependencies") surfaces `cabal update` as the primary fix; a missing-compiler error surfaces `ghcup run --ghc <version>`; other failures fall back to a generic suggestion. Previously all build failures showed the same generic list regardless of cause.
   * Fixed: stdout is now line-buffered from startup, so project-mode progress lines and error messages appear in the correct order when output is piped or redirected.

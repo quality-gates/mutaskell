@@ -4,6 +4,8 @@ module Test.Mutaskell.MutationSpec where
 
 import Data.List (isInfixOf)
 import Here
+import System.Directory (withCurrentDirectory)
+import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 import Test.Mutaskell.Config (defaultConfig, maxNumMutants)
 import Test.Mutaskell.Mutation
@@ -290,3 +292,33 @@ e = 50
             ast <- H.ast text
             ms <- genSampledMutants (defaultConfig { maxNumMutants = 3 }) ast
             length ms `shouldSatisfy` (<= 3)
+
+    describe "needsCabalMacros" $ do
+        it "returns True for source containing MIN_VERSION_*" $ do
+            needsCabalMacros "#if MIN_VERSION_base(4,16,0)" `shouldBe` True
+        it "returns False for source with no MIN_VERSION_* guards" $ do
+            needsCabalMacros "#if __GLASGOW_HASKELL__ >= 900" `shouldBe` False
+        it "returns False for plain source" $ do
+            needsCabalMacros "module Foo where\nfoo = 1" `shouldBe` False
+
+    describe "getASTFromFile" $ do
+        it "returns a clean Left for a CPP file using MIN_VERSION_* when no dist-newstyle exists" $ do
+            withSystemTempDirectory "mutaskell-test" $ \tmpDir -> do
+                let srcFile = tmpDir ++ "/MinVersion.hs"
+                writeFile srcFile $ unlines
+                    [ "{-# LANGUAGE CPP #-}"
+                    , "module MinVersion where"
+                    , "#if MIN_VERSION_base(4,16,0)"
+                    , "foo :: Int"
+                    , "foo = 1"
+                    , "#else"
+                    , "foo :: Int"
+                    , "foo = 0"
+                    , "#endif"
+                    ]
+                -- Run from tmpDir so discoverCabalMacros finds no dist-newstyle/
+                result <- withCurrentDirectory tmpDir $ getASTFromFile srcFile
+                case result of
+                    Left msg -> msg `shouldSatisfy` ("MIN_VERSION_" `isInfixOf`)
+                    Right _  -> expectationFailure
+                                    "expected Left (CPP parse skipped) but got Right"
