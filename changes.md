@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.1]
+  * Fixed: baseline build and test failures in project mode now print the last 15 lines of the captured output inline, point to the full log at `.mutaskell/exec.log`, and include actionable hints (GHC version mismatch, wrong command, override flags `--build-cmd`/`--test-cmd`). Previously the error was a single terse line with no log reference and no suggested remediation.
+
 ## [0.8.0]
   * Fixed: project discovery no longer drops a source directory that a library/executable shares with a test-suite. mutaskell's own `test-suite spec` lists `hs-source-dirs: test app`, and the earlier test-exclusion logic wrongly excluded `app` (the executable's own code). Test/bench dirs are now excluded only when no library/executable also builds from them
   * Changed: function/operator substitution makes a single whole-AST traversal matching every configured group, instead of one traversal per group (~20 SYB sweeps). Combined with hash-keyed mutant de-duplication (replacing an O(n²) full-source string compare), this speeds up generation, especially on large modules
