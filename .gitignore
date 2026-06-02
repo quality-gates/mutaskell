@@ -13,6 +13,7 @@ cabal.sandbox.config
 tags
 .ghc.environment.*
 .mucheck-noop.log
+.mutaskell/
 mucheck-summary.json
 mucheck-agentic.json
 mucheck-gitlab.json

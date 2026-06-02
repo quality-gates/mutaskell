@@ -67,6 +67,13 @@ data Opts = Opts
   , optExcludeDirs  :: [String]
   , optWorkers      :: Int
   , optWorkerOutput :: Maybe FilePath
+  , optExec         :: Bool
+  , optBuildCmd     :: Maybe String
+  , optTestCmd      :: Maybe String
+  , optTimeBudget   :: Maybe Int
+  , optJobs         :: Int
+  , optOnlyFiles    :: Maybe FilePath
+  , optResultOut    :: Maybe FilePath
   } deriving (Eq, Show)
 
 -- | Default options: no flags set, no file.
@@ -111,6 +118,13 @@ defaultOpts = Opts
   , optExcludeDirs  = []
   , optWorkers      = 1
   , optWorkerOutput = Nothing
+  , optExec         = False
+  , optBuildCmd     = Nothing
+  , optTestCmd      = Nothing
+  , optTimeBudget   = Nothing
+  , optJobs         = 1
+  , optOnlyFiles    = Nothing
+  , optResultOut    = Nothing
   }
 
 -- Private list of valid config keys; used for unknown-key rejection.
@@ -341,7 +355,10 @@ optsParser base = Opts
           ( long "coverage"
           <> help "Auto-discover a .tix file in the current directory" )
     <*> pure (optSilent base)
-    <*> pure (optMaxMutants base)
+    <*> option (Just <$> auto)
+          ( long "max-mutants" <> metavar "N"
+          <> value (optMaxMutants base)
+          <> help "Cap total mutants evaluated (project mode: across the whole run)" )
     <*> pure (optIgnoreLines base)
     <*> pure (optSkipWithoutTest base)
     <*> pure (optExcludeDirs base)
@@ -352,6 +369,33 @@ optsParser base = Opts
     <*> option (Just <$> str)
           ( long "worker-output" <> metavar "FILE"
           <> value (optWorkerOutput base)
+          <> internal )
+    <*> flag (optExec base) True
+          ( long "exec"
+          <> help "Orchestrator mode: drive the project's real build/test commands instead of the hint interpreter" )
+    <*> option (Just <$> str)
+          ( long "build-cmd" <> metavar "CMD"
+          <> value (optBuildCmd base)
+          <> help "Build command for --exec mode (default: 'cabal build')" )
+    <*> option (Just <$> str)
+          ( long "test-cmd" <> metavar "CMD"
+          <> value (optTestCmd base)
+          <> help "Test command for --exec mode (default: 'cabal test')" )
+    <*> option (Just <$> auto)
+          ( long "time-budget" <> metavar "SECONDS"
+          <> value (optTimeBudget base)
+          <> help "Stop a project run after SECONDS and report a partial score" )
+    <*> option auto
+          ( long "jobs" <> metavar "N"
+          <> value (optJobs base)
+          <> help "Parallel worker processes for project mode (default: 1)" )
+    <*> option (Just <$> str)
+          ( long "only-files" <> metavar "FILE"
+          <> value (optOnlyFiles base)
+          <> internal )
+    <*> option (Just <$> str)
+          ( long "result-out" <> metavar "FILE"
+          <> value (optResultOut base)
           <> internal )
 
 -- | 'ParserInfo' wrapping 'optsParser'.  Use with 'execParser' in 'Main' or

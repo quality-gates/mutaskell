@@ -14,6 +14,8 @@ import App.Filter
     , parseAnnotations
     )
 import App.Opts
+import App.Orchestrator (runOrchestrator)
+import App.Project (runProject, runProjectDryRun)
 import App.Output
     ( printMutantDetails
     , printMutatorBreakdown
@@ -35,7 +37,7 @@ import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
 import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
-import System.Directory (listDirectory)
+import System.Directory (doesDirectoryExist, listDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..), exitWith)
 import System.IO (hFlush, hPutStr, hPutStrLn, stderr)
@@ -44,7 +46,7 @@ import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
 import Test.Mutaskell.Config (Config(..), defaultConfig, showMuVar)
 import Test.Mutaskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.Mutaskell.Mutation (genMutants, genMutantsFromAST, getASTFromStr, getAllTests)
+import Test.Mutaskell.Mutation (genMutants, genMutantsFromAST, getASTFromFile, getAllTests)
 import Test.Mutaskell.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.Mutaskell.TestAdapter.AssertCheckAdapter
 
@@ -79,9 +81,19 @@ main = do
         Left err        -> do putStrLn $ "Error: " ++ err; exitWith (ExitFailure 2)
         Right validOpts -> runOpts validOpts
 
+-- | Dispatch on the target: a directory enters project mode (walk the whole
+-- repo, drive its real build/test); a file uses the per-file path below.
 runOpts :: Opts -> IO ()
-runOpts opts
+runOpts opts = do
+  isDir <- doesDirectoryExist (optFile opts)
+  if isDir
+    then if optDryRun opts then runProjectDryRun opts else runProject opts
+    else runOptsFile opts
+
+runOptsFile :: Opts -> IO ()
+runOptsFile opts
   | optDryRun opts = dryRun (optFile opts)
+  | optExec opts   = runOrchestrator opts
   | otherwise      = do
       let file = optFile opts
           excDirs = optExcludeDirs opts
@@ -235,15 +247,16 @@ resolveTimeout opts file modFile testNames =
 
 dryRun :: FilePath -> IO ()
 dryRun file = do
-  src <- readFile file
-  result <- getASTFromStr src
+  result <- getASTFromFile file
   case result of
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right ast -> do
       let mutants = genMutantsFromAST defaultConfig ast
           byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
           byType' = sortBy (comparing (Down . snd)) byType
-          colW    = max 7 $ maximum $ map (length . showMuVar . fst) byType'
+          -- 7 is seeded into the list so 'maximum' never sees [] (a zero-mutant
+          -- file, e.g. a pure re-export module, used to crash here).
+          colW    = maximum (7 : map (length . showMuVar . fst) byType')
           pad s   = s ++ replicate (colW - length s + 2) ' '
           sep     = replicate (colW + 10) '-'
           rows    = map (\(v, n) -> "  " ++ pad (showMuVar v) ++ show n) byType'

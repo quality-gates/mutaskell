@@ -7,8 +7,11 @@
 -- | This module handles the mutation of different patterns.
 module Test.Mutaskell.Mutation where
 
+import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
-import Data.List (isPrefixOf, nub, nubBy, partition, permutations)
+import qualified Data.Hashable as H
+import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
+import System.Directory (doesDirectoryExist)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
 
 import GHC.Hs
@@ -34,7 +37,8 @@ import GHC.Utils.Outputable (showSDocUnsafe, ppr)
 import System.Process (readProcess)
 
 import Language.Haskell.GHC.ExactPrint (exactPrint)
-import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString)
+import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString, parseModuleWithCpp)
+import Language.Haskell.GHC.ExactPrint.Preprocess (CppOptions (..), defaultCppOptions)
 import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
 
 import Test.Mutaskell.Config
@@ -221,6 +225,84 @@ genMutantsWithExtra config extraSels origAst =
     ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
     origStr = exactPrint origAst
 
+{- | Generate mutants but sample the mutation /operators/ before rendering, so
+the expensive 'exactPrint' and the string-equality dedup run on at most
+'maxNumMutants' operators rather than on the full (often huge) candidate set.
+
+On literal-dense modules the candidate set is enormous and rendering then
+deduping every candidate is super-linear in file size — rendering re-serialises
+the whole module per mutant, and @nubBy (\\a b -> _mutant a == _mutant b)@
+compares full module strings pairwise (O(n^2 * filesize)).  That is the AC 13
+generation blow-up (e.g. pandoc's @Shared.hs@ took >130s of CPU).  Sampling the
+operators first bounds the whole pipeline to the sample size.
+
+This is 'IO' because sampling is randomised, exactly like 'Test.Mutaskell.sampler'
+(which it replaces for the orchestrator/project paths — those previously rendered
+everything and then sampled).
+-}
+genSampledMutants :: Config -> Module_ -> IO [Mutant]
+genSampledMutants config = genSampledMutantsGated config Nothing
+
+-- | 'genSampledMutants' with optional coverage gating: when @Just uncovered@ is
+-- supplied (the uncovered spans from an HPC @.tix@, see 'getUnCoveredPatches'),
+-- operators whose target span lies in uncovered code are dropped /before/
+-- sampling and rendering.  This is coverage-guided generation (AC 12): tests
+-- only kill mutants in code they exercise, so mutating uncovered code wastes the
+-- whole build/test cycle.  Filtering at the operator level also means the sample
+-- budget is spent only on covered code.
+genSampledMutantsGated :: Config -> Maybe [Span] -> Module_ -> IO [Mutant]
+genSampledMutantsGated config muncovered = genSampledMutantsWith config muncovered []
+
+-- | 'genSampledMutantsGated' with extra custom selectors.
+genSampledMutantsWith ::
+    Config -> Maybe [Span] -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
+genSampledMutantsWith config muncovered extraSels origAst = do
+    sampledOps <- sampleOps config (gate ops)
+    return $
+        nubRendered $
+            filter (\m -> _mutant m /= origStr) $
+                map (toMutant . apTh exactPrint) $
+                    nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
+                        (mutatesN sampledOps origAst 1)
+  where
+    (_, noAnnDecls) = splitAnnotations origAst
+    opsAst  = putDecl origAst noAnnDecls
+    ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
+    origStr = exactPrint origAst
+    -- Drop operators whose span is inside an uncovered region.
+    gate os = case muncovered of
+        Nothing        -> os
+        Just uncovered -> filter (covered uncovered) os
+    covered uncovered (_, op) =
+        let sp = toSpan (getSpan op)
+        in not (any (insideSpan sp) uncovered)
+
+-- | Deduplicate mutants by rendered source, keyed on a hash so the cost is
+-- ~O(n) hashing + O(n^2) cheap 'Int' comparisons instead of O(n^2) /full-source/
+-- string comparisons.  On a large module the latter dominated generation — every
+-- pair compared two ~50KB module renderings.  A 64-bit hash collision between
+-- distinct renderings is astronomically unlikely at these list sizes.
+nubRendered :: [Mutant] -> [Mutant]
+nubRendered = go []
+  where
+    go _ [] = []
+    go seen (m : ms)
+        | h `elem` seen = go seen ms
+        | otherwise     = m : go (h : seen) ms
+      where h = H.hash (_mutant m) :: Int
+
+-- | Sample a list of mutation operators proportionally by mutator type and cap
+-- the total at 'maxNumMutants' — the operator-level analogue of
+-- 'Test.Mutaskell.sampler', applied /before/ any rendering.
+sampleOps :: Config -> [(MuVar, MuOp)] -> IO [(MuVar, MuOp)]
+sampleOps config ops = do
+    perType <- concat <$> mapM pick
+        [ MutatePatternMatch, MutateValues, MutateFunctions
+        , MutateNegateIfElse, MutateNegateGuards, MutateOther [] ]
+    rSample (maxNumMutants config) perType
+  where
+    pick mv = rSampleF (getSample mv config) (filter (\(v, _) -> mv `similar` v) ops)
+
 -- | Produce all mutants using the default operator list.
 programMutants :: Config -> Module_ -> [(MuVar, Span, Module_)]
 programMutants config = programMutantsWith config []
@@ -313,6 +395,56 @@ getASTFromStr src = do
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
         Right (L _ m)  -> Right m
 
+{- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
+the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
+files guarded by @#if@\/@#ifdef@ would otherwise fail to parse — this is the
+single biggest cause of parse failures on real repos (Pandoc, lens, aeson).
+
+@MIN_VERSION_*@ guards need cabal's generated @cabal_macros.h@; we auto-discover
+it under @dist-newstyle@ (present once the project has been built, which
+orchestrator mode requires anyway).  CPP files using only @__GLASGOW_HASKELL__@
+or OS guards parse even without it.
+-}
+getASTFromFile :: FilePath -> IO (Either String Module_)
+getASTFromFile path = do
+    src <- readFile path
+    if usesCpp src
+        then do
+            libdir <- getLibdir
+            macros <- discoverCabalMacros
+            let opts = defaultCppOptions { cppFile = macros }
+            result <- parseModuleWithCpp libdir opts path
+            return $ case result of
+                Left msgs     -> Left (showSDocUnsafe (ppr msgs))
+                Right (L _ m) -> Right m
+        else getASTFromStr src
+
+-- | Does this source use the C preprocessor?  Detected via the @CPP@ language
+-- pragma (the canonical, unambiguous marker).
+usesCpp :: String -> Bool
+usesCpp = any isCppPragma . lines
+  where
+    isCppPragma l =
+        let s = dropWhile (== ' ') l
+        in "{-# LANGUAGE" `isPrefixOf` s && "CPP" `isInfixOf` s
+
+{- | Find cabal-generated @cabal_macros.h@ headers under @dist-newstyle@ so that
+@MIN_VERSION_*@ guards in CPP files preprocess correctly.  Returns @[]@ when the
+project has not been built.  Each header guards its macros with @#ifndef@, so
+force-including several (from multiple components) is safe.
+-}
+discoverCabalMacros :: IO [FilePath]
+discoverCabalMacros = do
+    hasDist <- doesDirectoryExist "dist-newstyle"
+    if not hasDist
+        then return []
+        else do
+            e <- try (readProcess "find" ["dist-newstyle", "-name", "cabal_macros.h"] "")
+                    :: IO (Either IOException String)
+            return $ case e of
+                Left _    -> []
+                Right out -> take 20 (lines out)
+
 -- | Get all test function names from a source file (by path).
 getAllTests :: String -> IO (Either String [String])
 getAllTests modname = readFile modname >>= allTests
@@ -397,6 +529,18 @@ mutate (v, op) (_, _, m) =
 removeOneElem :: [t] -> [[t]]
 removeOneElem [_] = []
 removeOneElem l   = choose l (length l - 1)
+
+-- | Clause-order mutations by swapping each adjacent pair: @n-1@ variants for a
+-- list of length @n@.  This replaces the full @permutations@ ( @n!@ ) set used
+-- for reordering function clauses, which made generation blow up super-linearly
+-- on functions with many clauses (and then quadratically through the @nubBy@
+-- dedup).  Adjacent swaps still exercise clause-order sensitivity while keeping
+-- generation linear (AC 13).
+adjacentSwaps :: [a] -> [[a]]
+adjacentSwaps xs =
+    [ take i xs ++ [xs !! (i + 1), xs !! i] ++ drop (i + 2) xs
+    | i <- [0 .. length xs - 2]
+    ]
 
 -- | Replace the element at index @i@ with @x@.
 replaceAt :: Int -> a -> [a] -> [a]
@@ -550,7 +694,7 @@ selectFnMatches m = selectValOps isFunDecl convert m
         -- position so that exactPrint places clauses on the correct lines
         -- whether we reorder or remove them.
         [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (fixEntries ms ms')))))
-        | ms' <- permutations ms ++ removeOneElem ms
+        | ms' <- adjacentSwaps ms ++ removeOneElem ms
         ]
     convert _ = []
 
@@ -596,12 +740,37 @@ selectIdentFnOps m idents = selectValOps isIdent convert m
     convert _ = []
 
 -- | Combined function/operator substitution based on 'Config' 'FnOp' entries.
+--
+-- This makes a /single/ traversal over the module, matching each variable
+-- occurrence against every configured group, rather than one whole-AST traversal
+-- per group (which is ~20 SYB sweeps on a real config and dominated generation
+-- cost on large modules — e.g. mutaskell's own @Mutation.hs@ timed out at 0
+-- mutants).  'selectIdentFnOps' / 'selectSymbolFnOps' remain for the per-group
+-- API used elsewhere.
 selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
-selectFunctionOps fos m = concatMap (selectIdentFnOps m) idents
-                       ++ concatMap (selectSymbolFnOps m) syms
+selectFunctionOps fos m = selectValOps isTarget convert m
   where
-    idents = map _fns $ filter (\a -> _type a == FnIdent)  fos
-    syms   = map _fns $ filter (\a -> _type a == FnSymbol) fos
+    identGroups = map _fns $ filter (\a -> _type a == FnIdent)  fos
+    symGroups   = map _fns $ filter (\a -> _type a == FnSymbol) fos
+    -- Neighbours to substitute for a name: every other member of any group it
+    -- belongs to.
+    identNeighbours n = [ x | g <- identGroups, n `elem` g, x <- g, x /= n ]
+    symNeighbours   n = [ x | g <- symGroups,   n `elem` g, x <- g, x /= n ]
+
+    isTarget :: LHsExpr GhcPs -> Bool
+    isTarget (L _ (HsVar _ (L _ rdr))) =
+        let n = rdrStr rdr
+        in not (null (identNeighbours n)) || not (null (symNeighbours n))
+    isTarget _ = False
+
+    convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
+    convert (L l (HsVar x (L lr rdr))) =
+        -- Identifier swaps preserve the located wrapper (entry delta + backquote
+        -- adornment); symbol swaps build a fresh var (as 'selectSymbolFnOps').
+        [ L l (HsVar x (L lr (mkRdrUnqual (mkVarOcc s)))) | s <- identNeighbours n ]
+        ++ [ mkVar s | s <- symNeighbours n ]
+      where n = rdrStr rdr
+    convert _ = []
 
 -- ---------------------------------------------------------------------------
 -- Logical operator mutations

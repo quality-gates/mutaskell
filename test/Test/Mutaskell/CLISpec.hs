@@ -93,6 +93,48 @@ spec = do
             let result = parseOptsFrom defaultOpts ["--tix", "cov.tix", "F.hs"]
             fmap optTix result `shouldBe` Right "cov.tix"
 
+        -- Orchestrator / project-mode flags
+        it "--exec sets optExec" $ do
+            let result = parseOptsFrom defaultOpts ["--exec", "F.hs"]
+            fmap optExec result `shouldBe` Right True
+
+        it "--build-cmd sets optBuildCmd" $ do
+            let result = parseOptsFrom defaultOpts ["--build-cmd", "cabal build all", "F.hs"]
+            fmap optBuildCmd result `shouldBe` Right (Just "cabal build all")
+
+        it "--test-cmd sets optTestCmd" $ do
+            let result = parseOptsFrom defaultOpts ["--test-cmd", "cabal test all", "F.hs"]
+            fmap optTestCmd result `shouldBe` Right (Just "cabal test all")
+
+        it "--max-mutants sets optMaxMutants" $ do
+            let result = parseOptsFrom defaultOpts ["--max-mutants", "50", "F.hs"]
+            fmap optMaxMutants result `shouldBe` Right (Just 50)
+
+        it "--time-budget sets optTimeBudget" $ do
+            let result = parseOptsFrom defaultOpts ["--time-budget", "1800", "F.hs"]
+            fmap optTimeBudget result `shouldBe` Right (Just 1800)
+
+        it "--jobs sets optJobs" $ do
+            let result = parseOptsFrom defaultOpts ["--jobs", "4", "F.hs"]
+            fmap optJobs result `shouldBe` Right 4
+
+        it "defaults: optJobs is 1, optExec is False, optMaxMutants is Nothing" $ do
+            optJobs defaultOpts `shouldBe` 1
+            optExec defaultOpts `shouldBe` False
+            optMaxMutants defaultOpts `shouldBe` Nothing
+
+        it "--jobs with non-integer returns Left" $ do
+            let result = parseOptsFrom defaultOpts ["--jobs", "lots", "F.hs"]
+            case result of
+                Left _  -> return ()
+                Right _ -> expectationFailure "Expected Left but got Right"
+
+        it "--max-mutants with non-integer returns Left" $ do
+            let result = parseOptsFrom defaultOpts ["--max-mutants", "many", "F.hs"]
+            case result of
+                Left _  -> return ()
+                Right _ -> expectationFailure "Expected Left but got Right"
+
         -- Error cases (b, c): bad arguments
         it "--min-msi with non-integer returns Left" $ do
             let result = parseOptsFrom defaultOpts ["--min-msi", "notanint", "F.hs"]

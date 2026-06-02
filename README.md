@@ -576,6 +576,119 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
+*   `--exec`: Orchestrator mode — drive the project's real build/test commands instead of the `hint` interpreter (see below).
+*   `--build-cmd CMD`: Build command for project/`--exec` mode (default: auto-detected, e.g. `cabal build all`).
+*   `--test-cmd CMD`: Test command for project/`--exec` mode (default: auto-detected, e.g. `cabal test all`).
+*   `--max-mutants N`: Cap the total number of mutants evaluated (in project mode, across the whole run).
+*   `--time-budget SECONDS`: Stop a project run after a wall-clock budget and report a partial score.
+
+### Project mode (run on a whole repository)
+
+Point mutaskell at a **directory** and it runs over the whole project the way
+Infection (PHP) or a folder-level Go tool does — no flags required:
+
+```bash
+mutaskell ~/code/pandoc      # a whole repo
+mutaskell .                  # the project you're standing in
+```
+
+In project mode mutaskell:
+
+*   **auto-detects** the build/test commands (cabal → `cabal build all` /
+    `cabal test all`; stack → `stack build` / `stack test`); override with
+    `--build-cmd` / `--test-cmd`;
+*   **discovers** source files from the `hs-source-dirs` declared in the
+    project's `.cabal` files, plus each package directory;
+*   runs the **baseline** build + test exactly once, then mutates each file in
+    turn, driving the real toolchain (same classification as `--exec` below);
+*   **survives bad files** — a file it cannot parse or whose generation blows up
+    is logged and skipped, and the run continues;
+*   is **resumable** — completed files are recorded in `.mutaskell/progress`, so
+    a re-run skips finished work; surviving mutants are written to
+    `.mutaskell/survivors.txt` with a before/after line diff;
+*   ends with a single **project-level score**.
+
+All run-state (progress, survivor report, build/test log) lives under a single
+`.mutaskell/` directory in the project root, so the rest of the tree stays clean.
+Add `.mutaskell/` to the target repo's `.gitignore`.
+
+Because each mutant drives a real build + test, scope large repos with a budget:
+
+```bash
+mutaskell ~/code/pandoc --max-mutants 200          # cap total mutants
+mutaskell ~/code/pandoc --time-budget 1800         # stop after 30 minutes
+```
+
+A budgeted run stops early and reports a partial score rather than running
+unbounded.
+
+Parallel runs: `--jobs N` shards the files across N isolated copies of the repo
+(one worker subprocess each) and merges the results. Isolation is required
+because the orchestrator edits files in place. Each worker pays a cold first
+build (`dist-newstyle` is not copied), so the speedup shows once per-mutant
+build+test dominates; sharding is per-file, so very uneven file sizes limit the
+gain on small repos.
+
+```bash
+mutaskell ~/code/megaparsec --jobs 4 --max-mutants 200
+```
+
+Coverage-guided generation: with `--tix FILE` (or `--coverage` to auto-discover
+a `.tix` in the project root), operators in code the test suite does not exercise
+are dropped before sampling — tests can only kill mutants in code they run, so
+this skips wasted build/test cycles. Generate the `.tix` by running the suite
+with HPC first (e.g. `cabal test --enable-coverage`). Note: for cabal projects
+the `.mix` files live under `dist-newstyle`; point `.hpc` resolution at them (a
+symlink works) — fully automatic discovery of the cabal HPC layout is not yet
+done.
+
+### Orchestrator mode (`--exec`)
+
+By default mutaskell evaluates each mutant by loading it into an in-process
+`hint` interpreter.  That works for a single self-contained module but cannot
+cope with a real multi-package project: it does not see the project's
+dependencies, build configuration, or test suite.
+
+`--exec` switches to the model used by tools like Infection (PHP) and Stryker:
+it edits the source file in place, runs the project's **own** build and test
+commands, and classifies each mutant by what the real toolchain does with it.
+
+```bash
+# From the project root, with a green test suite:
+mutaskell src/MyModule.hs --exec \
+  --build-cmd "cabal build" \
+  --test-cmd  "cabal test"
+```
+
+Classification:
+
+| Toolchain result            | Outcome   |
+| :-------------------------- | :-------- |
+| build fails                 | `Skipped` (compiler rejected the mutant; not a real kill) |
+| build ok, tests fail        | `Killed`  |
+| build ok, tests pass        | `Alive`   (a gap in the tests) |
+| tests exceed `--timeout`    | `Killed`  (the change caused non-termination) |
+
+Notes and current limitations (being honest about the edges):
+
+*   The unmodified project **must build and its tests must pass** first;
+    otherwise a failure cannot be attributed to a mutation (exit 3).
+*   The original file is restored after every mutant **and** on interrupt, so a
+    cancelled run never leaves mutated source behind.  Build/test output for the
+    last command is written to `.mutaskell/exec.log`.
+*   It is **slow**: each mutant triggers a real (incremental) recompile plus a
+    test run.  Scope tightly with `--enable`, coverage, or a narrow test command
+    (e.g. `--test-cmd 'cabal test spec --test-options "--skip integration"'`).
+*   **CPP** files (`#if`/`#ifdef`) are parsed via `ghc-exactprint`'s CPP path.
+    `MIN_VERSION_*` guards additionally need cabal's generated `cabal_macros.h`,
+    which is auto-discovered under `dist-newstyle` once the project is built
+    (which `--exec` requires anyway). Simple version/OS guards parse without it.
+*   Some files (dense literal tables) make **generation** itself blow up; `--exec`
+    bounds it with a timeout and aborts with a message rather than hanging.
+*   `--exec` operates on **one file**; to run over a whole repository, use
+    project mode (point mutaskell at a directory — see above).
+
+See `docs/orchestrator-roadmap.md` for measured evidence and the remaining work.
 
 ### JSON logger output
 
