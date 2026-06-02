@@ -404,6 +404,11 @@ single biggest cause of parse failures on real repos (Pandoc, lens, aeson).
 it under @dist-newstyle@ (present once the project has been built, which
 orchestrator mode requires anyway).  CPP files using only @__GLASGOW_HASKELL__@
 or OS guards parse even without it.
+
+When @cabal_macros.h@ is not available and the source contains @MIN_VERSION_*@
+guards, we return a clean @Left@ error rather than invoking the preprocessor:
+without the macro definitions GHC's CPP driver panics and writes a multi-line
+GHC internal error to stderr before the exception even reaches our handler.
 -}
 getASTFromFile :: FilePath -> IO (Either String Module_)
 getASTFromFile path = do
@@ -412,11 +417,18 @@ getASTFromFile path = do
         then do
             libdir <- getLibdir
             macros <- discoverCabalMacros
-            let opts = defaultCppOptions { cppFile = macros }
-            result <- parseModuleWithCpp libdir opts path
-            return $ case result of
-                Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                Right (L _ m) -> Right m
+            if null macros && needsCabalMacros src
+                then return $ Left
+                        "CPP file uses MIN_VERSION_* macros but cabal_macros.h \
+                        \was not found under dist-newstyle/. \
+                        \Build the project first (cabal build all) so that \
+                        \the macros file is generated, then re-run."
+                else do
+                    let opts = defaultCppOptions { cppFile = macros }
+                    result <- parseModuleWithCpp libdir opts path
+                    return $ case result of
+                        Left msgs     -> Left (showSDocUnsafe (ppr msgs))
+                        Right (L _ m) -> Right m
         else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language
@@ -427,6 +439,14 @@ usesCpp = any isCppPragma . lines
     isCppPragma l =
         let s = dropWhile (== ' ') l
         in "{-# LANGUAGE" `isPrefixOf` s && "CPP" `isInfixOf` s
+
+-- | Does this source contain @MIN_VERSION_*@ CPP guards?  These require
+-- cabal's generated @cabal_macros.h@ to preprocess correctly; without it
+-- GHC's CPP driver panics and writes a noisy internal-error trace to stderr
+-- before throwing an exception.  Used to short-circuit 'getASTFromFile' when
+-- the macro file has not been generated yet.
+needsCabalMacros :: String -> Bool
+needsCabalMacros = ("MIN_VERSION_" `isInfixOf`)
 
 {- | Find cabal-generated @cabal_macros.h@ headers under @dist-newstyle@ so that
 @MIN_VERSION_*@ guards in CPP files preprocess correctly.  Returns @[]@ when the
