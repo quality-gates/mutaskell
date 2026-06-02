@@ -714,19 +714,55 @@ baselineBuildFailed cmd = do
         , "  Command: " ++ cmd
         ]
     printLogTail
-    hPutStrLn stderr $ unlines
-        [ "  Hints:"
-        , "    - Run the command above in this directory to see the full error"
-        , "      without mutaskell in the way."
-        , "    - GHC version mismatch: the project's dependencies may not yet"
-        , "      support the installed GHC.  Try:"
-        , "        ghcup run --ghc <version> -- " ++ cmd
-        , "    - Wrong build command (auto-detected from cabal/stack files)."
-        , "      Override: --build-cmd \"<your command>\""
-        , ""
+    hints <- buildFailureHints cmd
+    hPutStrLn stderr $ unlines $
+        [ "  Hints:" ] ++ hints ++
+        [ ""
         , "  Full output: " ++ execLog
         ]
     exitWith (ExitFailure 3)
+
+-- | Choose build-failure hints based on what the captured log contains.
+-- Promotes the single most likely fix to the top rather than listing everything.
+buildFailureHints :: String -> IO [String]
+buildFailureHints cmd = do
+    logContent <- readLogContent
+    return $ case diagnoseBuildLog logContent of
+        SolverFailure ->
+            [ "    - The dependency solver could not find a valid build plan."
+            , "      Your Hackage index may be stale.  Try:"
+            , "        cabal update"
+            , "      then re-run mutaskell."
+            ]
+        GhcVersionGap ->
+            [ "    - A dependency is not available for the installed GHC."
+            , "      The project may require a different GHC version.  Try:"
+            , "        ghcup run --ghc <version> -- " ++ cmd
+            , "      or override: --build-cmd \"ghcup run --ghc <version> -- " ++ cmd ++ "\""
+            ]
+        UnknownBuildFailure ->
+            [ "    - Run the command above in this directory to see the full"
+            , "      error without mutaskell in the way."
+            , "    - If the build command is wrong (auto-detected from"
+            , "      cabal/stack files), override with: --build-cmd \"<cmd>\""
+            ]
+
+-- | Possible diagnoses for a failed baseline build.
+data BuildDiagnosis = SolverFailure | GhcVersionGap | UnknownBuildFailure
+
+-- | Inspect the captured build output for known failure signatures.
+diagnoseBuildLog :: String -> BuildDiagnosis
+diagnoseBuildLog logContent
+    | "Could not resolve dependencies" `isInfixOf` logContent = SolverFailure
+    | "No compiler found"              `isInfixOf` logContent = GhcVersionGap
+    | "ghc: could not execute"         `isInfixOf` logContent = GhcVersionGap
+    | otherwise                                                = UnknownBuildFailure
+
+-- | Read the full content of 'execLog', or empty string if absent.
+readLogContent :: IO String
+readLogContent = do
+    exists <- doesFileExist execLog
+    if exists then readFile' execLog else return ""
 
 -- | Abort because the baseline test run failed or timed out.  Never returns.
 baselineTestFailed :: String -> Bool -> IO a
@@ -759,13 +795,11 @@ baselineTestFailed cmd timedOut = do
 -- | Print the last 15 lines of 'execLog' to stderr, prefixed for readability.
 printLogTail :: IO ()
 printLogTail = do
-    exists <- doesFileExist execLog
-    when exists $ do
-        ls <- lines <$> readFile' execLog
-        let tailLines = drop (max 0 (length ls - 15)) ls
-        unless (null tailLines) $ do
-            hPutStrLn stderr "  Last output:"
-            mapM_ (hPutStrLn stderr . ("    " ++)) tailLines
-            hPutStrLn stderr ""
+    content <- readLogContent
+    let tailLines = drop (max 0 (length ls - 15)) ls where ls = lines content
+    unless (null tailLines) $ do
+        hPutStrLn stderr "  Last output:"
+        mapM_ (hPutStrLn stderr . ("    " ++)) tailLines
+        hPutStrLn stderr ""
 
 
