@@ -1,8 +1,78 @@
-# mutaskell [![CI](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml/badge.svg)](https://github.com/quality-gates/mutaskell/actions/workflows/mutation.yml) [![Docs](https://github.com/quality-gates/mutaskell/actions/workflows/pages.yml/badge.svg)](https://quality-gates.github.io/mutaskell) [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
+# mutaskell
 
-mutaskell is a mutation testing tool for Haskell. It tweaks your source in small ways and checks whether your tests catch the change. If they don't, that's a gap in your test suite worth closing.
+Catch weak tests in Haskell before they calcify: small source changes that
+should fail the suite and do not. Mutation testing answers whether the tests
+would catch a real bug of that shape — not only whether lines executed.
 
-mutaskell started as a fork of [MuCheck](https://github.com/vrthra/mucheck) by Duc Lee and Rahul Gopinath, rewritten to use the GHC parser and extended with a full CLI, coverage-guided mutation, parallel evaluation, and CI integrations.
+`mutaskell` is a local CLI built on the GHC parser. It mutates production
+source, re-runs your tests, and reports kills, escapes, and scores (including
+coverage-aware covered-MSI). Site docs: https://quality-gates.github.io/mutaskell
+
+## Quick start
+
+```console
+cabal build --write-ghc-environment-files=always all
+cabal run mutaskell -- src/YourModule.hs
+```
+
+That mutates the module and prints mutant status. Prefer a coverage-aware run
+when you can supply a `.tix` file (see the full guide). Exit non-zero when a
+configured score gate fails.
+
+Common next steps:
+
+```console
+cabal run mutaskell -- --tix your-test-suite.tix src/YourModule.hs
+cabal run mutaskell -- --min-covered-msi 70 src/YourModule.hs
+cabal run mutaskell -- --git-diff-base origin/main .
+```
+
+Ready-made CI and config samples live in `setups/`.
+
+## Install
+
+Build from this repository with Cabal (see the full guide for package setup and
+the sample adapter). Published docs: https://quality-gates.github.io/mutaskell
+
+## Tune the gate
+
+Drop a `.mucheck.yaml` in the project root:
+
+```yaml
+min_covered_msi: 70
+timeout: 30
+workers: 4
+quiet: true
+```
+
+Raise floors over time. Use covered-MSI so untested new code does not look like
+weaker existing tests. Diff-only and baseline-style workflows are in the full
+guide and `setups/`.
+
+## Suppress one intentional exception
+
+Disable mutators or narrow scope via config and CLI. See the full guide
+(Supported Mutations, Config file, project mode).
+
+## Drop it into CI
+
+```yaml
+# GitHub Actions — copy setups/github-actions.yml
+- run: cabal build --write-ghc-environment-files=always all
+- run: cabal run mutaskell -- --min-covered-msi 70 src
+```
+
+```yaml
+# GitLab — see setups/gitlab-ci.yml for Code Quality artifacts
+```
+
+## Maintainers
+
+Full guide below. Site docs: https://quality-gates.github.io/mutaskell  
+Started as a fork of [MuCheck](https://github.com/vrthra/mucheck); rewritten on
+the GHC parser with CLI, coverage-guided mutation, and CI integrations.
+
+---
 
 # Why mutation testing?
 
