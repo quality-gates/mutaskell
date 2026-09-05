@@ -409,7 +409,7 @@ optsParserInfo base = info (optsParser base <**> helper)
 
 footerText :: Doc
 footerText = vsep (map pretty
-    [ "Mutator names (for --disable / --enable):"
+    ([ "Mutator names (for --disable / --enable):"
     , "  pattern-match  literal-values  functions"
     , "  negate-if-else  negate-guards  remove-not  remove-negation"
     , "  other:remove-stmt  other:negate-literal  other:case-alt-remove  ..."
@@ -422,7 +422,7 @@ footerText = vsep (map pretty
     , "  3  Pre-flight failure (--noop: tests fail on original source)"
     , "  4  Escaped mutants (--fail-on-escaped)"
     , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
-    ])
+    ] :: [String]))
 
 -- | Parse CLI args into 'Opts', starting from 'defaultOpts'.
 parseOpts :: [String] -> Either String Opts
