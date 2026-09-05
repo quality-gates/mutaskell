@@ -15,4 +15,5 @@ WORKDIR /workspace
 COPY mutaskell.cabal ./
 RUN cabal update && cabal build --only-dependencies --enable-tests all
 COPY . .
-CMD ["cabal", "test", "all", "--test-show-details=direct"]
+RUN cabal build --write-ghc-environment-files=always --enable-tests all
+CMD ["cabal", "test", "--write-ghc-environment-files=always", "all", "--test-show-details=direct"]
