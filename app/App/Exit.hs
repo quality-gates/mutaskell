@@ -5,11 +5,11 @@ module App.Exit
   ) where
 
 import Control.Monad (when)
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import System.Exit (ExitCode(..), exitWith)
 
 import App.Opts (Opts(..))
-import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..), summaryCoveredMsi, summaryMsi)
 
 -- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
 isSingleMutantMode :: Opts -> Bool
@@ -18,14 +18,8 @@ isSingleMutantMode = isJust . optRunMutantId
 -- | Apply MSI quality gates and --fail-on-escaped; exit with the appropriate code on failure.
 applyExitPolicy :: Opts -> MAnalysisSummary -> IO ()
 applyExitPolicy opts msum = do
-  let noerrors = _maNumMutants msum - _maErrors msum
-      msi | noerrors > 0 = _maKilled msum * 100 `div` noerrors
-          | otherwise    = 0
-      coveredNoerrors = if _maCoveredNumMutants msum > 0
-                        then _maCoveredNumMutants msum - _maErrors msum
-                        else noerrors
-      coveredMsi | coveredNoerrors > 0 = _maKilled msum * 100 `div` coveredNoerrors
-                 | otherwise           = 0
+  let msi = summaryMsi msum
+      coveredMsi = fromMaybe msi (summaryCoveredMsi msum)
 
   if optIgnoreMsiNoMutations opts && _maNumMutants msum == 0 then return ()
   else do

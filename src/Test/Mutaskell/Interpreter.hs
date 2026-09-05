@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- | The Interpreter module is responible for invoking the Hint interpreter to
@@ -10,8 +9,9 @@ import Control.Exception (IOException, try)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import Data.Char (isAlphaNum)
-import Data.Either (partitionEithers)
+import Data.Either (lefts, partitionEithers, rights)
 import Data.List (isPrefixOf, partition)
+import Data.Maybe (isNothing)
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
 import qualified Language.Haskell.Interpreter.Unsafe as IU
@@ -42,15 +42,23 @@ isSkippedSummary _                 = False
 -- Use this when results were collected outside the normal 'evaluateMutants' call
 -- (e.g. from parallel worker subprocesses).
 summaryFromMutantSummaries :: [MutantSummary] -> MAnalysisSummary
-summaryFromMutantSummaries sums = MAnalysisSummary
-  { _maCoveredNumMutants = -1
-  , _maNumMutants        = length sums
-  , _maAlive             = length [() | MSumAlive   _ _   <- sums]
-  , _maKilled            = length [() | MSumKilled  _ _   <- sums]
-                         + length [() | MSumOther   _ _   <- sums]
-  , _maErrors            = length [() | MSumError   _ _ _ <- sums]
-  , _maSkipped           = length [() | MSumSkipped _ _   <- sums]
-  }
+summaryFromMutantSummaries = foldl' step initial
+  where
+    initial = MAnalysisSummary
+      { _maCoveredNumMutants = -1
+      , _maNumMutants        = 0
+      , _maAlive             = 0
+      , _maKilled            = 0
+      , _maErrors            = 0
+      , _maSkipped           = 0
+      }
+    step acc s = acc
+      { _maNumMutants = _maNumMutants acc + 1
+      , _maAlive      = _maAlive acc   + case s of MSumAlive {} -> 1; _ -> 0
+      , _maKilled     = _maKilled acc  + case s of MSumKilled {} -> 1; MSumOther {} -> 1; _ -> 0
+      , _maErrors     = _maErrors acc  + case s of MSumError {} -> 1; _ -> 0
+      , _maSkipped    = _maSkipped acc + case s of MSumSkipped {} -> 1; _ -> 0
+      }
 
 -- | Given the list of tests suites to check, run the test suite on mutants.
 evaluateMutants ::
@@ -75,7 +83,7 @@ evaluateMutants ::
     IO (MAnalysisSummary, [MutantSummary])
 evaluateMutants _numWorkers mtimeout keepDir extraArgs mcallback m mutants tests = do
     mutantDir <- resolveMutantDir keepDir
-    let doDelete = keepDir == Nothing
+    let doDelete = isNothing keepDir
         evalOne mutant = do
             result  <- evalMutant mtimeout doDelete mutantDir extraArgs tests mutant
             let summary = summarizeResults m tests (mutant, result)
@@ -294,9 +302,9 @@ fullSummary m _tests results = MAnalysisSummary {
   where res = map (map _io) results
         -- A mutant is an error if any test resulted in an error
         (allErrors, completed) = partitionEithers $ map findError res
-        findError r = case [e | Left e <- r] of
+        findError r = case lefts r of
                         (e:_) -> Left e
-                        []    -> Right [x | Right x <- r]
+                        []    -> Right (rights r)
         -- Non-compilable mutants (WontCompile) are tracked separately as skipped
         (skipErrors, runtimeErrors) = partition isWontCompile allErrors
         isWontCompile (I.WontCompile _) = True

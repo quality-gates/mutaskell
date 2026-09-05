@@ -25,7 +25,7 @@ module Test.Mutaskell.MuOp (
     getSpan,
 ) where
 
-import Control.Monad (MonadPlus, mzero)
+import Control.Monad (MonadPlus, guard)
 import qualified Data.Generics as G
 
 import GHC.Hs
@@ -142,10 +142,7 @@ because GHC\'s AST types do not derive @Eq@.  Once a match is found,
 replacement so that 'exactPrint' preserves layout.
 -}
 (~~>) :: (MonadPlus m, MuNode a) => a -> a -> a -> m a
-x ~~> y = \z ->
-    if getHasLoc x == getHasLoc z
-    then return (transferEntry z y)
-    else mzero
+x ~~> y = \z -> transferEntry z y <$ guard (getHasLoc x == getHasLoc z)
 
 -- | Lift a 'MuOp' into a generic one-site transformation.
 mkMpMuOp :: (MonadPlus m, G.Typeable a) => MuOp -> a -> m a
@@ -170,11 +167,11 @@ class Mutable a where
 
 -- | Pair one element with every element in the list.
 (==>*) :: Mutable a => a -> [a] -> [MuOp]
-x ==>* lst = map (x ==>) lst
+x ==>* lst = (x ==>) <$> lst
 
 -- | Pair every element of the first list with every element of the second.
 (*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
-xs *==>* ys = concatMap (==>* ys) xs
+(*==>*) = liftA2 (==>)
 
 -- Instances use the fully-expanded concrete types (not the type-family
 -- aliases) because GHC prohibits type-family applications in instance heads

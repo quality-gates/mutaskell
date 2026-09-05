@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.4]
+  * Changed: refactored codebase into a functional pearl style with pure, composable combinators:
+    * `choose` rewritten as direct combinations recursion rather than filtering $2^N$ subsequences
+    * `adjacentSwaps` rewritten as a concise, direct recursive pearl eliminating list index lookups
+    * `mutateOne` and `holes` list decomposition combinators introduced across AST mutation passes
+    * `MAnalysisSummary` equipped with `Semigroup`, `Monoid`, `Eq`, and pure domain metric calculations (`summaryMsi`, `summaryCoveredMsi`, `summaryNoErrors`)
+    * `summaryFromMutantSummaries` refactored to a single-pass strict fold
+    * Cleaned up all HLint warnings across `src`, `app`, and `Examples`
+
 ## [0.8.3]
   * Fixed: CPP files that use `MIN_VERSION_*` macros no longer flood stderr with a multi-line GHC internal-error trace when `cabal_macros.h` is not available (e.g. during `--dry-run` on an unbuilt project). mutaskell now detects the missing macros before invoking the preprocessor and returns a clean skip message instead. Files using only `__GLASGOW_HASKELL__` or OS guards are unaffected.
 

@@ -3,14 +3,19 @@
 -- | Common functions used by MuCheck
 module Test.Mutaskell.Utils.Common where
 
+import Data.Char (isSpace)
 import qualified Data.Hashable as H
-import Data.List
+import Data.List (dropWhileEnd)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Random
 
--- | The `choose` function generates subsets of a given size
+-- | The `choose` function generates combinations of a given size in lexicographical order.
 choose :: [a] -> Int -> [[a]]
-choose xs n = filter (\x -> length x == n) $ subsequences xs
+choose _ 0 = [[]]
+choose [] _ = []
+choose (x : xs) n
+    | n < 0     = []
+    | otherwise = map (x :) (choose xs (n - 1)) ++ choose xs n
 
 {- | The `coupling` function produces all possible pairings, and applies the
 given function to each
@@ -79,13 +84,13 @@ genSwapped lst = [swapElts x y lst | (x:y:_) <- swaplst]
 
 -- | Generate a random seed from the time.
 genRandomSeed :: IO StdGen
-genRandomSeed = fmap (mkStdGen . round) getPOSIXTime
+genRandomSeed = mkStdGen . round <$> getPOSIXTime
 
 {- | take a function of two args producing a monadic result, and apply it to
 a pair
 -}
 curryM :: (t1 -> t2 -> m t) -> (t1, t2) -> m t
-curryM fn (a, b) = fn a b
+curryM = uncurry
 
 -- | A simple hash
 hash :: String -> String
@@ -97,7 +102,7 @@ hash s = (if h < 0 then "x" else "y") ++ show (abs h)
 tuples by repeating the first element
 -}
 spread :: (a, [b]) -> [(a, b)]
-spread (a, lst) = map (a,) lst
+spread (a, lst) = (a,) <$> lst
 
 -- | Apply a function to the last of a tuple
 apSnd :: (b -> c) -> (a, b) -> (a, c)
@@ -109,12 +114,4 @@ apTh f (a, b, c) = (a, b, f c)
 
 -- | Strip whitespace from ends
 strip :: String -> String
-strip = lstrip . rstrip
-  where
-    white :: String
-    white = " \t\r\n"
-    lstrip :: String -> String
-    lstrip (x : xs) | x `elem` white = lstrip xs
-    lstrip s = s
-    rstrip :: String -> String
-    rstrip = reverse . lstrip . reverse
+strip = dropWhile isSpace . dropWhileEnd isSpace
