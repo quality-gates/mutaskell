@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -53,7 +52,7 @@ import Test.Mutaskell.Utils.Syb
 
 -- | The GHC library directory, obtained at runtime.
 getLibdir :: IO FilePath
-getLibdir = fmap (filter (/= '\n')) $ readProcess "ghc" ["--print-libdir"] ""
+getLibdir = filter (/= '\n') <$> readProcess "ghc" ["--print-libdir"] ""
 
 -- | String name of an 'RdrName'.
 rdrStr :: RdrName -> String
@@ -557,14 +556,25 @@ removeOneElem l   = choose l (length l - 1)
 -- dedup).  Adjacent swaps still exercise clause-order sensitivity while keeping
 -- generation linear (AC 13).
 adjacentSwaps :: [a] -> [[a]]
-adjacentSwaps xs =
-    [ take i xs ++ [xs !! (i + 1), xs !! i] ++ drop (i + 2) xs
-    | i <- [0 .. length xs - 2]
-    ]
+adjacentSwaps (x : y : xs) = (y : x : xs) : map (x :) (adjacentSwaps (y : xs))
+adjacentSwaps _            = []
+
+-- | Given a generator of replacements for an element, produce all single-element
+-- mutations across a list, preserving the order of all unchanged elements.
+mutateOne :: (a -> [a]) -> [a] -> [[a]]
+mutateOne _ []       = []
+mutateOne f (x : xs) = [ x' : xs | x' <- f x ] ++ map (x :) (mutateOne f xs)
+
+-- | Decompose a list into all possible (prefix, focus, suffix) triples.
+holes :: [a] -> [([a], a, [a])]
+holes []       = []
+holes (x : xs) = ([], x, xs) : [ (x : pre, y, post) | (pre, y, post) <- holes xs ]
 
 -- | Replace the element at index @i@ with @x@.
 replaceAt :: Int -> a -> [a] -> [a]
-replaceAt i x xs = take i xs ++ [x] ++ drop (i + 1) xs
+replaceAt i x xs = case splitAt i xs of
+    (pre, _ : post) -> pre ++ x : post
+    (pre, [])       -> pre
 
 -- ---------------------------------------------------------------------------
 -- Generic selector helper
@@ -595,14 +605,14 @@ selectLitOps m = selectValOps isLitExpr toLitVariants m
     toLitVariants :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     -- Monomorphic integer prims
     toLitVariants (L _ (HsLit _ (HsIntPrim _ n))) =
-        map mkL [HsLit noExtField (HsIntPrim NoSourceText v) | v <- nub [n+1, n-1, 0, 1], v /= n]
+        [mkL (HsLit noExtField (HsIntPrim NoSourceText v)) | v <- nub [n+1, n-1, 0, 1], v /= n]
     toLitVariants (L _ (HsLit _ (HsWordPrim _ n))) =
-        map mkL [HsLit noExtField (HsWordPrim NoSourceText v) | v <- nub [n+1, n-1, 0, 1], v /= n]
+        [mkL (HsLit noExtField (HsWordPrim NoSourceText v)) | v <- nub [n+1, n-1, 0, 1], v /= n]
     -- Monomorphic char
     toLitVariants (L _ (HsLit _ (HsChar _ c))) =
-        map mkL [HsLit noExtField (HsChar NoSourceText v) | v <- [pred c, succ c]]
+        [mkL (HsLit noExtField (HsChar NoSourceText v)) | v <- [pred c, succ c]]
     toLitVariants (L _ (HsLit _ (HsCharPrim _ c))) =
-        map mkL [HsLit noExtField (HsCharPrim NoSourceText v) | v <- [pred c, succ c]]
+        [mkL (HsLit noExtField (HsCharPrim NoSourceText v)) | v <- [pred c, succ c]]
     -- Monomorphic string
     toLitVariants (L _ (HsLit _ (HsString _ _))) =
         [mkL (HsLit noExtField (HsString NoSourceText (mkFastString "")))]
@@ -671,7 +681,7 @@ selectGuardedBoolNegOps m = selectValOps isMatchWithGuards convert m
 
     hasNonOtherwiseGuard :: GuardedRhs_ -> Bool
     hasNonOtherwiseGuard (L _ (GRHS _ stmts _)) =
-        any (not . isOtherwiseStmt) stmts && not (null stmts)
+        not (all isOtherwiseStmt stmts) && not (null stmts)
 
     isOtherwiseStmt :: ExprLStmt GhcPs -> Bool
     isOtherwiseStmt (L _ (BodyStmt _ (L _ (HsVar _ (L _ rdr))) _ _)) =
@@ -680,9 +690,8 @@ selectGuardedBoolNegOps m = selectValOps isMatchWithGuards convert m
 
     convert :: Alt_ -> [Alt_]
     convert (L _ (Match xm ctx pats (GRHSs xg grhss binds))) =
-        [ mkL (Match xm ctx pats (GRHSs xg (replaceAt i grhs' grhss) binds))
-        | (i, grhs) <- zip [0..] grhss
-        , grhs' <- convertGrhs grhs
+        [ mkL (Match xm ctx pats (GRHSs xg grhss' binds))
+        | grhss' <- mutateOne convertGrhs grhss
         ]
 
     convertGrhs :: GuardedRhs_ -> [GuardedRhs_]
@@ -812,7 +821,7 @@ selectRemoveNegationOps :: Module_ -> [MuOp]
 selectRemoveNegationOps m = selectValOps isNeg removeNeg m
   where
     isNeg :: LHsExpr GhcPs -> Bool
-    isNeg (L _ (NegApp _ _ _))                             = True
+    isNeg (L _ NegApp{})                                   = True
     isNeg (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) _))
         | rdrStr rdr == "negate"                           = True
     isNeg _ = False
@@ -911,16 +920,16 @@ selectRemoveStmtOps m = selectValOps isDo convert m
 
     removeOneStmt :: [ExprLStmt GhcPs] -> [[ExprLStmt GhcPs]]
     removeOneStmt stmts =
-        [ take i stmts ++ drop (i+1) stmts
-        | i <- [0 .. length stmts - 1]
-        , isValidDo (take i stmts ++ drop (i+1) stmts)
+        [ pre ++ post
+        | (pre, _, post) <- holes stmts
+        , isValidDo (pre ++ post)
         ]
 
     isValidDo :: [ExprLStmt GhcPs] -> Bool
     isValidDo [] = False
     isValidDo ss = case last ss of
-        L _ (BodyStmt _ _ _ _)  -> True
-        _                       -> False
+        L _ BodyStmt{} -> True
+        _              -> False
 
 -- ---------------------------------------------------------------------------
 -- Let/where binding mutations
@@ -938,10 +947,9 @@ selectRemoveLetBindingOps m =
 
     convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
-        let bs = bag
-        in [ mkL (HsLet x (HsValBinds xv (ValBinds xvb (bs') sigs)) body)
-           | bs' <- removeOneElem bs
-           ]
+        [ mkL (HsLet x (HsValBinds xv (ValBinds xvb bs' sigs)) body)
+        | bs' <- removeOneElem bag
+        ]
     convertLet _ = []
 
     isDoWithLet :: LHsExpr GhcPs -> Bool
@@ -955,18 +963,16 @@ selectRemoveLetBindingOps m =
 
     convertDo :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertDo (L _ (HsDo x ctx (L ls stmts))) =
-        [ mkL (HsDo x ctx (L ls (replaceAt i s' stmts)))
-        | (i, s) <- zip [0..] stmts
-        , s' <- convertLetStmt s
+        [ mkL (HsDo x ctx (L ls stmts'))
+        | stmts' <- mutateOne convertLetStmt stmts
         ]
     convertDo _ = []
 
     convertLetStmt :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
     convertLetStmt (L _ (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
-        let bs = bag
-        in [ mkL (LetStmt x (HsValBinds xv (ValBinds xvb (bs') sigs)))
-           | bs' <- removeOneElem bs
-           ]
+        [ mkL (LetStmt x (HsValBinds xv (ValBinds xvb bs' sigs)))
+        | bs' <- removeOneElem bag
+        ]
     convertLetStmt _ = []
 
 -- | Remove one binding from @where@ clauses.
@@ -987,9 +993,8 @@ selectRemoveWhereBindingOps m =
 
     convertFun :: Decl_ -> [Decl_]
     convertFun (L _ (ValD xv (FunBind xb fid (MG xmg (L lms ms))))) =
-        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (replaceAt i m' ms)))))
-        | (i, match_) <- zip [0..] ms
-        , m' <- convertMatch match_
+        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms ms'))))
+        | ms' <- mutateOne convertMatch ms
         ]
     convertFun _ = []
 
@@ -1025,7 +1030,7 @@ selectRemoveSelfAssignOps m =
   where
     isLetWithSelf :: LHsExpr GhcPs -> Bool
     isLetWithSelf (L _ (HsLet _ (HsValBinds _ (ValBinds _ bag _)) _)) =
-        any isSelfAssignBind (bag)
+        any isSelfAssignBind bag
     isLetWithSelf _ = False
 
     isSelfAssignBind :: LHsBind GhcPs -> Bool
@@ -1043,9 +1048,8 @@ selectRemoveSelfAssignOps m =
 
     convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
-        let bs = bag
-            bs' = filter (not . isSelfAssignBind) bs
-        in [mkL (HsLet x (HsValBinds xv (ValBinds xvb (bs') sigs)) body)]
+        let bs' = filter (not . isSelfAssignBind) bag
+        in [mkL (HsLet x (HsValBinds xv (ValBinds xvb bs' sigs)) body)]
     convertLet _ = []
 
     isDoWithSelf :: LHsExpr GhcPs -> Bool
@@ -1345,10 +1349,10 @@ selectBindToSequenceOps m = selectValOps isDo convert m
 
     dropOneBind :: [ExprLStmt GhcPs] -> [[ExprLStmt GhcPs]]
     dropOneBind stmts =
-        [ replaceAt i (toWildBind s) stmts
-        | (i, s) <- zip [0..] stmts
+        [ pre ++ toWildBind s : post
+        | (pre, s, post) <- holes stmts
         , isNamedBind s
-        , i < length stmts - 1
+        , not (null post)
         ]
 
     isNamedBind :: ExprLStmt GhcPs -> Bool
@@ -1395,11 +1399,7 @@ selectPatternConstructorFlipOps m = selectValOps hasFlippableCon convert m
         ]
 
     flipOnePat :: [LPat GhcPs] -> [[LPat GhcPs]]
-    flipOnePat pats =
-        [ replaceAt i pat' pats
-        | (i, pat) <- zip [0..] pats
-        , pat' <- flipTopPat pat
-        ]
+    flipOnePat = mutateOne flipTopPat
 
     -- Unwrap ParPat and re-wrap the flipped result, so that function-argument
     -- patterns such as @f (Just x)@ and @f (Left e)@ are handled correctly.

@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import App.Exit (applyExitPolicy, isSingleMutantMode)
@@ -32,14 +31,14 @@ import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when)
 import Data.IORef (modifyIORef', newIORef, readIORef)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
 import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (doesDirectoryExist, listDirectory)
 import System.Environment (getArgs)
-import System.Exit (ExitCode(..), exitWith)
+import System.Exit (ExitCode(..), exitSuccess, exitWith)
 import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
 
 import Test.Mutaskell (sampler)
@@ -101,10 +100,10 @@ runOptsFile opts
           inExcluded = any (\d -> d `isPrefixOf` file || (d ++ "/") `isPrefixOf` file) excDirs
       when inExcluded $ do
         putStrLn $ "Skipping " ++ file ++ ": excluded by exclude_dirs"
-        exitWith ExitSuccess
+        exitSuccess
       inDiff <- checkGitDiff file (optGitDiffBase opts)
       unless inDiff $ do
-        putStrLn $ "Skipping " ++ file ++ ": not in git diff relative to " ++ maybe "" id (optGitDiffBase opts)
+        putStrLn $ "Skipping " ++ file ++ ": not in git diff relative to " ++ fromMaybe "" (optGitDiffBase opts)
         return ()
       when inDiff $ do
         when (optNoop opts) $ noopCheck (optFile opts)
@@ -140,18 +139,18 @@ runOptsFile opts
           Right names -> return names
         when (optSkipWithoutTest opts && null testNames) $ do
           putStrLn $ "Skipping " ++ optFile opts ++ ": no test annotations found"
-          exitWith ExitSuccess
+          exitSuccess
         timeoutUs <- resolveTimeout opts (optFile opts) modFile testNames
         let total = length finalMutants
         progressRef <- newIORef (0 :: Int, 0 :: Int, 0 :: Int, 0 :: Int)
         let progressCallback ms = modifyIORef' progressRef $ \(k,a,e,sk) -> case ms of
               MSumKilled  _ _   -> (k+1, a,   e,   sk)
               MSumAlive   _ _   -> (k,   a+1, e,   sk)
-              MSumError   _ _ _ -> (k,   a,   e+1, sk)
+              MSumError   {}    -> (k,   a,   e+1, sk)
               MSumSkipped _ _   -> (k,   a,   e,   sk+1)
               MSumOther   _ _   -> (k+1, a,   e,   sk)
             suppressProgress = optQuiet opts || optSilent opts || workerMode
-            workerMode = optWorkerOutput opts /= Nothing
+            workerMode = isJust (optWorkerOutput opts)
             mcallback = if suppressProgress || total == 0 then Nothing else Just progressCallback
         let progressLoop = do
               (k,a,e,sk) <- readIORef progressRef
@@ -187,7 +186,7 @@ runOptsFile opts
             case tsum of
               (ms : _) -> writeFile outFile (workerSerialize ms)
               []       -> return ()
-            exitWith ExitSuccess
+            exitSuccess
           Nothing -> return ()
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
@@ -240,7 +239,7 @@ resolveTimeout opts file modFile testNames =
           runOne :: String -> IO (InterpreterOutput AssertCheckSummary)
           runOne = evalTest Nothing [] file logF
       t0 <- getCurrentTime
-      _ <- mapM runOne testStrs
+      mapM_ runOne testStrs
       t1 <- getCurrentTime
       let baselineSeconds = realToFrac (diffUTCTime t1 t0) :: Double
           timeoutUs = round (coef * baselineSeconds * 1e6) :: Int

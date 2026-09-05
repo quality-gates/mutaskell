@@ -2,7 +2,7 @@ module Test.Mutaskell.Utils.CommonSpec (main, spec) where
 
 import System.Random
 import Test.Hspec
-import Test.Mutaskell.Utils.Common (choose, coupling, remElt, replaceFst, sample, sampleF)
+import Test.Mutaskell.Utils.Common (choose, coupling, remElt, replaceFst, sample, sampleF, spread, strip)
 
 main :: IO ()
 main = hspec spec
@@ -42,3 +42,13 @@ spec = do
     describe "coupling" $ do
         it "must sample a given fraction subset" $ do
             coupling (+) [1, 2, 3] `shouldBe` [3, 4, 3, 5, 4, 5]
+
+    describe "strip" $ do
+        it "strips leading and trailing whitespace" $ do
+            strip "  hello world  \n\t" `shouldBe` "hello world"
+        it "returns empty string for whitespace-only input" $ do
+            strip "   \t\n  " `shouldBe` ""
+
+    describe "spread" $ do
+        it "distributes the first element across the list" $ do
+            spread (1 :: Int, ["a", "b", "c"]) `shouldBe` [(1, "a"), (1, "b"), (1, "c")]
