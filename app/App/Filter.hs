@@ -121,16 +121,28 @@ applyDiffLines file (Just ref) True ms = do
           inChanged m  = spanStartLine (_mspan m) `elem` changedLines
       in  return $ filter inChanged ms
 
--- | Parse `git diff --unified=0` output and return all changed line numbers in the new file.
+-- | Parse unified diff output (e.g. `git diff --unified=0` or `unifiedDiff` with context)
+-- and return all changed line numbers in the new file.
 parseDiffChangedLines :: String -> [Int]
-parseDiffChangedLines = concatMap parseHunk . lines
+parseDiffChangedLines = parseDiff . lines
   where
-    parseHunk line = case stripPrefix "@@ " line of
-      Nothing   -> []
+    parseDiff [] = []
+    parseDiff (l:ls) = case parseHunkHeader l of
+      Just (start, count) ->
+        let (body, rest) = break isHunkHeader ls
+            changed = parseHunkBody start body
+            result = if null body && count > 0 then [start .. start + count - 1] else changed
+        in result ++ parseDiff rest
+      Nothing -> parseDiff ls
+
+    isHunkHeader line = "@@ " `isPrefixOf` line
+
+    parseHunkHeader line = case stripPrefix "@@ " line of
+      Nothing   -> Nothing
       Just rest ->
         let plusPart = dropWhile (/= '+') rest
         in  case stripPrefix "+" plusPart of
-              Nothing -> []
+              Nothing -> Nothing
               Just s  ->
                 let (startStr, afterStart) = break (\c -> c == ',' || c == ' ') s
                 in  case reads startStr of
@@ -140,8 +152,21 @@ parseDiffChangedLines = concatMap parseHunk . lines
                                                       [(n, "")] -> n
                                                       _         -> 1
                                       _          -> 1
-                        in  [start .. start + count - 1]
-                      _ -> []
+                        in  Just (start, count)
+                      _ -> Nothing
+
+    parseHunkBody _ [] = []
+    parseHunkBody curLine (b:bs)
+      | "+" `isPrefixOf` b && not ("+++" `isPrefixOf` b) =
+          curLine : parseHunkBody (curLine + 1) bs
+      | " " `isPrefixOf` b =
+          parseHunkBody (curLine + 1) bs
+      | "-" `isPrefixOf` b =
+          parseHunkBody curLine bs
+      | "\\" `isPrefixOf` b =
+          parseHunkBody curLine bs
+      | otherwise =
+          parseHunkBody curLine bs
 
 -- | Filter out mutants whose source start line contains any of the given substrings.
 applyIgnoreLines :: String -> [String] -> [Mutant] -> [Mutant]
