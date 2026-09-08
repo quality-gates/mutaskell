@@ -34,9 +34,9 @@ instance Semigroup MAnalysisSummary where
 instance Monoid MAnalysisSummary where
   mempty = MAnalysisSummary (-1) 0 0 0 0 0
 
--- | Total mutant count acting as the basis for percentage calculations.
+-- | Total mutant count acting as the basis for percentage calculations (evaluated mutants).
 summaryTotal :: MAnalysisSummary -> Int
-summaryTotal s = max (_maCoveredNumMutants s) (_maNumMutants s)
+summaryTotal = _maNumMutants
 
 -- | Number of non-error mutants evaluated.
 summaryNoErrors :: MAnalysisSummary -> Int
@@ -72,12 +72,16 @@ instance Show MAnalysisSummary where
         noerrors = summaryNoErrors s
         msi      = summaryMsi s
         showx a  = if a == -1 then "not provided" else show a
-    in showAS ["Mutation score (MSI): " ++ show msi ++ "%",
-               "Total mutants: " ++ show mnum ++ " (basis for %)",
-               "\tCovered: " ++  showx _maCoveredNumMutants,
-               "\tSampled: " ++  show _maNumMutants,
-               "\tSkipped (non-compilable): " ++ show _maSkipped,
-               "\tErrors: " ++  show _maErrors ++ "  "++ _maErrors ./. mnum,
-               "\tAlive: " ++  show _maAlive  ++ "/" ++ show noerrors,
-               "\tKilled: " ++  show _maKilled ++ "/" ++ show noerrors ++ " " ++ _maKilled ./. noerrors]
+        covLines = case summaryCoveredMsi s of
+          Just cmsi -> ["Covered code MSI: " ++ show cmsi ++ "%"]
+          Nothing   -> []
+    in showAS $ ["Mutation score (MSI): " ++ show msi ++ "%"]
+             ++ covLines
+             ++ ["Total mutants: " ++ show mnum ++ " (basis for %)",
+                 "\tCovered: " ++  showx _maCoveredNumMutants,
+                 "\tSampled: " ++  show _maNumMutants,
+                 "\tSkipped (non-compilable): " ++ show _maSkipped,
+                 "\tErrors: " ++  show _maErrors ++ "  "++ _maErrors ./. mnum,
+                 "\tAlive: " ++  show _maAlive  ++ "/" ++ show noerrors,
+                 "\tKilled: " ++  show _maKilled ++ "/" ++ show noerrors ++ " " ++ _maKilled ./. noerrors]
 
