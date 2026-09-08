@@ -70,7 +70,7 @@ import App.Orchestrator
     , stateDir
     , summarise
     )
-import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..), forceSummary)
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
 import Test.Mutaskell.Mutation (genSampledMutantsGated, getASTFromFile, getModuleName)
 import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
@@ -139,9 +139,8 @@ runSerial opts = do
     -- Each file's evaluation restores the original after every mutant and in a
     -- `finally`, so an interrupt cannot leave mutated source behind (AC 6).
     -- Between files no file is in a mutated state, so no extra guard is needed.
-    results <- walk opts buildCmd testCmd mtimeout deadline budgetRef pending
+    msum <- walk opts buildCmd testCmd mtimeout deadline budgetRef pending
 
-    let msum = summarise results
     putStrLn ""
     putStrLn "==== Project mutation summary ===="
     print msum
@@ -150,22 +149,27 @@ runSerial opts = do
     writeResult opts msum
     applyExitPolicy opts msum
 
--- | Walk pending files, accumulating outcomes and honouring the budget.
+-- | Walk pending files, folding each file's strict summary into the project
+-- total and honouring the budget.  A file's full results are released once its
+-- survivor report is written, so mutant source bodies do not stay live for the
+-- rest of the run — summary state stays O(1) per file, not O(file source).
 walk
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> [FilePath] -> IO [(Mutant, Outcome)]
-walk opts buildCmd testCmd mtimeout deadline budgetRef = go []
-  where
-    go acc [] = return (reverse acc)
-    go acc (f : fs) = do
-        stop <- shouldStop deadline budgetRef
-        if stop
-            then do
-                hPutStrLn stderr "Budget exhausted; stopping with a partial result."
-                return (reverse acc)
-            else do
-                rs <- processFile opts buildCmd testCmd mtimeout deadline budgetRef f
-                go (reverse rs ++ acc) fs
+    -> IORef Int -> [FilePath] -> IO MAnalysisSummary
+walk opts buildCmd testCmd mtimeout deadline budgetRef pending = do
+    sumRef <- newIORef mempty
+    let go []       = readIORef sumRef
+        go (f : fs) = do
+            stop <- shouldStop deadline budgetRef
+            if stop
+                then do
+                    hPutStrLn stderr "Budget exhausted; stopping with a partial result."
+                    readIORef sumRef
+                else do
+                    fsum <- processFile opts buildCmd testCmd mtimeout deadline budgetRef f
+                    modifyIORef' sumRef (<> fsum)
+                    go fs
+    go pending >>= \total -> evaluate (forceSummary total) >> return total
 
 -- | True if the time budget has passed or the mutant budget is spent.
 shouldStop :: Maybe UTCTime -> IORef Int -> IO Bool
@@ -178,29 +182,31 @@ shouldStop deadline budgetRef = do
             Just dl -> (>= dl) <$> getCurrentTime
 
 -- | Process one source file: parse, generate (bounded), sample, evaluate.
--- Any failure is logged and the file skipped, so the run survives bad files
--- (AC 4).
+-- Returns the file's strict summary; any failure is logged and the file
+-- skipped, so the run survives bad files (AC 4).  The full per-mutant results
+-- never leave this function: survivors are reported from them here, then the
+-- results are dropped.
 processFile
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> FilePath -> IO [(Mutant, Outcome)]
+    -> IORef Int -> FilePath -> IO MAnalysisSummary
 processFile opts buildCmd testCmd mtimeout deadline budgetRef file = do
     e <- try (processFile' opts buildCmd testCmd mtimeout deadline budgetRef file)
     case e of
-        Right rs -> return rs
+        Right fsum -> return fsum
         Left (ex :: SomeException) -> do
             hPutStrLn stderr $ "SKIP " ++ file ++ ": " ++ show ex
-            return []
+            return mempty
 
 processFile'
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> FilePath -> IO [(Mutant, Outcome)]
+    -> IORef Int -> FilePath -> IO MAnalysisSummary
 processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
     origSrc <- readFile' file
     eAst <- getASTFromFile file
     case eAst of
         Left err -> do
             hPutStrLn stderr $ "SKIP " ++ file ++ " (parse): " ++ firstLine err
-            return []
+            return mempty
         Right ast -> do
             remaining <- readIORef budgetRef
             let perFileCap = min remaining (maxNumMutants defaultConfig)
@@ -215,7 +221,7 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
                     -- mutants), not if it was time-truncated — otherwise a slow
                     -- file is silently skipped forever on resume.
                     when genComplete (recordDone file)
-                    return []
+                    return mempty
                 else do
                     hPutStrLn stderr $ "FILE " ++ file ++ ": "
                         ++ show (length sampled) ++ " mutant(s)"
@@ -227,7 +233,10 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
                     -- Record done only if generation finished and we evaluated
                     -- the whole file (a budget cut mid-file leaves it for resume).
                     when (genComplete && length rs == length sampled) (recordDone file)
-                    return rs
+                    -- Fold strict counters while `rs` is in scope, then let it
+                    -- go: the summary must not drag this file's mutant sources
+                    -- through the rest of the run.
+                    return $! forceSummary (summarise rs)
 
 -- | Dry run over a project: discover files and report per-file generation counts
 -- without building or testing.  Cheap way to verify discovery + bounded

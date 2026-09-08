@@ -38,6 +38,14 @@ instance Monoid MAnalysisSummary where
 summaryTotal :: MAnalysisSummary -> Int
 summaryTotal = _maNumMutants
 
+-- | A summary with every counter forced.  Counters computed lazily from a
+-- result list would otherwise keep that list alive through thunks; forcing
+-- them while the list is still in scope lets the caller release it.
+forceSummary :: MAnalysisSummary -> MAnalysisSummary
+forceSummary s@MAnalysisSummary{..} =
+    _maCoveredNumMutants `seq` _maNumMutants `seq` _maAlive `seq`
+        _maKilled `seq` _maErrors `seq` _maSkipped `seq` s
+
 -- | Number of non-error mutants evaluated.
 summaryNoErrors :: MAnalysisSummary -> Int
 summaryNoErrors s = summaryTotal s - _maErrors s
