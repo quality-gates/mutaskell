@@ -69,9 +69,15 @@ unifiedDiff origSrc mutSrc
     ctxSet   = nub $ sort $ concatMap (\i -> [max 1 (i-ctx)..min maxLen (i+ctx)]) diffIdxs
     hunks    = groupConsec ctxSet
     renderHunk hunk@(lo:_) =
-      let hi  = hunk !! (length hunk - 1)
-          hdr = "@@ -" ++ show lo ++ "," ++ show (hi - lo + 1) ++ " @@\n"
-          rows = concat (concatMap renderRow hunk)
+      let hi       = hunk !! (length hunk - 1)
+          oldCount = length [i | i <- hunk, i <= length oLines]
+          newCount = length [i | i <- hunk, i <= length mLines]
+          oldStart = if oldCount == 0 then 0 else lo
+          newStart = if newCount == 0 then 0 else lo
+          hdr      = "@@ -" ++ show oldStart ++ "," ++ show oldCount
+                  ++ " +" ++ show newStart ++ "," ++ show newCount
+                  ++ " @@\n"
+          rows     = concat (concatMap renderRow hunk)
       in hdr ++ rows
     renderHunk [] = ""
     renderRow i
