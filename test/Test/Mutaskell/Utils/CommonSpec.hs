@@ -35,9 +35,23 @@ spec = do
         it "must sample a given size subset" $ do
             sample (mkStdGen 1) 2 [1, 2, 3, 4] `shouldBe` [2, 4]
 
+        it "returns empty list when n is negative" $ do
+            sample (mkStdGen 42) (-1) [1 :: Int, 2, 3] `shouldBe` []
+            sample (mkStdGen 42) (-5) [1 :: Int, 2, 3] `shouldBe` []
+
+        it "returns empty list when n is negative and list is empty" $ do
+            sample (mkStdGen 42) (-1) ([] :: [Int]) `shouldBe` []
+
+        it "returns empty list when n is zero" $ do
+            sample (mkStdGen 42) 0 [1 :: Int, 2, 3] `shouldBe` []
+            sample (mkStdGen 42) 0 ([] :: [Int]) `shouldBe` []
+
     describe "sampleF" $ do
         it "must sample a given fraction subset" $ do
             sampleF (mkStdGen 1) 0.5 [1, 2, 3, 4] `shouldBe` [2, 4]
+
+        it "returns empty list when fraction is negative" $ do
+            sampleF (mkStdGen 42) (-0.5) [1 :: Int, 2, 3] `shouldBe` []
 
     describe "coupling" $ do
         it "must sample a given fraction subset" $ do

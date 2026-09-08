@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.6]
+  * Fixed: `sample` in `Test.Mutaskell.Utils.Common` now handles `n <= 0` gracefully by returning `[]`, preventing a crash with `Prelude.!!: index too large` when `n < 0` (#25).
+
 ## [0.8.5]
   * Fixed: `unifiedDiff` now formats hunk headers with standard `+` addition ranges (`@@ -lo,oldCount +lo,newCount @@`) conforming to POSIX and Git diff specifications (#26).
   * Fixed: `parseDiffChangedLines` now parses hunk body lines to identify changed line numbers in diffs with context lines as well as zero-context diffs, enabling seamless roundtrip with `unifiedDiff` (#26).
