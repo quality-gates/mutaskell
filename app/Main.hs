@@ -3,12 +3,13 @@ module Main where
 import App.Exit (applyExitPolicy, isSingleMutantMode)
 import App.Filter
     ( applyAnnotations
-    , applyBaseline
-    , applyBlacklist
-    , applyDiffLines
+    , applyBaselineCached
+    , applyBlacklistCached
+    , applyDiffLinesCached
     , applyDisableEnable
-    , applyIgnoreLines
-    , applyRunMutantId
+    , applyIgnoreLinesCached
+    , applyRunMutantIdCached
+    , cacheMutantIds
     , checkGitDiff
     , parseAnnotations
     )
@@ -125,11 +126,12 @@ runOptsFile opts
         -- spent only on candidates that survive every filter.
         let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) mutants
             filtered1 = applyAnnotations anns filtered0
-        filtered2 <- applyBaseline  (optBaseline opts)  filtered1
-        filtered3 <- applyBlacklist (optBlacklist opts) filtered2
-        filtered4 <- applyDiffLines (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) filtered3
-        let filtered5 = applyIgnoreLines origSrc (optIgnoreLines opts) filtered4
-            preFilter = applyRunMutantId (optRunMutantId opts) filtered5
+            cached1   = cacheMutantIds filtered1
+        cached2 <- applyBaselineCached  (optBaseline opts)  cached1
+        cached3 <- applyBlacklistCached (optBlacklist opts) cached2
+        cached4 <- applyDiffLinesCached (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) cached3
+        let cached5   = applyIgnoreLinesCached origSrc (optIgnoreLines opts) cached4
+            preFilter = map fst (applyRunMutantIdCached (optRunMutantId opts) cached5)
             maxN      = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
         finalMutants <- sampler (defaultConfig { maxNumMutants = maxN }) preFilter
         let tests = map (genTest modFile)
