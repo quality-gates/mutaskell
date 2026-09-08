@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.5]
+  * Fixed: `unifiedDiff` now formats hunk headers with standard `+` addition ranges (`@@ -lo,oldCount +lo,newCount @@`) conforming to POSIX and Git diff specifications (#26).
+  * Fixed: `parseDiffChangedLines` now parses hunk body lines to identify changed line numbers in diffs with context lines as well as zero-context diffs, enabling seamless roundtrip with `unifiedDiff` (#26).
+
 ## [0.8.4]
   * Changed: refactored codebase into a functional pearl style with pure, composable combinators:
     * `choose` rewritten as direct combinations recursion rather than filtering $2^N$ subsequences
