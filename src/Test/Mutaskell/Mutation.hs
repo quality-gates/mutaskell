@@ -13,7 +13,7 @@ import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
 import System.Directory (doesDirectoryExist)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
 
-import GHC.Hs
+import GHC.Hs hiding (mkParPat)
 import GHC.Parser.Annotation ()
 import Language.Haskell.Syntax.Basic (Boxity (..))
 import GHC.Types.SrcLoc
@@ -129,6 +129,16 @@ mkStringExpr s = mkL (HsLit noExtField (HsString NoSourceText (mkFastString s)))
 -- zero-width delta so the parens hug the wrapped expression.
 mkPar :: LHsExpr GhcPs -> LHsExpr GhcPs
 mkPar e = mkL (HsPar (lpar, rpar) (setEntryDP e (SameLine 0)))
+  where
+    lpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
+    rpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
+
+-- | Wrap a pattern in explicit parentheses: @p@ → @(p)@.
+-- Needed when injecting a multi-token pattern such as @Just _@ into a
+-- position where an unparenthesised pattern would alter function arity
+-- (e.g. @f Nothing@ → @f (Just _)@).
+mkParPat :: LPat GhcPs -> LPat GhcPs
+mkParPat p = transferEntryDP p (mkL (ParPat (lpar, rpar) (setEntryDP p (SameLine 0))))
   where
     lpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
     rpar = EpTok (EpaDelta generatedSrcSpan (SameLine 0) [])
@@ -1399,24 +1409,29 @@ selectPatternConstructorFlipOps m = selectValOps hasFlippableCon convert m
         ]
 
     flipOnePat :: [LPat GhcPs] -> [[LPat GhcPs]]
-    flipOnePat = mutateOne flipTopPat
+    flipOnePat = mutateOne (flipPat False)
 
     -- Unwrap ParPat and re-wrap the flipped result, so that function-argument
     -- patterns such as @f (Just x)@ and @f (Left e)@ are handled correctly.
-    flipTopPat :: LPat GhcPs -> [LPat GhcPs]
-    flipTopPat (L l (ParPat x inner)) =
-        [ L l (ParPat x p) | p <- flipTopPat inner ]
-    flipTopPat (L l (ConPat x (L lr rdr) args)) =
+    -- If an unparenthesised @Nothing@ is flipped to @Just _@, wrap it in @ParPat@
+    -- to preserve function clause arity and syntactic validity.
+    flipPat :: Bool -> LPat GhcPs -> [LPat GhcPs]
+    flipPat _ (L l (ParPat x inner)) =
+        [ L l (ParPat x p) | p <- flipPat True inner ]
+    flipPat inParens (L l (ConPat x (L lr rdr) args)) =
         case flipConName (rdrStr rdr) of
             Nothing        -> []
             Just "Nothing" ->
                 [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc "Nothing"))) (PrefixCon [] []))]
             Just "Just"    ->
-                [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc "Just")))
-                         (PrefixCon [] [mkL (WildPat noExtField)]))]
+                let justPat = L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc "Just")))
+                                      (PrefixCon [] [setEntryDP (mkL (WildPat noExtField)) (SameLine 1)]))
+                in if inParens
+                       then [justPat]
+                       else [mkParPat justPat]
             Just other     ->
                 [L l (ConPat x (L lr (mkRdrUnqual (mkDataOcc other))) args)]
-    flipTopPat _ = []
+    flipPat _ _ = []
 
 -- ---------------------------------------------------------------------------
 -- Append strip mutation

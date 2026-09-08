@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.8]
+  * Fixed: `selectPatternConstructorFlipOps` now encloses flipped `Nothing` patterns in `(Just _)` and assigns leading whitespace to the wildcard pattern, preventing `Just_` variable identifier emission and preserving function clause arity (#23).
+
 ## [0.8.7]
   * Fixed: `summaryMsi` and `summaryTotal` now evaluate overall Mutation Score Indicator (MSI) against evaluated mutants (`_maNumMutants - _maErrors`) rather than taking `max _maCoveredNumMutants _maNumMutants`, resolving discrepancy between terminal summary, `--min-msi` quality gates, and `--logger-json` under coverage sampling (#24).
 

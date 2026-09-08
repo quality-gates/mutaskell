@@ -179,6 +179,68 @@ myFn (Right v) = v
 |]
             ast <- H.ast text
             selectPatternConstructorFlipOps ast `shouldSatisfy` (not . null)
+        it "renders (Just _) when flipping Nothing in a function head" $ do
+            let text =
+                    [e|
+module Prop where
+f Nothing = 0
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("f (Just _) = 0" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("Just_" `isInfixOf`))
+        it "renders (Just _) when flipping Nothing in a multi-clause function" $ do
+            let text =
+                    [e|
+module Prop where
+f Nothing = 0
+f (Just x) = x
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("f (Just _) = 0" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("Just_" `isInfixOf`))
+        it "renders (Just _) when flipping Nothing in a case expression" $ do
+            let text =
+                    [e|
+module Prop where
+g x = case x of
+    Nothing -> 0
+    Just v  -> v
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("(Just _) -> 0" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("Just_" `isInfixOf`))
+        it "renders (Just _) without duplicate parens when flipping parenthesised (Nothing)" $ do
+            let text =
+                    [e|
+module Prop where
+f (Nothing) = 0
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("f (Just _) = 0" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("((Just _))" `isInfixOf`))
+            srcs `shouldSatisfy` all (not . ("Just_" `isInfixOf`))
+        it "renders (Nothing) when flipping (Just x) in a function head" $ do
+            let text =
+                    [e|
+module Prop where
+f (Just x) = x
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("f (Nothing) = x" `isInfixOf`)
+        it "renders (Right e) when flipping (Left e) in a function head" $ do
+            let text =
+                    [e|
+module Prop where
+f (Left e) = 0
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map (unwords . words . _mutant) mutants
+            srcs `shouldSatisfy` any ("f (Right e) = 0" `isInfixOf`)
 
     describe "selectAppendStripOps" $ do
         it "returns muops for a ++ expression" $ do
