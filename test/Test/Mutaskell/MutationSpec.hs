@@ -248,6 +248,51 @@ h x = foo 3.14 x
             srcs `shouldSatisfy` any ("foo (negate" `isInfixOf`)
             srcs `shouldSatisfy` all (not . ("foo negate" `isInfixOf`))
 
+    describe "selectErrorGuardOps" $ do
+        -- Regression: handle handler action was replaced with handler
+        -- (type e -> IO a) instead of action (type IO a).
+        it "replaces handle handler action with action, not the handler" $ do
+            let text =
+                    [e|
+module M where
+f action = handle handler action
+|]
+            ast <- H.ast text
+            let ops = selectErrorGuardOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("f action = action" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("f action = handler" `isInfixOf`))
+
+        it "replaces catch action handler with action" $ do
+            let text =
+                    [e|
+module M where
+f action = catch action handler
+|]
+            ast <- H.ast text
+            let ops = selectErrorGuardOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("f action = action" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("f action = handler" `isInfixOf`))
+
+        it "replaces try action with return (Right action)" $ do
+            let text =
+                    [e|
+module M where
+f action = try action
+|]
+            ast <- H.ast text
+            let ops = selectErrorGuardOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("return (Right action)" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("return Right action" `isInfixOf`))
+
     describe "selectFnMatches" $ do
         it "returns function-match muops for a multi-clause function" $ do
             let text =

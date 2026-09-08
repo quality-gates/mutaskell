@@ -1250,12 +1250,12 @@ selectErrorGuardOps m = selectValOps isErrorOp convert m
     -- handle _handler e → e  (removes the handle)
     -- try e → return (Right e)  (always succeeds)
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
-    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e1)) _))
+    convert (L _ (HsApp _ (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e1)) e2))
         | rdrStr rdr == "catch"  = [e1]
-        | rdrStr rdr == "handle" = [e1]
+        | rdrStr rdr == "handle" = [e2]
     convert (L _ (HsApp _ (L _ (HsVar _ (L _ rdr))) e))
         | rdrStr rdr == "try" =
-            [mkApp (mkVar "return") (mkApp (mkDataVar "Right") e)]
+            [mkApp (mkVar "return") (mkPar (mkApp (mkDataVar "Right") e))]
     convert _ = []
 
 -- | Replace @IORef@ / @MVar@ / @TVar@ arguments with @undefined@.

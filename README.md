@@ -516,6 +516,16 @@ acquire >>= action
 catch (riskyOp x) handler
 -- After
 riskyOp x
+
+-- Before
+handle handler (riskyOp x)
+-- After
+riskyOp x
+
+-- Before
+try (riskyOp x)
+-- After
+return (Right (riskyOp x))
 ```
 
 **22. Mutable argument replacement** (`replace-mutable-arg`) — replaces an `IORef`/`MVar`/`TVar` argument with `undefined`

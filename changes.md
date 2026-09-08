@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.12]
+  * Fixed: `selectErrorGuardOps` now replaces `handle handler action` with `action` rather than `handler`, so the mutant typechecks and tests the unhandled action (#19).
+  * Fixed: `selectErrorGuardOps` now parenthesises the `try` replacement (`return (Right e)`), so exactPrint emits `return (Right action)` rather than `return Right action`.
+
 ## [0.8.11]
   * Fixed: `selectNegateLiteralOps` now parenthesises the `negate x` replacement (`mkPar`), so injecting it into a function-application or constructor context exactPrints as `add (negate 5) x` / `Left (negate 5)` rather than `add negate 5 x` / `Left negate 5`, which parsed as extra arguments and never typechecked (#20).
 
