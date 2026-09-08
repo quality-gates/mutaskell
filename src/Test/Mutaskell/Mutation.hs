@@ -9,8 +9,11 @@ module Test.Mutaskell.Mutation where
 import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
 import qualified Data.Hashable as H
+import qualified Data.Map.Strict as Map
+import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
-import System.Directory (doesDirectoryExist)
+import System.Directory (canonicalizePath, doesDirectoryExist)
+import System.IO.Unsafe (unsafePerformIO)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
 
 import GHC.Hs hiding (mkParPat)
@@ -461,18 +464,59 @@ needsCabalMacros = ("MIN_VERSION_" `isInfixOf`)
 @MIN_VERSION_*@ guards in CPP files preprocess correctly.  Returns @[]@ when the
 project has not been built.  Each header guards its macros with @#ifndef@, so
 force-including several (from multiple components) is safe.
+
+The build tree does not change during a run (the baseline build precedes every
+parse), so the scan is cached per project: the cache is keyed by the absolute
+@dist-newstyle@ path, so a process that moves to a different project scans that
+project's build tree on its own.  An empty result is never cached — a project
+whose headers appear only after a later build is re-scanned, not stuck with the
+stale "not built yet" answer.
 -}
 discoverCabalMacros :: IO [FilePath]
 discoverCabalMacros = do
+    distDir <- canonicalizePath "dist-newstyle"
+    cache <- readIORef macroCacheRef
+    case Map.lookup distDir cache of
+        Just macros -> return macros
+        Nothing -> do
+            macros <- scanCabalMacros
+            modifyIORef' macroCacheRef
+                (if null macros then id else Map.insert distDir macros)
+            return macros
+
+-- | Cached 'discoverCabalMacros' results by absolute @dist-newstyle@ path.
+{-# NOINLINE macroCacheRef #-}
+macroCacheRef :: IORef (Map.Map FilePath [FilePath])
+macroCacheRef = unsafePerformIO (newIORef Map.empty)
+
+-- | How many build-tree scans for @cabal_macros.h@ this process has performed.
+-- Instrumentation for the cache: a project run should add exactly one scan no
+-- matter how many CPP files it parses.
+readCabalMacroScans :: IO Int
+readCabalMacroScans = readIORef macroScanCountRef
+
+{-# NOINLINE macroScanCountRef #-}
+macroScanCountRef :: IORef Int
+macroScanCountRef = unsafePerformIO (newIORef 0)
+
+-- | One scan of the build tree for @cabal_macros.h@ headers.  The traversal is
+-- bounded by @head@ in a shell pipeline: once @head@ has its 20 lines the pipe
+-- closes and @find@ stops, so a large build tree with many headers is neither
+-- walked to the end nor captured whole in memory.
+scanCabalMacros :: IO [FilePath]
+scanCabalMacros = do
     hasDist <- doesDirectoryExist "dist-newstyle"
     if not hasDist
         then return []
         else do
-            e <- try (readProcess "find" ["dist-newstyle", "-name", "cabal_macros.h"] "")
+            modifyIORef' macroScanCountRef (+ 1)
+            e <- try (readProcess "sh" ["-c", findCmd] "")
                     :: IO (Either IOException String)
             return $ case e of
                 Left _    -> []
                 Right out -> take 20 (lines out)
+  where
+    findCmd = "find dist-newstyle -name cabal_macros.h -print | head -n 20"
 
 -- | Get all test function names from a source file (by path).
 getAllTests :: String -> IO (Either String [String])

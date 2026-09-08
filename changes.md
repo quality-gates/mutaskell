@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.15]
+  * Changed: project discovery prunes overlapping roots (a package dir that subsumes a declared `hs-source-dirs` root is not walked again) and lists each directory once, so a normal root-package layout walks the tree once instead of once per declared source dir. Discovery/resume/shard membership is indexed with sets instead of repeated list scans, and files are distributed to worker buckets in one pass. File selection, ordering, exclusions and shard membership are unchanged (#41).
+  * Changed: CPP `cabal_macros.h` discovery is cached per project within a run, so a project with many CPP modules scans the build tree once instead of once per parse. Empty results are never cached, so a project whose macros appear only after a later build is re-scanned (#41).
+  * Added: `bench/discovery.sh`, a wall-time benchmark over overlapping roots, growing resume lists, worker counts and CPP file counts, plus dry-run instrumentation for the discovery and macro scan counts (#41).
+
 ## [0.8.14]
   * Changed: project mode now folds strict summary counters as each file completes and releases that file's full mutant results once its survivor report is written, instead of accumulating every `(Mutant, Outcome)` pair until the final summary. Retained mutant source is bounded by the current file's sample rather than the whole run (#42).
   * Added: `bench/residency.sh`, a peak-RSS benchmark over increasing file counts at a fixed per-file mutant cap, used to verify the retention change (#42).

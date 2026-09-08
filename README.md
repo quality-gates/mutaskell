@@ -638,7 +638,8 @@ source, mutaskell can mutate it.
 
 mutaskell supports several CLI flags for configuring mutation runs and output:
 
-*   `--dry-run`: Show mutation counts by type without evaluating.
+*   `--dry-run`: Show mutation counts by type without evaluating, plus the
+    discovery scan counts and CPP macro scans the run performed.
 *   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
 *   `--fail-on-escaped`: Exit with code 4 if any mutant survives.
 *   `--min-msi PCT`: Exit with code 5 if overall MSI is below PCT percent.
