@@ -34,7 +34,7 @@ replaceFst (o, n) (v : vs)
 subset of given size.
 -}
 sample :: (RandomGen g) => g -> Int -> [t] -> [t]
-sample _ 0 _ = []
+sample _ n _ | n <= 0 = []
 sample _ n xs | length xs <= n = xs
 sample g n xs = val : sample g' (n - 1) (remElt idx xs)
   where
