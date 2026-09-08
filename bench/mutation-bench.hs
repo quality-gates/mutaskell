@@ -65,9 +65,7 @@ nestedSource n = unlines $
     ] ++ [ "  " ++ show i ++ " -> " ++ nestedIf n | i <- [1 .. n] ]
 
 nestedIf :: Int -> String
-nestedIf depth = go depth
-  where
-    go 0 = "0"
-    go level =
-        "if x > " ++ show level ++ " then " ++ go (level - 1)
-            ++ " else x"
+nestedIf 0 = "0"
+nestedIf depth =
+    "if x > " ++ show depth ++ " then " ++ nestedIf (depth - 1)
+        ++ " else x"

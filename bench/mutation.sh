@@ -5,9 +5,9 @@
 # typed-declaration lookup change is not confused with nested-subtree printing.
 #
 # Build with the normal environment-file workflow, then compare the selector
-# and sampled rows across sizes.  A profiling-enabled build can pass
-# MUTATION_BENCH_RTS_OPTS='+RTS -p -RTS' to inspect printing before claiming an
-# end-to-end improvement.
+# and sampled rows across sizes.  The phases are reported separately so this
+# benchmark does not attribute an end-to-end speedup to selector metadata
+# without a separate printing profile.
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -21,7 +21,10 @@ cabal exec -- ghc -O1 -rtsopts -package mutaskell \
     -o "$WORK/mutation-bench"
 
 run() {
-    "$WORK/mutation-bench" "$@" ${MUTATION_BENCH_RTS_OPTS:-}
+    (
+        cd "$WORK"
+        "$WORK/mutation-bench" "$@" ${MUTATION_BENCH_RTS_OPTS:-}
+    )
 }
 
 echo "== typed declaration metadata, cap 1 =="

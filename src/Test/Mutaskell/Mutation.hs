@@ -231,15 +231,20 @@ genMutantsWithExtra config extraSels origAst =
                 nubBy (\(v1,s1,_) (v2,s2,_) -> v1==v2 && s1==s2)
                     (mutatesN ops origAst 1)
   where
-    -- Generate ops only from non-test declarations (to avoid mutating the test
-    -- harness), but apply them to the full module so exactPrint can use every
-    -- declaration's original EpAnn delta positions.
+    (origStr, ops) = prepareSelectorInputs config extraSels origAst
+
+-- | Build the shared metadata and operator input for a generation path.
+-- Selectors inspect only non-test declarations, while operators are applied to
+-- the full module so 'exactPrint' can use every declaration's original layout.
+prepareSelectorInputs ::
+    Config -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> (String, [(MuVar, MuOp)])
+prepareSelectorInputs config extraSels origAst =
+    (exactPrint origAst, applicableOpsWith metadata config opsAst
+        ++ concatMap ($ opsAst) extraSels)
+  where
     metadata = buildSelectorMetadata origAst
     (_, noAnnDecls) = splitAnnotationsWith metadata origAst
-    opsAst  = putDecl origAst noAnnDecls
-    ops     = applicableOpsWith metadata config opsAst
-                ++ concatMap ($ opsAst) extraSels
-    origStr = exactPrint origAst
+    opsAst = putDecl origAst noAnnDecls
 
 {- | Generate mutants but sample the mutation /operators/ before rendering, so
 the expensive 'exactPrint' and the string-equality dedup run on at most
@@ -281,12 +286,7 @@ genSampledMutantsWith config muncovered extraSels origAst = do
                     nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
                         (mutatesN sampledOps origAst 1)
   where
-    metadata = buildSelectorMetadata origAst
-    (_, noAnnDecls) = splitAnnotationsWith metadata origAst
-    opsAst  = putDecl origAst noAnnDecls
-    ops     = applicableOpsWith metadata config opsAst
-                ++ concatMap ($ opsAst) extraSels
-    origStr = exactPrint origAst
+    (origStr, ops) = prepareSelectorInputs config extraSels origAst
     -- Drop operators whose span is inside an uncovered region.
     gate os = case muncovered of
         Nothing        -> os
