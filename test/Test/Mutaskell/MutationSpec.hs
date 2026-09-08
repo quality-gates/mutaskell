@@ -10,11 +10,11 @@ import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 import Language.Haskell.GHC.ExactPrint (exactPrint)
-import Test.Mutaskell.Config (defaultConfig, maxNumMutants)
+import Test.Mutaskell.Config (MuVar (..), defaultConfig, maxNumMutants)
 import Test.Mutaskell.MuOp (mkMpMuOp)
 import Test.Mutaskell.Mutation
 import Test.Mutaskell.TestAdapter (Mutant (..))
-import Test.Mutaskell.Utils.Syb (once)
+import Test.Mutaskell.Utils.Syb (once, relevantOps)
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
 
 main :: IO ()
@@ -559,6 +559,96 @@ g xs = take 3 xs
             adjacentSwaps [1 :: Int, 2, 3] `shouldBe` [[2, 1, 3], [1, 3, 2]]
         it "is empty for a singleton (nothing to reorder)" $
             adjacentSwaps [1 :: Int] `shouldBe` []
+
+    describe "selector metadata" $ do
+        it "excludes annotated test declarations from generated source" $ do
+            let text =
+                    [e|
+module M where
+{-# ANN annotated "Test" #-}
+annotated = 1
+production = 2
+|]
+            ast <- H.ast text
+            getAnnotatedTests ast `shouldBe` ["annotated"]
+            let (testDecls, sourceDecls) = splitAnnotations ast
+            filter (not . null) (map functionName testDecls)
+                `shouldBe` ["annotated"]
+            map functionName sourceDecls `shouldSatisfy` elem "production"
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let sources = map (unwords . words . _mutant) mutants
+            sources `shouldSatisfy` all ("annotated = 1" `isInfixOf`)
+            sources `shouldSatisfy` any (not . ("production = 2" `isInfixOf`))
+
+        it "excludes naming-convention test declarations when there are no annotations" $ do
+            let text =
+                    [e|
+module M where
+prop_generated = 1
+production = 2
+|]
+            ast <- H.ast text
+            getAnnotatedTests ast `shouldBe` ["prop_generated"]
+            let (testDecls, sourceDecls) = splitAnnotations ast
+            map functionName testDecls `shouldBe` ["prop_generated"]
+            map functionName sourceDecls `shouldSatisfy` elem "production"
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let sources = map (unwords . words . _mutant) mutants
+            sources `shouldSatisfy` all ("prop_generated = 1" `isInfixOf`)
+            sources `shouldSatisfy` any (not . ("production = 2" `isInfixOf`))
+
+        it "applies a multi-name signature to every declared function" $ do
+            let text =
+                    [e|
+module M where
+f, g :: Int -> Bool
+f x = x > 0
+g x = x > 0
+|]
+            ast <- H.ast text
+            let renderOps ops =
+                    map (unwords . words . exactPrint) $
+                        concat [once (mkMpMuOp op) ast | op <- ops]
+                sources = renderOps (selectZeroReturnOps ast)
+            sources `shouldSatisfy` any ("f x = False" `isInfixOf`)
+            sources `shouldSatisfy` any ("g x = False" `isInfixOf`)
+
+        it "keeps the first signature for a repeated function name" $ do
+            let text =
+                    [e|
+module M where
+f :: Int -> Int
+f :: Int -> Bool
+f x = x > 0
+|]
+            ast <- H.ast text
+            let sources =
+                    map (unwords . words . exactPrint) $
+                        concat [once (mkMpMuOp op) ast
+                               | op <- selectZeroReturnOps ast]
+            sources `shouldSatisfy` any ("f x = 0" `isInfixOf`)
+            sources `shouldSatisfy` all (not . ("f x = False" `isInfixOf`))
+
+        it "rejects an identity operation before sampling but keeps a real change" $ do
+            let sameText =
+                    [e|
+module M where
+f x = if x > 0 then 1 else 1
+|]
+                changedText =
+                    [e|
+module M where
+f x = if x > 0 then 1 else 0
+|]
+            sameAst <- H.ast sameText
+            changedAst <- H.ast changedText
+            let classify ast =
+                    relevantOps ast
+                        [ (MutateNegateIfElse, op)
+                        | op <- selectIfElseBoolNegOps ast
+                        ]
+            length (classify sameAst) `shouldBe` 0
+            classify changedAst `shouldSatisfy` (not . null)
 
     describe "genSampledMutants" $ do
         it "returns a non-empty, rendered mutant set for a module with mutables" $ do

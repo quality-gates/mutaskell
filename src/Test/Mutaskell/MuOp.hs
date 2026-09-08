@@ -96,6 +96,10 @@ data MuOp
     | D (Decl_,  Decl_)
     | A (Alt_,   Alt_)
     | S (Stmt_,  Stmt_)
+    -- Selector variants made from one source node share the rendered
+    -- before-value.  The wrapper is transparent to mutation application and
+    -- reporting; it only avoids rendering that value once per variant.
+    | CachedBefore String MuOp
 
 -- | Dispatch a rank-2 function over the typed pair inside a 'MuOp'.
 apply :: (forall a. MuNode a => (a, a) -> c) -> MuOp -> c
@@ -103,6 +107,7 @@ apply f (E m) = f m
 apply f (D m) = f m
 apply f (A m) = f m
 apply f (S m) = f m
+apply f (CachedBefore _ op) = apply f op
 
 -- ---------------------------------------------------------------------------
 -- Span extraction
@@ -128,8 +133,11 @@ same string — i.e., the mutation is a no-op and should be discarded.
 Uses 'ppr' so no @Eq@ instance on AST nodes is required.
 -}
 same :: MuOp -> Bool
-same = apply $ \(a, b) ->
-    showSDocUnsafe (ppr a) == showSDocUnsafe (ppr b)
+same (CachedBefore before op) = apply (\(_, b) -> before == renderNode b) op
+same op = apply (\(a, b) -> renderNode a == renderNode b) op
+
+renderNode :: MuNode a => a -> String
+renderNode = showSDocUnsafe . ppr
 
 -- ---------------------------------------------------------------------------
 -- Core combinators
@@ -167,7 +175,16 @@ class Mutable a where
 
 -- | Pair one element with every element in the list.
 (==>*) :: Mutable a => a -> [a] -> [MuOp]
-x ==>* lst = (x ==>) <$> lst
+x ==>* lst = cacheBeforeOps ((x ==>) <$> lst)
+
+cacheBeforeOps :: [MuOp] -> [MuOp]
+cacheBeforeOps []       = []
+cacheBeforeOps [op]     = [op]
+cacheBeforeOps operations@(first : _ : _) =
+    let before = renderBefore first
+    in map (CachedBefore before) operations
+  where
+    renderBefore = apply (renderNode . fst)
 
 -- | Pair every element of the first list with every element of the second.
 (*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
