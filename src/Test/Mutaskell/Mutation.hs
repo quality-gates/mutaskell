@@ -1151,6 +1151,10 @@ selectBoolOperandOps m = selectValOps isBoolOp convert m
 -- Maybe / Either mutations
 
 -- | Flip @Just x@ ↔ @Nothing@ and vice versa.
+-- The @Nothing@ → @Just undefined@ replacement is parenthesised: a bare
+-- application injected into a function-application context would alter the
+-- argument spine (@isNothing Nothing@ → @isNothing Just undefined@, which
+-- parses as @(isNothing Just) undefined@ and never typechecks).
 selectFlipMaybeOps :: Module_ -> [MuOp]
 selectFlipMaybeOps m = selectValOps isMaybe convert m
   where
@@ -1163,7 +1167,7 @@ selectFlipMaybeOps m = selectValOps isMaybe convert m
     convert (L _ (HsApp _ (L _ (HsVar _ _)) _)) =
         [mkDataVar "Nothing"]
     convert (L _ (HsVar _ _)) =
-        [mkApp (mkDataVar "Just") (mkVar "undefined")]
+        [mkPar (mkApp (mkDataVar "Just") (mkVar "undefined"))]
     convert _ = []
 
 -- | Flip @Right x@ ↔ @Left x@ and @Left x@ ↔ @Right x@.
