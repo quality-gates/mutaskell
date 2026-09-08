@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.16]
+  * Changed: filter stages index baseline/blacklist IDs, annotation lines, changed lines and source lines once per input, and hash each mutant's current source once per ID filter, so membership is logarithmic instead of a repeated list scan. Empty filters still return the input list unchanged. Survivor order, annotation overlap, out-of-range lines, ignore-pattern matching, baseline/blacklist read warnings and identity semantics are unchanged (#40).
+  * Added: `bench/filter.sh`, a wall-time benchmark that reports index construction, empty-filter overhead and populated filtering over growing candidate and lookup sizes (#40).
+
 ## [0.8.15]
   * Changed: project discovery prunes overlapping roots (a package dir that subsumes a declared `hs-source-dirs` root is not walked again) and lists each directory once, so a normal root-package layout walks the tree once instead of once per declared source dir. Discovery/resume/shard membership is indexed with sets instead of repeated list scans, and files are distributed to worker buckets in one pass. File selection, ordering, exclusions and shard membership are unchanged (#41).
   * Changed: CPP `cabal_macros.h` discovery is cached per project within a run, so a project with many CPP modules scans the build tree once instead of once per parse. Empty results are never cached, so a project whose macros appear only after a later build is re-scanned (#41).
