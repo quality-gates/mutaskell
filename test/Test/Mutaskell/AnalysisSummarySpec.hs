@@ -1,7 +1,11 @@
 module Test.Mutaskell.AnalysisSummarySpec (main, spec) where
 
+import Control.Exception (try)
 import Data.List (isInfixOf)
+import System.Exit (ExitCode(..))
 import Test.Hspec
+import App.Exit (applyExitPolicy)
+import App.Opts (Opts(..), defaultOpts)
 import Test.Mutaskell.AnalysisSummary
 
 main :: IO ()
@@ -30,16 +34,22 @@ spec = do
             _maCoveredNumMutants (s1 <> s2) `shouldBe` (-1)
 
     describe "summary metrics" $ do
-        it "calculates summaryTotal as the maximum of covered and sampled" $ do
+        it "calculates summaryTotal as the number of evaluated mutants" $ do
             summaryTotal (MAnalysisSummary (-1) 10 0 0 0 0) `shouldBe` 10
-            summaryTotal (MAnalysisSummary 20 10 0 0 0 0) `shouldBe` 20
+            summaryTotal (MAnalysisSummary 20 10 0 0 0 0) `shouldBe` 10
 
-        it "calculates summaryNoErrors as total minus errors" $ do
+        it "calculates summaryNoErrors as evaluated mutants minus errors" $ do
             summaryNoErrors (MAnalysisSummary (-1) 10 0 8 2 0) `shouldBe` 8
+            summaryNoErrors (MAnalysisSummary 20 10 0 8 2 0) `shouldBe` 8
 
         it "calculates summaryMsi correctly" $ do
             let s = MAnalysisSummary (-1) 10 2 8 0 0
             summaryMsi s `shouldBe` 80
+
+        it "calculates summaryMsi against evaluated sampled mutants even when covered mutant count is larger" $ do
+            let s = MAnalysisSummary 200 100 0 100 0 0
+            summaryMsi s `shouldBe` 100
+            summaryCoveredMsi s `shouldBe` Just 50
 
         it "returns 0 MSI when all mutants resulted in errors" $ do
             let s = MAnalysisSummary (-1) 5 0 0 5 0
@@ -60,3 +70,29 @@ spec = do
             out `shouldSatisfy` ("Total mutants:" `isInfixOf`)
             out `shouldSatisfy` ("Killed:" `isInfixOf`)
             out `shouldSatisfy` ("%" `isInfixOf`)
+
+        it "includes Covered code MSI when coverage is present" $ do
+            let s = MAnalysisSummary 200 100 0 100 0 0
+                out = show s
+            out `shouldSatisfy` ("Mutation score (MSI): 100%" `isInfixOf`)
+            out `shouldSatisfy` ("Covered code MSI: 50%" `isInfixOf`)
+
+    describe "applyExitPolicy" $ do
+        it "evaluates --min-msi against evaluated mutant MSI and passes when MSI meets threshold" $ do
+            let s = MAnalysisSummary 200 100 0 100 0 0
+                opts = defaultOpts { optMinMsi = Just 80 }
+            res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
+            res `shouldBe` Right ()
+
+        it "evaluates --min-covered-msi against covered code MSI and exits with failure when below threshold" $ do
+            let s = MAnalysisSummary 200 100 0 100 0 0
+                opts = defaultOpts { optMinCoveredMsi = Just 80 }
+            res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
+            res `shouldBe` Left (ExitFailure 5)
+
+        it "passes --min-covered-msi when covered code MSI meets threshold" $ do
+            let s = MAnalysisSummary 200 100 0 100 0 0
+                opts = defaultOpts { optMinCoveredMsi = Just 50 }
+            res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
+            res `shouldBe` Right ()
+

@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.7]
+  * Fixed: `summaryMsi` and `summaryTotal` now evaluate overall Mutation Score Indicator (MSI) against evaluated mutants (`_maNumMutants - _maErrors`) rather than taking `max _maCoveredNumMutants _maNumMutants`, resolving discrepancy between terminal summary, `--min-msi` quality gates, and `--logger-json` under coverage sampling (#24).
+
 ## [0.8.6]
   * Fixed: `sample` in `Test.Mutaskell.Utils.Common` now handles `n <= 0` gracefully by returning `[]`, preventing a crash with `Prelude.!!: index too large` when `n < 0` (#25).
 
