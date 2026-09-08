@@ -7,9 +7,12 @@ import Here
 import System.Directory (withCurrentDirectory)
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
+import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Test.Mutaskell.Config (defaultConfig, maxNumMutants)
+import Test.Mutaskell.MuOp (mkMpMuOp)
 import Test.Mutaskell.Mutation
 import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Utils.Syb (once)
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
 
 main :: IO ()
@@ -159,6 +162,66 @@ myFn h = do
 |]
             ast <- H.ast text
             selectBindToSequenceOps ast `shouldSatisfy` (not . null)
+        it "renders _ <- action without dropping <- or fusing into _action" $ do
+            let text =
+                    [e|
+module Prop where
+testAction = do
+  result <- performComputation 123
+  return result
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map _mutant mutants
+                normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("_ <- performComputation 123" `isInfixOf`)
+            normSrcs `shouldSatisfy` all (not . ("_performComputation" `isInfixOf`))
+            let wildMutants = [ m | (m, nm) <- zip srcs normSrcs, "_ <- performComputation 123" `isInfixOf` nm ]
+            wildMutants `shouldSatisfy` (not . null)
+            mapM_ H.ast wildMutants
+        it "renders multiple binds correctly across functions with _ <- when mutated" $ do
+            let text =
+                    [e|
+module Prop where
+testAction1 = do
+  a <- getA
+  return a
+
+testAction2 = do
+  b <- getB
+  return b
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let srcs = map _mutant mutants
+                normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("_ <- getA" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("_ <- getB" `isInfixOf`)
+            normSrcs `shouldSatisfy` all (not . ("_getA" `isInfixOf`))
+            normSrcs `shouldSatisfy` all (not . ("_getB" `isInfixOf`))
+            let wildMutants = [ m | (m, nm) <- zip srcs normSrcs, "_ <- getA" `isInfixOf` nm || "_ <- getB" `isInfixOf` nm ]
+            wildMutants `shouldSatisfy` (not . null)
+            mapM_ H.ast wildMutants
+        it "renders both binds as _ <- when each is mutated in a single do block" $ do
+            let text =
+                    [e|
+module Prop where
+testAction = do
+  a <- getA
+  b <- getB
+  return (a + b)
+|]
+            ast <- H.ast text
+            let ops = selectBindToSequenceOps ast
+            length ops `shouldBe` 2
+            let rendered = [ exactPrint mutatedAst
+                           | op <- ops
+                           , mutatedAst <- once (mkMpMuOp op) ast
+                           ]
+            let renderedNorm = map (unwords . words) rendered
+            renderedNorm `shouldSatisfy` any ("_ <- getA" `isInfixOf`)
+            renderedNorm `shouldSatisfy` any ("_ <- getB" `isInfixOf`)
+            renderedNorm `shouldSatisfy` all (not . ("_getA" `isInfixOf`))
+            renderedNorm `shouldSatisfy` all (not . ("_getB" `isInfixOf`))
+            mapM_ H.ast rendered
 
     describe "selectPatternConstructorFlipOps" $ do
         it "returns muops for a function with a Just pattern" $ do
