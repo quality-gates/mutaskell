@@ -70,7 +70,7 @@ import App.Orchestrator
     , stateDir
     , summarise
     )
-import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..), forceSummary)
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
 import Test.Mutaskell.Mutation (genSampledMutantsGated, getASTFromFile, getModuleName)
 import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
@@ -169,16 +169,7 @@ walk opts buildCmd testCmd mtimeout deadline budgetRef pending = do
                     fsum <- processFile opts buildCmd testCmd mtimeout deadline budgetRef f
                     modifyIORef' sumRef (<> fsum)
                     go fs
-    go pending >>= forceSummary
-
--- | Force every counter of a summary.  'summarise' counts lazily, so an
--- unforced summary would keep the result list alive through thunks — exactly
--- the retention the strict fold exists to avoid.
-forceSummary :: MAnalysisSummary -> IO MAnalysisSummary
-forceSummary s = case s of
-    MAnalysisSummary c n a k e sk -> do
-        mapM_ evaluate [c, n, a, k, e, sk]
-        return s
+    go pending >>= \total -> evaluate (forceSummary total) >> return total
 
 -- | True if the time budget has passed or the mutant budget is spent.
 shouldStop :: Maybe UTCTime -> IORef Int -> IO Bool
@@ -245,7 +236,7 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
                     -- Fold strict counters while `rs` is in scope, then let it
                     -- go: the summary must not drag this file's mutant sources
                     -- through the rest of the run.
-                    forceSummary (summarise rs)
+                    return $! forceSummary (summarise rs)
 
 -- | Dry run over a project: discover files and report per-file generation counts
 -- without building or testing.  Cheap way to verify discovery + bounded

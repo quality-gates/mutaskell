@@ -119,6 +119,8 @@ spec = describe "runProject (serial)" $ do
                 opts = (projectOpts root resF) { optMaxMutants = Just 1 }
             runProjectRestoring opts
             (_, _, _, total) <- readCounts resF
+            -- These counts derive from the configured budget, not from the
+            -- mutator set, so they are stable to assert.
             total `shouldBe` 1
             done <- lines <$> strictRead (root </> stateDir </> "progress")
             length done `shouldBe` 1

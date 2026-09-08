@@ -2,6 +2,7 @@
 
 ## [0.8.14]
   * Changed: project mode now folds strict summary counters as each file completes and releases that file's full mutant results once its survivor report is written, instead of accumulating every `(Mutant, Outcome)` pair until the final summary. Retained mutant source is bounded by the current file's sample rather than the whole run (#42).
+  * Added: `bench/residency.sh`, a peak-RSS benchmark over increasing file counts at a fixed per-file mutant cap, used to verify the retention change (#42).
 
 ## [0.8.13]
   * Added: agent skills config for GitHub Issues (`docs/agents/`), default triage labels, and single-context domain docs. `AGENTS.md` is canonical; `CLAUDE.md` is a symlink.
