@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.17]
+  * Changed: selector metadata now indexes test names and local type signatures once per generation path, preserving annotation exclusion and first-match zero-return behavior. Selector variants share their rendered before-node identity check, so no-op rejection remains before sampling without repeating that printing for every replacement.
+  * Added: `bench/mutation.sh` and `bench/mutation-bench.hs`, which measure selector work separately from cap-1 sampled rendering on typed-declaration-heavy and nested-subtree fixtures; profiling options are documented for validating printing costs.
+
 ## [0.8.16]
   * Changed: filter stages index baseline/blacklist IDs, annotation lines, changed lines and source lines once per input, and hash each mutant's current source once per ID filter, so membership is logarithmic instead of a repeated list scan. Empty filters still return the input list unchanged. Survivor order, annotation overlap, out-of-range lines, ignore-pattern matching, baseline/blacklist read warnings and identity semantics are unchanged (#40).
   * Added: `bench/filter.sh`, a wall-time benchmark that reports index construction, empty-filter overhead and populated filtering over growing candidate and lookup sizes (#40).

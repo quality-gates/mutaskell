@@ -10,8 +10,10 @@ import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
 import qualified Data.Hashable as H
 import qualified Data.Map.Strict as Map
-import Data.IORef (IORef, atomicModifyIORef', modifyIORef', newIORef, readIORef)
+import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
 import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
+import qualified Data.List as List
+import qualified Data.Set as Set
 import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.IO.Unsafe (unsafePerformIO)
 -- In GHC 9.12, LHsBindsLR GhcPs GhcPs = [LHsBind GhcPs] (plain list, not Bag)
@@ -232,9 +234,11 @@ genMutantsWithExtra config extraSels origAst =
     -- Generate ops only from non-test declarations (to avoid mutating the test
     -- harness), but apply them to the full module so exactPrint can use every
     -- declaration's original EpAnn delta positions.
-    (_, noAnnDecls) = splitAnnotations origAst
+    metadata = buildSelectorMetadata origAst
+    (_, noAnnDecls) = splitAnnotationsWith metadata origAst
     opsAst  = putDecl origAst noAnnDecls
-    ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
+    ops     = applicableOpsWith metadata config opsAst
+                ++ concatMap ($ opsAst) extraSels
     origStr = exactPrint origAst
 
 {- | Generate mutants but sample the mutation /operators/ before rendering, so
@@ -277,9 +281,11 @@ genSampledMutantsWith config muncovered extraSels origAst = do
                     nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
                         (mutatesN sampledOps origAst 1)
   where
-    (_, noAnnDecls) = splitAnnotations origAst
+    metadata = buildSelectorMetadata origAst
+    (_, noAnnDecls) = splitAnnotationsWith metadata origAst
     opsAst  = putDecl origAst noAnnDecls
-    ops     = applicableOps config opsAst ++ concatMap ($ opsAst) extraSels
+    ops     = applicableOpsWith metadata config opsAst
+                ++ concatMap ($ opsAst) extraSels
     origStr = exactPrint origAst
     -- Drop operators whose span is inside an uncovered region.
     gate os = case muncovered of
@@ -331,7 +337,11 @@ programMutantsWith config extraSels ast =
 
 -- | All applicable mutation operators for the given module.
 applicableOps :: Config -> Module_ -> [(MuVar, MuOp)]
-applicableOps config ast = relevantOps ast opsList
+applicableOps config ast = applicableOpsWith (buildSelectorMetadata ast) config ast
+
+-- | All applicable mutation operators using precomputed module metadata.
+applicableOpsWith :: SelectorMetadata -> Config -> Module_ -> [(MuVar, MuOp)]
+applicableOpsWith metadata config ast = relevantOps ast opsList
   where
     opsList =
         concatMap spread
@@ -357,7 +367,7 @@ applicableOps config ast = relevantOps ast opsList
             , (MutateOther "bracket-degenerate",  selectBracketDegenerateOps ast)
             , (MutateOther "error-guard",         selectErrorGuardOps ast)
             , (MutateOther "replace-mutable-arg", selectReplaceMutableArgOps ast)
-            , (MutateOther "zero-return",          selectZeroReturnOps ast)
+            , (MutateOther "zero-return",          selectZeroReturnOpsWith metadata ast)
             , (MutateOther "list-literal",         selectExplicitListOps ast)
             , (MutateOther "bind-to-sequence",     selectBindToSequenceOps ast)
             , (MutateOther "pattern-constructor",  selectPatternConstructorFlipOps ast)
@@ -371,11 +381,49 @@ applicableOps config ast = relevantOps ast opsList
 -- ---------------------------------------------------------------------------
 -- Module-level structural helpers
 
+-- | Lookup data shared by selectors that inspect module declarations.
+--
+-- The maps retain the first declaration encountered for each key, matching
+-- the old association-list lookup behavior for repeated signatures.
+data SelectorMetadata = SelectorMetadata
+    { selectorTestNames :: Set.Set String
+    , selectorTypeSigs  :: Map.Map String (HsType GhcPs)
+    }
+
+-- | Build selector lookup data once for a module.
+buildSelectorMetadata :: Module_ -> SelectorMetadata
+buildSelectorMetadata ast = SelectorMetadata
+    { selectorTestNames = Set.fromList (getAnnotatedTests ast)
+    , selectorTypeSigs  = typeSignatureIndex ast
+    }
+
+-- | Index local type signatures while retaining first-match semantics.
+typeSignatureIndex :: Module_ -> Map.Map String (HsType GhcPs)
+typeSignatureIndex ast = List.foldl' addDecl Map.empty (getDecl ast)
+  where
+    addDecl signatures
+        (L _ (SigD _ (TypeSig _ ns (HsWC _ (L _ sig))))) =
+            let retTy = returnType (unLoc (sig_body sig))
+            in List.foldl' (insertName retTy) signatures ns
+    addDecl signatures _ = signatures
+
+    insertName retTy signatures n =
+        Map.insertWith (\_ old -> old)
+            (rdrStr (unLoc n)) retTy signatures
+
+    returnType (HsFunTy _ _ _ ret) = returnType (unLoc ret)
+    returnType (HsParTy _ ty)      = returnType (unLoc ty)
+    returnType t                   = t
+
 -- | Split declarations into test-annotated and non-annotated groups.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
-splitAnnotations ast = partition fn (getDecl ast)
-  where
-    fn x = (functionName x ++ pragmaName x) `elem` getAnnotatedTests ast
+splitAnnotations ast = splitAnnotationsWith (buildSelectorMetadata ast) ast
+
+-- | Split declarations using already-built selector metadata.
+splitAnnotationsWith :: SelectorMetadata -> Module_ -> ([Decl_], [Decl_])
+splitAnnotationsWith SelectorMetadata{..} ast =
+    partition (\x -> (functionName x ++ pragmaName x) `Set.member` selectorTestNames)
+        (getDecl ast)
 
 -- | Get all annotated test names from the module.
 -- Falls back to naming-convention auto-discovery when no ANN annotations exist.
@@ -1327,29 +1375,23 @@ selectReplaceMutableArgOps m = selectValOps isMutableVar convert m
 -- | Replace each function match body with the zero value for the declared
 -- return type.  Only applies when a type signature is present in the same module.
 selectZeroReturnOps :: Module_ -> [MuOp]
-selectZeroReturnOps m =
+selectZeroReturnOps m = selectZeroReturnOpsWith (buildSelectorMetadata m) m
+
+-- | Replace function match bodies using an existing signature index.
+selectZeroReturnOpsWith :: SelectorMetadata -> Module_ -> [MuOp]
+selectZeroReturnOpsWith SelectorMetadata{..} m =
     -- XValD GhcPs = NoExtField; XFunBind = NoExtField.
     -- Eq (Match GhcPs) doesn't exist; identity mutations filtered by genMutantsWithExtra.
     [ fromDecl ==> mkL (ValD noExtField (FunBind noExtField fid mg'))
     | fromDecl@(L _ (ValD _ (FunBind _ fid (MG xmg (L lms ms))))) <- decls
     , let fname = occNameString (rdrNameOcc (unLoc fid))
-    , Just retTy <- [lookup fname typeSigs]
+    , Just retTy <- [Map.lookup fname selectorTypeSigs]
     , Just zv    <- [typeZeroVal retTy]
     , let ms' = map (replaceMatchBody zv) ms
           mg' = MG xmg (L lms ms')
     ]
   where
     decls    = hsmodDecls m
-    -- TypeSig _ ns ty  where ty :: LHsSigWcType GhcPs = HsWildCardBndrs GhcPs (LHsSigType GhcPs)
-    typeSigs = [ (occNameString (rdrNameOcc (unLoc n)), returnType (unLoc (sig_body sig)))
-               | L _ (SigD _ (TypeSig _ ns (HsWC _ (L _ sig)))) <- decls
-               , n <- ns
-               ]
-
-    returnType :: HsType GhcPs -> HsType GhcPs
-    returnType (HsFunTy _ _ _ ret) = returnType (unLoc ret)
-    returnType (HsParTy _ ty)      = returnType (unLoc ty)
-    returnType t                   = t
 
     typeZeroVal :: HsType GhcPs -> Maybe (LHsExpr GhcPs)
     typeZeroVal (HsTyVar _ _ (L _ rdr)) = case rdrStr rdr of
