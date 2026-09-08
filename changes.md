@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.11]
+  * Fixed: `selectNegateLiteralOps` now parenthesises the `negate x` replacement (`mkPar`), so injecting it into a function-application or constructor context exactPrints as `add (negate 5) x` / `Left (negate 5)` rather than `add negate 5 x` / `Left negate 5`, which parsed as extra arguments and never typechecked (#20).
+
 ## [0.8.10]
   * Fixed: `selectFlipMaybeOps` now parenthesises the `Nothing` → `Just undefined` replacement (`mkPar`), so injecting it into a function-application context exactPrints as `isNothing (Just undefined)` rather than `isNothing Just undefined`, which parsed as `(isNothing Just) undefined` and never typechecked (#21).
 

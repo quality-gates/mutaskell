@@ -189,6 +189,65 @@ myFn x = negate x
             ast <- H.ast text
             selectRemoveNegationOps ast `shouldSatisfy` (not . null)
 
+    describe "selectNegateLiteralOps" $ do
+        it "returns muops for a module with a positive numeric literal" $ do
+            let text =
+                    [e|
+module Prop where
+f x = add 5 x
+|]
+            ast <- H.ast text
+            let ops = selectNegateLiteralOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
+
+        -- Regression: a positive literal was replaced with a bare
+        -- @negate x@ application.  In a function-application context such as
+        -- @add 5 x@, exactPrint then produced @add negate 5 x@, which parses
+        -- as @(add negate) 5 x@ and never typechecks.  The injected
+        -- application must be parenthesised.
+        it "parenthesises negate when replacing a literal in a function application" $ do
+            let text =
+                    [e|
+module Prop where
+f x = add 5 x
+|]
+            ast <- H.ast text
+            let ops = selectNegateLiteralOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("add (negate 5) x" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("add negate 5" `isInfixOf`))
+
+        it "parenthesises negate when replacing a literal in a constructor application" $ do
+            let text =
+                    [e|
+module Prop where
+g = Left 5
+|]
+            ast <- H.ast text
+            let ops = selectNegateLiteralOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("Left (negate 5)" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("Left negate 5" `isInfixOf`))
+
+        it "parenthesises negate when replacing a fractional literal" $ do
+            let text =
+                    [e|
+module Prop where
+h x = foo 3.14 x
+|]
+            ast <- H.ast text
+            let ops = selectNegateLiteralOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("foo (negate" `isInfixOf`)
+            srcs `shouldSatisfy` all (not . ("foo negate" `isInfixOf`))
+
     describe "selectFnMatches" $ do
         it "returns function-match muops for a multi-clause function" $ do
             let text =

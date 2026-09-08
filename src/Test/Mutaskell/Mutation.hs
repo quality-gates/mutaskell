@@ -1082,6 +1082,10 @@ selectRemoveSelfAssignOps m =
 -- Numeric literal negation
 
 -- | Replace positive integer/fraction literals with @negate x@.
+-- The replacement is parenthesised: a bare @negate x@ application injected
+-- into a function-application or constructor context would alter the
+-- argument spine (@add 5 x@ → @add negate 5 x@, which parses as
+-- @(add negate) 5 x@ and never typechecks).
 selectNegateLiteralOps :: Module_ -> [MuOp]
 selectNegateLiteralOps m = selectValOps isPosLit convert m
   where
@@ -1094,9 +1098,9 @@ selectNegateLiteralOps m = selectValOps isPosLit convert m
     -- Build a fresh literal so the argument does not carry its original source
     -- positions, which would corrupt exactPrint when wrapped in `negate`.
     convert (L _ (HsOverLit _ OverLit{ol_val = HsIntegral il})) =
-        [mkApp (mkVar "negate") (mkIntLitExpr (il_value il))]
+        [mkPar (mkApp (mkVar "negate") (mkIntLitExpr (il_value il)))]
     convert (L _ (HsOverLit _ OverLit{ol_val = HsFractional fl})) =
-        [mkApp (mkVar "negate") (mkFracLitExpr (fl_signi fl))]
+        [mkPar (mkApp (mkVar "negate") (mkFracLitExpr (fl_signi fl)))]
     convert _ = []
 
 -- ---------------------------------------------------------------------------
