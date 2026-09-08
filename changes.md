@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.9]
+  * Fixed: `selectBindToSequenceOps` now transfers entry delta positions to the replacement wildcard pattern (`transferEntryDP origPat`), preserving the `<-` keyword token and layout during `exactPrint` and preventing `_` from fusing into `_action` (#22).
+
 ## [0.8.8]
   * Fixed: `selectPatternConstructorFlipOps` now encloses flipped `Nothing` patterns in `(Just _)` and assigns leading whitespace to the wildcard pattern, preventing `Just_` variable identifier emission and preserving function clause arity (#23).
 
