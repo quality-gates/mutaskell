@@ -1370,8 +1370,8 @@ selectBindToSequenceOps m = selectValOps isDo convert m
     isNamedBind _ = False
 
     toWildBind :: ExprLStmt GhcPs -> ExprLStmt GhcPs
-    toWildBind (L l (BindStmt xb _ expr)) =
-        L l (BindStmt xb (mkL (WildPat noExtField)) expr)
+    toWildBind (L l (BindStmt xb origPat expr)) =
+        L l (BindStmt xb (transferEntryDP origPat (mkL (WildPat noExtField))) expr)
     toWildBind s = s
 
 -- ---------------------------------------------------------------------------
