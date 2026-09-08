@@ -10,7 +10,7 @@ import Control.Exception (IOException, try)
 import Data.Generics (Typeable, listify, mkMp)
 import qualified Data.Hashable as H
 import qualified Data.Map.Strict as Map
-import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
+import Data.IORef (IORef, atomicModifyIORef', modifyIORef', newIORef, readIORef)
 import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
 import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.IO.Unsafe (unsafePerformIO)
@@ -471,6 +471,11 @@ parse), so the scan is cached per project: the cache is keyed by the absolute
 project's build tree on its own.  An empty result is never cached — a project
 whose headers appear only after a later build is re-scanned, not stuck with the
 stale "not built yet" answer.
+
+The cache is process-global state held in 'unsafePerformIO' 'IORef's so that
+'getASTFromFile' can keep its caller-facing signature; mutant evaluation runs
+in forked subprocesses, so the mutation-testing paths never share one.  Updates
+are atomic, so concurrent library callers cannot tear the map.
 -}
 discoverCabalMacros :: IO [FilePath]
 discoverCabalMacros = do
@@ -480,8 +485,8 @@ discoverCabalMacros = do
         Just macros -> return macros
         Nothing -> do
             macros <- scanCabalMacros
-            modifyIORef' macroCacheRef
-                (if null macros then id else Map.insert distDir macros)
+            atomicModifyIORef' macroCacheRef
+                (\m -> (if null macros then m else Map.insert distDir macros m, ()))
             return macros
 
 -- | Cached 'discoverCabalMacros' results by absolute @dist-newstyle@ path.
@@ -509,7 +514,7 @@ scanCabalMacros = do
     if not hasDist
         then return []
         else do
-            modifyIORef' macroScanCountRef (+ 1)
+            atomicModifyIORef' macroScanCountRef (\n -> (n + 1, ()))
             e <- try (readProcess "sh" ["-c", findCmd] "")
                     :: IO (Either IOException String)
             return $ case e of

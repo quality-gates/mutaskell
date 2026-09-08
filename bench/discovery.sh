@@ -112,12 +112,14 @@ for count in 50 100 200; do
     echo "files=$count real=${t}s"
 done
 
-echo "== worker sharding (--jobs $CPUS) =="
+echo "== worker sharding over worker counts =="
 count=100
-rm -rf "$WORK/proj"
-gen_rooted_project "$WORK/proj" "$count"
-t=$(run_timed "$BIN" "$WORK/proj" --build-cmd true --test-cmd true --jobs "$CPUS")
-echo "files=$count jobs=$CPUS real=${t}s"
+for jobs in 1 2 "$CPUS"; do
+    rm -rf "$WORK/proj"
+    gen_rooted_project "$WORK/proj" "$count"
+    t=$(run_timed "$BIN" "$WORK/proj" --build-cmd true --test-cmd true --jobs "$jobs")
+    echo "files=$count jobs=$jobs real=${t}s"
+done
 
 echo "== CPP macro discovery over a wide build tree =="
 for count in 10 20 40; do

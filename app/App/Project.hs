@@ -127,8 +127,7 @@ runSerial opts = do
         exitSuccess
 
     done <- readProgress
-    let doneSet  = Set.fromList done
-        pending  = filter (`Set.notMember` doneSet) files
+    let pending = dropCompleted done files
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s); "
         ++ show (length done) ++ " already done, "
         ++ show (length pending) ++ " pending.\n"
@@ -258,14 +257,14 @@ runProjectDryRun opts = do
     root <- canonicalizePath (optFile opts)
     setCurrentDirectory root
     (files, stats) <- discoverSourcesWithStats opts
-    macroScans <- readCabalMacroScans
     putStrLn $ "Project dry-run on " ++ root
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s)."
     putStrLn $ "Discovery scan: " ++ show (dsRoots stats) ++ " root(s) walked, "
-        ++ show (dsDirs stats) ++ " director(ies) listed."
-    putStrLn $ "CPP macro scans: " ++ show macroScans ++ "\n"
+        ++ show (dsDirs stats) ++ " director(ies) listed.\n"
     total <- foldM (countFile opts) 0 files
-    putStrLn $ "\nTotal generated mutants (sampled per file): " ++ show total
+    macroScans <- readCabalMacroScans
+    putStrLn $ "\nCPP macro scans: " ++ show macroScans
+    putStrLn $ "Total generated mutants (sampled per file): " ++ show total
 
 countFile :: Opts -> Int -> FilePath -> IO Int
 countFile opts acc file = do
@@ -370,7 +369,7 @@ runParallel opts = do
     allFiles <- discoverSources opts
     done <- readProgress
     let n       = optJobs opts
-        pending = filter (`Set.notMember` Set.fromList done) allFiles
+        pending = dropCompleted done allFiles
         shards  = filter (not . null) (distribute n pending)
     if null shards
         then putStrLn $ if null allFiles
@@ -435,6 +434,11 @@ runParallel opts = do
                         ++ " shards were NOT evaluated. Worker numbers: "
                         ++ show failed ++ ". The score above is incomplete."
                     exitWith (ExitFailure 3)
+
+-- | The discovered files not yet recorded as completed, in discovery order.
+dropCompleted :: [FilePath] -> [FilePath] -> [FilePath]
+dropCompleted done files =
+    filter (`Set.notMember` Set.fromList done) files
 
 -- | Round-robin a list into @n@ buckets in one pass over the list.  Bucket
 -- @i@ holds the elements whose 0-based index is congruent to @i@ mod @n@, in
@@ -616,10 +620,13 @@ discoverSourcesWithStats opts = do
                       [] -> ["."]
                       rs -> rs
     existing <- filterM doesDirectoryExist roots0
-    let roots = pruneRoots existing
+    -- Only roots that will really be walked are counted; pruning removes
+    -- containers, exclusion removes roots nothing may be collected from.
+    let roots  = pruneRoots existing
+        walked = [r | r <- roots, not (excluded testDirs r)]
     visitedRef <- newIORef Set.empty
-    statsRef   <- newIORef (DiscoveryStats (length roots) 0 0)
-    files <- concat <$> mapM (walkDir visitedRef statsRef testDirs) roots
+    statsRef <- newIORef (DiscoveryStats (length walked) 0 0)
+    files <- concat <$> mapM (walkDir visitedRef statsRef testDirs) walked
     stats <- readIORef statsRef
     -- Set membership replaces the O(F^2) nub: the pool comes out unique and
     -- sorted, in the order files are processed.
