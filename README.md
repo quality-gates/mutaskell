@@ -261,7 +261,7 @@ mutaskell currently supports:
 11. Let-binding removal from `let...in` and `do` blocks (`remove-let-binding`)
 12. Where-binding removal from declarations (`remove-where-binding`)
 13. Self-assignment removal: `let x = x` and `x <- return x` (`remove-self-assign`)
-14. Numeric literal negation: `42` → `negate 42` (`negate-literal`)
+14. Numeric literal negation: `42` → `(negate 42)` (`negate-literal`)
 15. String literal replacement in comparisons with `""` (`string-literal`)
 16. Boolean operand replacement in `&&` and `||` with `True`/`False` (`bool-operand`)
 17. `Maybe` value flipping: `Just x` ↔ `Nothing` (`flip-maybe`)
@@ -439,13 +439,13 @@ do
   process x
 ```
 
-**14. Numeric literal negation** (`negate-literal`) — wraps a numeric literal with `negate`
+**14. Numeric literal negation** (`negate-literal`) — wraps a numeric literal with parenthesised `negate`
 
 ```haskell
 -- Before
 offset = 42
 -- After
-offset = negate 42
+offset = (negate 42)
 ```
 
 **15. String literal replacement** (`string-literal`) — replaces the string in a comparison with `""`
