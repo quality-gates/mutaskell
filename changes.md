@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.10]
+  * Fixed: `selectFlipMaybeOps` now parenthesises the `Nothing` → `Just undefined` replacement (`mkPar`), so injecting it into a function-application context exactPrints as `isNothing (Just undefined)` rather than `isNothing Just undefined`, which parsed as `(isNothing Just) undefined` and never typechecked (#21).
+
 ## [0.8.9]
   * Fixed: `selectBindToSequenceOps` now transfers entry delta positions to the replacement wildcard pattern (`transferEntryDP origPat`), preserving the `<-` keyword token and layout during `exactPrint` and preventing `_` from fusing into `_action` (#22).
 
