@@ -475,6 +475,13 @@ Just result
 Nothing
 ```
 
+```haskell
+-- Before
+isNothing value
+-- After
+isNothing (Just undefined)
+```
+
 **18. `Either` flipping** (`flip-either`) — swaps `Right x` and `Left x`
 
 ```haskell

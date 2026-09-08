@@ -105,6 +105,70 @@ myFn _ | otherwise = False
             map (unwords . words . _mutant) mutants
                 `shouldSatisfy` any ("not (x == 1)" `isInfixOf`)
 
+    describe "selectFlipMaybeOps" $ do
+        it "returns muops for a module with Just/Nothing" $ do
+            let text =
+                    [e|
+module Prop where
+import Data.Maybe (isNothing)
+
+myFn x = isNothing (Just x)
+|]
+            ast <- H.ast text
+            let ops = selectFlipMaybeOps ast
+            ops `shouldSatisfy` (not . null)
+            ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
+
+        -- Regression: @Nothing@ was flipped to a bare @Just undefined@
+        -- application.  In a function-application context such as
+        -- @isNothing Nothing@, exactPrint then produced
+        -- @isNothing Just undefined@, which parses as
+        -- @(isNothing Just) undefined@ and never typechecks.  The injected
+        -- application must be parenthesised.
+        it "parenthesises Just undefined when replacing Nothing in an application" $ do
+            let text =
+                    [e|
+module Prop where
+import Data.Maybe (isNothing)
+
+myFn x = isNothing Nothing
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let normSrcs = map (unwords . words . _mutant) mutants
+            normSrcs `shouldSatisfy` any ("isNothing (Just undefined)" `isInfixOf`)
+            normSrcs `shouldSatisfy` all (not . ("isNothing Just undefined" `isInfixOf`))
+
+        it "parenthesises Just undefined when replacing Nothing in an operator argument" $ do
+            let text =
+                    [e|
+module Prop where
+import Data.Maybe (fromMaybe, isJust)
+
+myFn k m = (fromMaybe Nothing m == Nothing) || isJust Nothing
+|]
+            Right mutants <- genMutantsForSrc defaultConfig text
+            let normSrcs = map (unwords . words . _mutant) mutants
+            normSrcs `shouldSatisfy` any ("== (Just undefined)" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("isJust (Just undefined)" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("fromMaybe (Just undefined) m" `isInfixOf`)
+            normSrcs `shouldSatisfy` all (not . ("== Just undefined" `isInfixOf`))
+            normSrcs `shouldSatisfy` all (not . ("isJust Just undefined" `isInfixOf`))
+            normSrcs `shouldSatisfy` all (not . ("fromMaybe Just undefined" `isInfixOf`))
+
+        it "still flips Just x to Nothing" $ do
+            let text =
+                    [e|
+module Prop where
+
+myFn x = Just x
+|]
+            ast <- H.ast text
+            let ops = selectFlipMaybeOps ast
+            ops `shouldSatisfy` (not . null)
+            let srcs = map (unwords . words . exactPrint) $
+                    concat [once (mkMpMuOp op) ast | op <- ops]
+            srcs `shouldSatisfy` any ("myFn x = Nothing" `isInfixOf`)
+
     describe "selectRemoveNotOps" $ do
         it "returns remove-not muops" $ do
             let text =
