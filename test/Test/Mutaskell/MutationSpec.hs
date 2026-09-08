@@ -2,9 +2,11 @@
 
 module Test.Mutaskell.MutationSpec where
 
+import Control.Monad (forM_)
 import Data.List (isInfixOf)
 import Here
-import System.Directory (withCurrentDirectory)
+import System.Directory (createDirectoryIfMissing, withCurrentDirectory)
+import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 import Language.Haskell.GHC.ExactPrint (exactPrint)
@@ -615,3 +617,27 @@ e = 50
                     Left msg -> msg `shouldSatisfy` ("MIN_VERSION_" `isInfixOf`)
                     Right _  -> expectationFailure
                                     "expected Left (CPP parse skipped) but got Right"
+
+    describe "discoverCabalMacros" $
+        it "scans the build tree once for repeated CPP parses in one project" $
+            withSystemTempDirectory "mutaskell-test" $ \tmpDir -> do
+                -- A fake build tree with a macros header, so the scan is real
+                -- work that the cache can elide.
+                createDirectoryIfMissing True (tmpDir </> "dist-newstyle/cache/build")
+                writeFile (tmpDir </> "dist-newstyle/cache/build/cabal_macros.h") ""
+                let cppFile i = tmpDir ++ "/Cpp" ++ show i ++ ".hs"
+                forM_ [1, 2 :: Int] $ \i ->
+                    writeFile (cppFile i) $ unlines
+                        [ "{-# LANGUAGE CPP #-}"
+                        , "module Cpp" ++ show i ++ " where"
+                        , "#if __GLASGOW_HASKELL__ >= 900"
+                        , "foo :: Int"
+                        , "foo = 1"
+                        , "#endif"
+                        ]
+                scansBefore <- readCabalMacroScans
+                _ <- withCurrentDirectory tmpDir $
+                    mapM (\i -> getASTFromFile (cppFile i) >> getASTFromFile (cppFile i)) [1, 2]
+                -- Four CPP parses, one build-tree scan: the second project in
+                -- the same process would scan again (different dist path).
+                readCabalMacroScans `shouldReturn` scansBefore + 1

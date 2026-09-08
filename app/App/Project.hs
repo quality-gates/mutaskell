@@ -27,7 +27,11 @@ tree.  The design decisions that make it usable on real repos:
     partial score rather than running unbounded.
 -}
 module App.Project
-    ( runProject
+    ( DiscoveryStats (..)
+    , discoverSourcesWithStats
+    , distribute
+    , restrictToShard
+    , runProject
     , runProjectDryRun
     ) where
 
@@ -36,7 +40,9 @@ import Control.Monad (filterM, foldM, forM, unless, when)
 import Data.Char (toLower)
 import Data.Either (fromRight)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
-import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nub, sort)
+import qualified Data.IntMap.Strict as IntMap
+import Data.List (dropWhileEnd, foldl', isInfixOf, isPrefixOf, isSuffixOf, nub)
+import qualified Data.Set as Set
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import System.Timeout (timeout)
@@ -72,7 +78,12 @@ import App.Orchestrator
     )
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..), forceSummary)
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
-import Test.Mutaskell.Mutation (genSampledMutantsGated, getASTFromFile, getModuleName)
+import Test.Mutaskell.Mutation
+    ( genSampledMutantsGated
+    , getASTFromFile
+    , getModuleName
+    , readCabalMacroScans
+    )
 import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
@@ -116,7 +127,7 @@ runSerial opts = do
         exitSuccess
 
     done <- readProgress
-    let pending = filter (`notElem` done) files
+    let pending = dropCompleted done files
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s); "
         ++ show (length done) ++ " already done, "
         ++ show (length pending) ++ " pending.\n"
@@ -245,11 +256,15 @@ runProjectDryRun :: Opts -> IO ()
 runProjectDryRun opts = do
     root <- canonicalizePath (optFile opts)
     setCurrentDirectory root
-    files <- discoverSources opts
+    (files, stats) <- discoverSourcesWithStats opts
     putStrLn $ "Project dry-run on " ++ root
-    putStrLn $ "Discovered " ++ show (length files) ++ " source file(s).\n"
+    putStrLn $ "Discovered " ++ show (length files) ++ " source file(s)."
+    putStrLn $ "Discovery scan: " ++ show (dsRoots stats) ++ " root(s) walked, "
+        ++ show (dsDirs stats) ++ " director(ies) listed.\n"
     total <- foldM (countFile opts) 0 files
-    putStrLn $ "\nTotal generated mutants (sampled per file): " ++ show total
+    macroScans <- readCabalMacroScans
+    putStrLn $ "\nCPP macro scans: " ++ show macroScans
+    putStrLn $ "Total generated mutants (sampled per file): " ++ show total
 
 countFile :: Opts -> Int -> FilePath -> IO Int
 countFile opts acc file = do
@@ -354,7 +369,7 @@ runParallel opts = do
     allFiles <- discoverSources opts
     done <- readProgress
     let n       = optJobs opts
-        pending = filter (`notElem` done) allFiles
+        pending = dropCompleted done allFiles
         shards  = filter (not . null) (distribute n pending)
     if null shards
         then putStrLn $ if null allFiles
@@ -420,10 +435,25 @@ runParallel opts = do
                         ++ show failed ++ ". The score above is incomplete."
                     exitWith (ExitFailure 3)
 
--- | Round-robin a list into @n@ buckets.
+-- | The discovered files not yet recorded as completed, in discovery order.
+dropCompleted :: [FilePath] -> [FilePath] -> [FilePath]
+dropCompleted done files =
+    filter (`Set.notMember` Set.fromList done) files
+
+-- | Round-robin a list into @n@ buckets in one pass over the list.  Bucket
+-- @i@ holds the elements whose 0-based index is congruent to @i@ mod @n@, in
+-- their original order; with fewer files than buckets the trailing buckets
+-- come back empty.
 distribute :: Int -> [a] -> [[a]]
-distribute n xs =
-    [ [x | (j, x) <- zip [0 :: Int ..] xs, j `mod` n == i] | i <- [0 .. n - 1] ]
+distribute n xs
+    | n <= 0    = []
+    | otherwise =
+        [ reverse (IntMap.findWithDefault [] i buckets) | i <- [0 .. n - 1] ]
+  where
+    buckets = foldl' step IntMap.empty (zip [0 :: Int ..] xs)
+    -- New elements prepend to their bucket; the per-bucket reverse restores
+    -- file order.
+    step m (i, x) = IntMap.insertWith (++) (i `mod` n) [x] m
 
 -- | Build the worker argument list from the master's options (per-job mutant cap).
 passThrough :: Opts -> Maybe Int -> [String]
@@ -481,12 +511,14 @@ removeIfExists p = do
     when isFile (removeFile p)
 
 -- | Restrict the discovered files to this worker's shard (@--only-files@).
+-- The shard list is indexed into a set, and the discovered files keep their
+-- own order — the worker evaluates in discovery order, not shard-file order.
 restrictToShard :: Opts -> [FilePath] -> IO [FilePath]
 restrictToShard opts files = case optOnlyFiles opts of
     Nothing -> return files
     Just p  -> do
-        wanted <- lines <$> readFile' p
-        return (filter (`elem` wanted) files)
+        wanted <- Set.fromList . lines <$> readFile' p
+        return (filter (`Set.member` wanted) files)
 
 -- | Write this run's @killed alive skipped total@ for the parent (@--result-out@).
 writeResult :: Opts -> MAnalysisSummary -> IO ()
@@ -549,13 +581,29 @@ isCabalProject = do
 -- Source discovery (AC 3)
 -- ---------------------------------------------------------------------------
 
+-- | Scan-work counters for one 'discoverSourcesWithStats' run — instrumentation
+-- for the discovery cost (see the performance audit, finding 10).
+data DiscoveryStats = DiscoveryStats
+    { dsRoots :: Int   -- ^ roots actually walked, after pruning overlaps
+    , dsDirs  :: Int   -- ^ distinct directories listed
+    , dsFiles :: Int   -- ^ Haskell files discovered
+    } deriving (Eq, Show)
+
 -- | Discover Haskell source files for the project, relative to the (already
 -- chdir'd) project root.  Roots are the @hs-source-dirs@ declared in every
 -- @.cabal@ file, plus each package directory (covering library stanzas that omit
 -- @hs-source-dirs@).  Excluded: @dist-newstyle@, @.git@, @.stack-work@, and any
 -- @--exclude-dirs@.
 discoverSources :: Opts -> IO [FilePath]
-discoverSources opts = do
+discoverSources opts = fst <$> discoverSourcesWithStats opts
+
+-- | 'discoverSources' plus the scan counters above.  Overlapping roots are
+-- pruned (a root that another root contains is not walked again) and each
+-- directory is listed once, so a normal root-package layout walks the tree
+-- once instead of once per declared source dir.  The file selection is the
+-- sorted, de-duplicated union — identical to walking every root and pooling.
+discoverSourcesWithStats :: Opts -> IO ([FilePath], DiscoveryStats)
+discoverSourcesWithStats opts = do
     cabals <- cabalFilesIn "."
     parsed <- mapM cabalDirsOf cabals
     let libDirs  = concatMap fst parsed
@@ -568,15 +616,75 @@ discoverSources opts = do
         pkgDirs  = nub (map dirOf cabals)
         -- With no cabal files (or none yielding a directory) fall back to walking
         -- the project root, so a plain directory of Haskell still works.
-        roots0   = case nub (libDirs ++ pkgDirs) of
+        roots0   = case nub (map canonicalDir (libDirs ++ pkgDirs)) of
                       [] -> ["."]
                       rs -> rs
-    roots <- filterM doesDirectoryExist roots0
-    files <- concat <$> mapM (findHaskell opts testDirs) roots
-    return (sort (nub files))
+    existing <- filterM doesDirectoryExist roots0
+    -- Only roots that will really be walked are counted; pruning removes
+    -- containers, exclusion removes roots nothing may be collected from.
+    let roots  = pruneRoots existing
+        walked = [r | r <- roots, not (excluded testDirs r)]
+    visitedRef <- newIORef Set.empty
+    statsRef <- newIORef (DiscoveryStats (length walked) 0 0)
+    files <- concat <$> mapM (walkDir visitedRef statsRef testDirs) walked
+    stats <- readIORef statsRef
+    -- Set membership replaces the O(F^2) nub: the pool comes out unique and
+    -- sorted, in the order files are processed.
+    let found = Set.toAscList (Set.fromList files)
+    return (found, stats { dsFiles = length found })
   where
     dirOf c = let d = reverse (dropWhile (/= '/') (reverse c))
               in if null d then "." else d
+    -- Trailing separators removed, so "src/" and "src" compare equal.
+    canonicalDir = stripTrailingSep . normalise
+    stripTrailingSep = dropWhileEnd (== '/')
+
+    -- Drop every root that another root contains.  Both sides are already
+    -- canonical, so prefix equality on "dir/" decides containment; the
+    -- project root "." contains every other root.
+    pruneRoots rs =
+        [ r | r <- rs, not (any (\o -> o /= r && containsRoot o r) rs) ]
+    containsRoot o r
+        | o == "."  = True
+        | r == "."  = False
+        | otherwise = (o ++ "/") `isPrefixOf` (r ++ "/")
+
+    -- Directories and files that never get mutated.  testDirs are test or
+    -- benchmark source dirs to prune (so test code is not mutated); they are
+    -- matched as path prefixes, not bare components, to avoid excluding an
+    -- unrelated src/Test.
+    excluded testDirs p =
+        any (`elem` pathParts p) (["dist-newstyle", ".git", ".stack-work"] ++ optExcludeDirs opts)
+        || p `elem` map canonicalDir testDirs
+        || any (\t -> (canonicalDir t ++ "/") `isPrefixOf` (p ++ "/")) testDirs
+    pathParts = foldr splitSlash [""] . normalise
+    splitSlash '/' acc = "" : acc
+    splitSlash c (x:xs) = (c : x) : xs
+    splitSlash c []     = [[c]]
+    isHaskell p = takeExtension p `elem` [".hs", ".lhs"]
+        && not ("Setup.hs" `isSuffixOf` takeFileName p)
+
+    walkDir :: IORef (Set.Set FilePath) -> IORef DiscoveryStats
+            -> [FilePath] -> FilePath -> IO [FilePath]
+    walkDir visitedRef statsRef testDirs dir = do
+        isDir <- doesDirectoryExist dir
+        if not isDir || excluded testDirs dir
+            then return []
+            else do
+                seen <- readIORef visitedRef
+                if Set.member dir seen
+                    then return []       -- another root already walked here
+                    else do
+                        modifyIORef' visitedRef (Set.insert dir)
+                        modifyIORef' statsRef
+                            (\s -> s { dsDirs = dsDirs s + 1 })
+                        es <- listDirectory dir
+                        fmap concat $ forM es $ \e -> do
+                            let p = normalise (dir </> e)
+                            d <- doesDirectoryExist p
+                            if d
+                                then walkDir visitedRef statsRef testDirs p
+                                else return [p | isHaskell p]
 
 -- | List @.cabal@ files directly inside a directory.
 cabalFilesIn :: FilePath -> IO [FilePath]
@@ -624,35 +732,6 @@ afterColon = drop 1 . dropWhile (/= ':')
 
 splitFields :: String -> [String]
 splitFields = words . map (\c -> if c == ',' then ' ' else c)
-
--- | Recursively find @.hs@/@.lhs@ files under a directory, honouring exclusions.
--- @testDirs@ are test\/benchmark source dirs to prune (so test code is not
--- mutated); they are matched as path prefixes, not bare components, to avoid
--- excluding an unrelated @src\/Test@.
-findHaskell :: Opts -> [FilePath] -> FilePath -> IO [FilePath]
-findHaskell opts testDirs dir = do
-    isDir <- doesDirectoryExist dir
-    if not isDir || excluded dir
-        then return []
-        else do
-            es <- listDirectory dir
-            fmap concat $ forM es $ \e -> do
-                let p = normalise (dir </> e)
-                d <- doesDirectoryExist p
-                if d
-                    then findHaskell opts testDirs p
-                    else return [p | isHaskell p]
-  where
-    excluded p =
-        any (`elem` pathParts p) (["dist-newstyle", ".git", ".stack-work"] ++ optExcludeDirs opts)
-        || normalise p `elem` map normalise testDirs
-        || any (\t -> (normalise t ++ "/") `isPrefixOf` (normalise p ++ "/")) testDirs
-    pathParts = foldr splitSlash [""] . normalise
-    splitSlash '/' acc = "" : acc
-    splitSlash c (x:xs) = (c : x) : xs
-    splitSlash c []     = [[c]]
-    isHaskell p = takeExtension p `elem` [".hs", ".lhs"]
-        && not ("Setup.hs" `isSuffixOf` takeFileName p)
 
 -- | Collapse a leading @./@ for tidy display and stable de-duplication.
 normalise :: FilePath -> FilePath
