@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.13]
+  * Added: agent skills config for GitHub Issues (`docs/agents/`), default triage labels, and single-context domain docs. `AGENTS.md` is canonical; `CLAUDE.md` is a symlink.
+
 ## [0.8.12]
   * Fixed: `selectErrorGuardOps` now replaces `handle handler action` with `action` rather than `handler`, so the mutant typechecks and tests the unhandled action (#19).
   * Fixed: `selectErrorGuardOps` now parenthesises the `try` replacement (`return (Right e)`), so exactPrint emits `return (Right action)` rather than `return Right action`.
