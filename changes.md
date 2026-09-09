@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.22]
+  * Changed: eligible single-file runs and the no-coverage `mucheck` path sample mutation operators before rendering, so only the selected operators are applied, rendered and deduplicated. Eligibility means no coverage requirement and no candidate filter (mutator patterns, inline suppression, baseline, blacklist, selected IDs, ignore lines or diff lines); a configured filter counts as active even when its file or list is empty. Eligible runs may return fewer mutants than the cap after deduplication and no-op rejection, and their selected population can differ from the rendered-sampling path used when a filter or coverage requirement is active (#34).
+  * Changed: mutant deduplication is indexed. Rendered sources are deduplicated through hash buckets with full comparison on collisions, and mutator/span candidates are deduplicated through an ordered set, preserving the existing first-occurrence population while removing the quadratic pairwise scans (#34).
+  * Added: `bench/mutation.sh` and `bench/mutation-bench.hs` gain a phase profile that reports selector work, operator sampling, AST application, mutator/span deduplication, rendering and source deduplication separately over growing inputs (#34).
+
 ## [0.8.21]
   * Changed: positional mutant diffs now compare source lines and merge contextual hunk ranges in linear passes, preserving valid ranges, changed-line parsing and empty-line boundaries (#35).
   * Changed: terminal, agentic JSON and HTML reports share each prepared mutant diff instead of rendering it independently (#35).

@@ -19,8 +19,10 @@ import App.Filter
     , applyIgnoreLines
     , applyRunMutantId
     , cacheMutantIds
+    , operatorSamplingEligible
     , parseAnnotations
     )
+import App.Opts (Opts (..), defaultOpts)
 import Test.Mutaskell.Config (MuVar (..))
 import Test.Mutaskell.TestAdapter (Mutant (..))
 import Test.Mutaskell.Tix (toSpan)
@@ -265,3 +267,32 @@ spec = do
                 afterDiff   `shouldBe` [onStar]
                 afterIgnore `shouldBe` [onStar]
                 afterId     `shouldBe` [onStar]
+
+    describe "operatorSamplingEligible" $ do
+        it "is True for a plain run with no filters and no coverage" $
+            operatorSamplingEligible defaultOpts [] `shouldBe` True
+
+        it "is False when coverage is requested, with or without a tix file" $ do
+            operatorSamplingEligible defaultOpts { optCoverage = True } [] `shouldBe` False
+            operatorSamplingEligible defaultOpts { optTix = "cov.tix" } [] `shouldBe` False
+
+        it "is False when a mutator pattern filter is configured" $ do
+            operatorSamplingEligible defaultOpts { optDisable = ["functions"] } [] `shouldBe` False
+            operatorSamplingEligible defaultOpts { optEnable = ["functions"] } [] `shouldBe` False
+
+        it "is False when an optional filter file is configured, even if it is empty" $ do
+            operatorSamplingEligible defaultOpts { optBaseline = Just "" } [] `shouldBe` False
+            operatorSamplingEligible defaultOpts { optBlacklist = Just "" } [] `shouldBe` False
+
+        it "is False for a selected mutant id" $
+            operatorSamplingEligible defaultOpts { optRunMutantId = Just "some-id" } []
+                `shouldBe` False
+
+        it "is False for ignore lines and diff lines" $ do
+            operatorSamplingEligible defaultOpts { optIgnoreLines = ["generated"] } []
+                `shouldBe` False
+            operatorSamplingEligible defaultOpts { optGitDiffLines = True } []
+                `shouldBe` False
+
+        it "is False when the source carries inline suppression" $
+            operatorSamplingEligible defaultOpts [(2, [])] `shouldBe` False

@@ -7,6 +7,7 @@ import Test.Mutaskell.AnalysisSummary
 import Test.Mutaskell.Config
 import Test.Mutaskell.Interpreter (MutantSummary (..), evaluateMutants)
 import Test.Mutaskell.Mutation
+import Test.Mutaskell.Tix (getUnCoveredPatches)
 import Test.Mutaskell.TestAdapter
 import Test.Mutaskell.Utils.Common
 
@@ -29,12 +30,28 @@ mucheck ::
     IO (Either String (MAnalysisSummary, [MutantSummary]))
 mucheck moduleFile tix = do
   -- get tix here.
-  res <- genMutants (getName moduleFile) tix
-  case res of
+  parsed <- getASTFromStr =<< readFile (getName moduleFile)
+  case parsed of
     Left err -> return $ Left err
-    Right (len, mutants) -> do
-      -- Should we do random sample on covering alone or on the full?
-      smutants <- sampler defaultConfig mutants
+    Right ast -> do
+      ec <- getUnCoveredPatches tix (getModuleName ast)
+      case ec of
+        Left err -> return $ Left err
+        -- Without coverage data the covered count stays unknown, so the
+        -- mutation operators are sampled before any mutant is applied and
+        -- rendered.
+        Right Nothing -> do
+          smutants <- genSampledMutants defaultConfig ast
+          run (-1) smutants
+        -- Coverage reporting needs the exact candidate population, so this
+        -- path enumerates every candidate and filters to the covered spans
+        -- before sampling.
+        Right (Just uncovered) -> do
+          let mutants = removeUncovered uncovered (genMutantsFromAST defaultConfig ast)
+          smutants <- sampler defaultConfig mutants
+          run (length mutants) smutants
+  where
+    run len smutants = do
       testRes <- getAllTests (getName moduleFile)
       case testRes of
         Left err -> return $ Left err
@@ -44,7 +61,7 @@ mucheck moduleFile tix = do
           -- number of mutants, not just the covered ones.)
           let fsum = case len of
                -1 -> fsum' { _maCoveredNumMutants = -1 }
-               _  -> fsum' { _maCoveredNumMutants = length mutants }
+               _  -> fsum' { _maCoveredNumMutants = len }
           return $ Right (fsum, msum)
 
 {- | Wrapper around sampleF that returns correct sampling ratios according to

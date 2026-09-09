@@ -4,6 +4,11 @@
 # configured cap of one mutant.  Run both fixture families separately so a
 # typed-declaration lookup change is not confused with nested-subtree printing.
 #
+# The `phases` fixture (issue #34) profiles the generation pipeline stage by
+# stage — selection, operator sampling, AST application, mutator/span
+# deduplication, rendering and rendered-source deduplication — on the exact
+# path and on a cap-1 sampled path over growing literal-dense modules.
+#
 # Build with the normal environment-file workflow, then compare the selector
 # and sampled rows across sizes.  The phases are reported separately so this
 # benchmark does not attribute an end-to-end speedup to selector metadata
@@ -35,4 +40,9 @@ done
 echo "== nested subtrees, cap 1 =="
 for size in 4 6 8; do
     run nested "$size"
+done
+
+echo "== generation phase profile, exact vs cap-1 sampled =="
+for size in 25 50 100; do
+    run phases "$size"
 done

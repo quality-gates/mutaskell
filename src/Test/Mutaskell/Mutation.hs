@@ -11,7 +11,7 @@ import Data.Generics (Typeable, listify, mkMp)
 import qualified Data.Hashable as H
 import qualified Data.Map.Strict as Map
 import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
-import Data.List (isInfixOf, isPrefixOf, nub, nubBy, partition)
+import Data.List (isInfixOf, isPrefixOf, nub, partition)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import System.Directory (canonicalizePath, doesDirectoryExist)
@@ -226,11 +226,10 @@ genMutantsWithExtra ::
     Module_ ->
     [Mutant]
 genMutantsWithExtra config extraSels origAst =
-    nubBy (\a b -> _mutant a == _mutant b) $
+    nubRendered $
         filter (\m -> _mutant m /= origStr) $
             map (toMutant . apTh exactPrint) $
-                nubBy (\(v1,s1,_) (v2,s2,_) -> v1==v2 && s1==s2)
-                    (mutatesN ops origAst 1)
+                nubOpSites (mutatesN ops origAst 1)
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
 
@@ -284,8 +283,7 @@ genSampledMutantsWith config muncovered extraSels origAst = do
         nubRendered $
             filter (\m -> _mutant m /= origStr) $
                 map (toMutant . apTh exactPrint) $
-                    nubBy (\(v1,s1,_) (v2,s2,_) -> v1 == v2 && s1 == s2)
-                        (mutatesN sampledOps origAst 1)
+                    nubOpSites (mutatesN sampledOps origAst 1)
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
     uncoveredIndex = indexSpans <$> muncovered
@@ -297,19 +295,38 @@ genSampledMutantsWith config muncovered extraSels origAst = do
         let sp = toSpan (getSpan op)
         in not (spanIndexContains index sp)
 
--- | Deduplicate mutants by rendered source, keyed on a hash so the cost is
--- ~O(n) hashing + O(n^2) cheap 'Int' comparisons instead of O(n^2) /full-source/
--- string comparisons.  On a large module the latter dominated generation — every
--- pair compared two ~50KB module renderings.  A 64-bit hash collision between
--- distinct renderings is astronomically unlikely at these list sizes.
+-- | Deduplicate mutants by rendered source, keeping the first value for each
+-- distinct source.  Candidates are indexed by source hash, so the cost is
+-- ~O(n) hashing plus one full-string comparison per candidate against the
+-- (few) sources sharing its hash bucket — not O(n^2) /full-source/ string
+-- comparisons, which dominated generation on large modules (every pair
+-- compared two ~50KB module renderings).
 nubRendered :: [Mutant] -> [Mutant]
-nubRendered = go []
+nubRendered = dedupRenderedSource _mutant (H.hash . _mutant)
+
+-- | 'nubRendered' indexed by a caller-supplied hash function, so collision
+-- handling can be tested by forcing every candidate into one bucket.  Sources
+-- in a bucket are compared with full equality: a collision between distinct
+-- sources never removes a mutant.
+dedupRenderedSource :: (a -> String) -> (a -> Int) -> [a] -> [a]
+dedupRenderedSource source hashOf = go Map.empty
   where
     go _ [] = []
-    go seen (m : ms)
-        | h `elem` seen = go seen ms
-        | otherwise     = m : go (h : seen) ms
-      where h = H.hash (_mutant m) :: Int
+    go seen (x : xs)
+        | inBucket (hashOf x) (source x) seen = go seen xs
+        | otherwise = x : go (Map.insertWith (++) (hashOf x) [source x] seen) xs
+    inBucket h s seen = maybe False (elem s) (Map.lookup h seen)
+
+-- | Keep the first candidate for each (mutator, span) pair.
+-- Candidates are indexed in a set, so the cost is O(n log n) cheap ordered
+-- comparisons instead of O(n^2) pairwise comparisons.
+nubOpSites :: [(MuVar, Span, a)] -> [(MuVar, Span, a)]
+nubOpSites = go Set.empty
+  where
+    go _ [] = []
+    go seen (x@(v, s, _) : xs)
+        | (v, s) `Set.member` seen = go seen xs
+        | otherwise                = x : go (Set.insert (v, s) seen) xs
 
 -- | Sample a list of mutation operators proportionally by mutator type and cap
 -- the total at 'maxNumMutants' — the operator-level analogue of
@@ -334,7 +351,7 @@ programMutantsWith ::
     Module_ ->
     [(MuVar, Span, Module_)]
 programMutantsWith config extraSels ast =
-    nubBy (\(v1,s1,_) (v2,s2,_) -> v1==v2 && s1==s2) $
+    nubOpSites $
         mutatesN (applicableOps config ast ++ concatMap ($ ast) extraSels) ast 1
 
 -- | All applicable mutation operators for the given module.

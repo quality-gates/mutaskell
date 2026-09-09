@@ -14,6 +14,8 @@ module Test.Mutaskell.IntegrationSpec where
 import Control.Monad (unless, when)
 import Data.List (isPrefixOf)
 import System.Directory (withCurrentDirectory, getCurrentDirectory, listDirectory)
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 
 import Test.Mutaskell (mucheck)
@@ -61,3 +63,20 @@ spec = describe "integration" $ do
                               + _maErrors summary
                               + _maSkipped summary
                 accounted `shouldBe` total
+
+    it "samples operators before rendering when the tix holds no coverage" $ do
+        projDir <- getCurrentDirectory
+        withSystemTempDirectory "mutaskell-tix-empty" $ \tmpDir -> do
+            let tixPath = tmpDir </> "empty.tix"
+            writeFile tixPath "Tix []"
+            result <- withCurrentDirectory projDir $
+                mucheck (AssertCheckRun "Examples/AssertCheckTest.hs") tixPath
+            case result of
+                Left err ->
+                    expectationFailure $ "mucheck returned an error: " ++ err
+                Right (summary, _mutantSummaries) -> do
+                    -- No coverage data means no covered count, exactly as
+                    -- before; the sampling now happens before rendering.
+                    _maCoveredNumMutants summary `shouldBe` (-1)
+                    _maNumMutants summary `shouldSatisfy` (> 0)
+                    _maKilled summary `shouldSatisfy` (> 0)

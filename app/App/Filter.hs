@@ -17,6 +17,7 @@ module App.Filter
   , indexChangedLines
   , indexSourceLines
   , cacheMutantIds
+  , operatorSamplingEligible
   , applyBaselineCached
   , applyBlacklistCached
   , applyDiffLinesCached
@@ -29,15 +30,39 @@ import Data.Char (isSpace)
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.IntSet as IntSet
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf, stripPrefix)
+import Data.Maybe (isNothing)
 import qualified Data.Set as Set
 import System.IO (hPutStrLn, stderr)
 import System.Process (readProcess)
 
-import App.Opts (splitOn)
+import App.Opts (Opts (..), splitOn)
 import Test.Mutaskell.Config (showMuVar)
 import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix (spanStartLine)
 import Test.Mutaskell.Utils.Common (hash)
+
+-- | Is this file run eligible for operator-first mutant sampling?
+--
+-- Eligible runs sample mutation operators before rendering, so only the
+-- sampled operators are applied, rendered and deduplicated.  A run is not
+-- eligible when it needs the full candidate list: coverage reporting,
+-- baseline, blacklist and selected-ID filters match on rendered mutant
+-- sources, and mutator patterns, inline suppression, ignore lines and diff
+-- lines filter the same population.  A configured filter counts as active
+-- even when its file or list is empty, because a changed candidate
+-- population still changes what the filter would see.
+operatorSamplingEligible :: Opts -> [(Int, [String])] -> Bool
+operatorSamplingEligible opts annotations =
+    not (optCoverage opts)
+        && null (optTix opts)
+        && null (optDisable opts)
+        && null (optEnable opts)
+        && null (optIgnoreLines opts)
+        && not (optGitDiffLines opts)
+        && isNothing (optBaseline opts)
+        && isNothing (optBlacklist opts)
+        && isNothing (optRunMutantId opts)
+        && null annotations
 
 -- | Match a user-supplied pattern against a mutator name.
 -- Trailing '*' acts as a prefix wildcard: "other:*" matches "other:remove-not".
