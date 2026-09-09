@@ -35,10 +35,9 @@ module App.Project
     , runProjectDryRun
     ) where
 
-import Control.Exception (SomeException, evaluate, finally, try)
+import Control.Exception (SomeException, evaluate, finally, throwIO, try)
 import Control.Monad (filterM, foldM, forM, unless, when)
 import Data.Char (toLower)
-import Data.Either (fromRight)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
 import Data.List (dropWhileEnd, foldl', isInfixOf, isPrefixOf, isSuffixOf, nub)
@@ -84,7 +83,12 @@ import Test.Mutaskell.Mutation
     , getModuleName
     , readCabalMacroScans
     )
-import Test.Mutaskell.Tix (Span, getUnCoveredPatches)
+import Test.Mutaskell.Tix
+    ( Span
+    , TixIndex
+    , getUnCoveredPatchesFromIndex
+    , parseTixIndex
+    )
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
 -- | File recording fully-completed source files, for resume (AC 9).
@@ -146,11 +150,12 @@ runSerial opts = do
     let deadline = fmap (\s -> addUTCTime (fromIntegral s) start) (optTimeBudget opts)
         totalBudget = fromMaybe maxBound (optMaxMutants opts)
     budgetRef <- newIORef totalBudget
+    coverage <- if null pending then return Nothing else loadCoverage opts
 
     -- Each file's evaluation restores the original after every mutant and in a
     -- `finally`, so an interrupt cannot leave mutated source behind (AC 6).
     -- Between files no file is in a mutated state, so no extra guard is needed.
-    msum <- walk opts buildCmd testCmd mtimeout deadline budgetRef pending
+    msum <- walk opts buildCmd testCmd mtimeout deadline coverage budgetRef pending
 
     putStrLn ""
     putStrLn "==== Project mutation summary ===="
@@ -166,8 +171,8 @@ runSerial opts = do
 -- rest of the run — summary state stays O(1) per file, not O(file source).
 walk
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> [FilePath] -> IO MAnalysisSummary
-walk opts buildCmd testCmd mtimeout deadline budgetRef pending = do
+    -> CoverageSnapshot -> IORef Int -> [FilePath] -> IO MAnalysisSummary
+walk opts buildCmd testCmd mtimeout deadline coverage budgetRef pending = do
     sumRef <- newIORef mempty
     let go []       = readIORef sumRef
         go (f : fs) = do
@@ -177,7 +182,8 @@ walk opts buildCmd testCmd mtimeout deadline budgetRef pending = do
                     hPutStrLn stderr "Budget exhausted; stopping with a partial result."
                     readIORef sumRef
                 else do
-                    fsum <- processFile opts buildCmd testCmd mtimeout deadline budgetRef f
+                    fsum <- processFile opts buildCmd testCmd mtimeout deadline
+                            coverage budgetRef f
                     modifyIORef' sumRef (<> fsum)
                     go fs
     go pending >>= \total -> evaluate (forceSummary total) >> return total
@@ -199,9 +205,9 @@ shouldStop deadline budgetRef = do
 -- results are dropped.
 processFile
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> FilePath -> IO MAnalysisSummary
-processFile opts buildCmd testCmd mtimeout deadline budgetRef file = do
-    e <- try (processFile' opts buildCmd testCmd mtimeout deadline budgetRef file)
+    -> CoverageSnapshot -> IORef Int -> FilePath -> IO MAnalysisSummary
+processFile opts buildCmd testCmd mtimeout deadline coverage budgetRef file = do
+    e <- try (processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file)
     case e of
         Right fsum -> return fsum
         Left (ex :: SomeException) -> do
@@ -210,8 +216,8 @@ processFile opts buildCmd testCmd mtimeout deadline budgetRef file = do
 
 processFile'
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> IORef Int -> FilePath -> IO MAnalysisSummary
-processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
+    -> CoverageSnapshot -> IORef Int -> FilePath -> IO MAnalysisSummary
+processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file = do
     origSrc <- readFile' file
     eAst <- getASTFromFile file
     case eAst of
@@ -222,7 +228,7 @@ processFile' opts buildCmd testCmd mtimeout deadline budgetRef file = do
             remaining <- readIORef budgetRef
             let perFileCap = min remaining (maxNumMutants defaultConfig)
                 cfg        = defaultConfig { maxNumMutants = perFileCap }
-            muncov <- resolveUncovered opts (getModuleName ast)
+            muncov <- resolveUncovered coverage (getModuleName ast)
             (genComplete, sampled) <- genWithinBudget genBudgetSecs $ do
                 ms <- genSampledMutantsGated cfg muncov ast
                 return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
@@ -261,14 +267,15 @@ runProjectDryRun opts = do
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s)."
     putStrLn $ "Discovery scan: " ++ show (dsRoots stats) ++ " root(s) walked, "
         ++ show (dsDirs stats) ++ " director(ies) listed.\n"
-    total <- foldM (countFile opts) 0 files
+    coverage <- if null files then return Nothing else loadCoverage opts
+    total <- foldM (countFile opts coverage) 0 files
     macroScans <- readCabalMacroScans
     putStrLn $ "\nCPP macro scans: " ++ show macroScans
     putStrLn $ "Total generated mutants (sampled per file): " ++ show total
 
-countFile :: Opts -> Int -> FilePath -> IO Int
-countFile opts acc file = do
-    e <- try (dryCount opts file) :: IO (Either SomeException (Maybe Int))
+countFile :: Opts -> CoverageSnapshot -> Int -> FilePath -> IO Int
+countFile opts coverage acc file = do
+    e <- try (dryCount opts coverage file) :: IO (Either SomeException (Maybe Int))
     case e of
         Left ex -> do
             hPutStrLn stderr $ "SKIP " ++ file ++ ": " ++ firstLine (show ex)
@@ -280,15 +287,15 @@ countFile opts acc file = do
             putStrLn $ "  " ++ file ++ "  " ++ show n
             return (acc + n)
 
-dryCount :: Opts -> FilePath -> IO (Maybe Int)
-dryCount opts file = do
+dryCount :: Opts -> CoverageSnapshot -> FilePath -> IO (Maybe Int)
+dryCount opts coverage file = do
     eAst <- getASTFromFile file
     case eAst of
         Left _    -> return Nothing
         Right ast -> do
             let cap = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
                 cfg = defaultConfig { maxNumMutants = cap }
-            muncov <- resolveUncovered opts (getModuleName ast)
+            muncov <- resolveUncovered coverage (getModuleName ast)
             -- A dry run reports what generation actually produces, bounded only by
             -- a generous timeout (not the per-file render budget used by real runs);
             -- a file that needs longer than that to fully generate is reported as a
@@ -531,15 +538,31 @@ writeResult opts msum = case optResultOut opts of
 -- Coverage gating (AC 12)
 -- ---------------------------------------------------------------------------
 
--- | Uncovered spans for a module, when coverage is enabled and a @.tix@ is
--- available.  'Nothing' means "do not gate".  Driven by @--tix FILE@ or
--- @--coverage@ (auto-discover a @.tix@ in the project root).
-resolveUncovered :: Opts -> String -> IO (Maybe [Span])
-resolveUncovered opts modName = do
+-- | Parsed coverage for one project run.  A parse failure is retained so the
+-- existing per-file skip behavior can report it without rereading the file.
+type CoverageSnapshot = Maybe (Either SomeException TixIndex)
+
+-- | Parse the selected @.tix@ once for this project run.  'Nothing' means
+-- coverage gating is disabled or no automatically discovered file exists.
+loadCoverage :: Opts -> IO CoverageSnapshot
+loadCoverage opts = do
     mt <- resolveTix opts
     case mt of
         Nothing  -> return Nothing
-        Just tix -> fromRight Nothing <$> getUnCoveredPatches tix modName
+        Just tix -> Just <$> try (parseTixIndex tix)
+
+-- | Uncovered spans for a module, when coverage is enabled and a @.tix@ is
+-- available.  'Nothing' means "do not gate".  The parsed coverage snapshot is
+-- shared by every source file in the run.
+resolveUncovered :: CoverageSnapshot -> String -> IO (Maybe [Span])
+resolveUncovered coverage modName = case coverage of
+    Nothing       -> return Nothing
+    Just (Left ex) -> throwIO ex
+    Just (Right index) -> do
+        result <- getUnCoveredPatchesFromIndex index modName
+        return $ case result of
+            Left _    -> Nothing
+            Right spans -> spans
 
 resolveTix :: Opts -> IO (Maybe FilePath)
 resolveTix opts
@@ -889,5 +912,4 @@ printLogTail = do
         hPutStrLn stderr "  Last output:"
         mapM_ (hPutStrLn stderr . ("    " ++)) tailLines
         hPutStrLn stderr ""
-
 
