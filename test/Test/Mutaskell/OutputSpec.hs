@@ -1,9 +1,24 @@
 module Test.Mutaskell.OutputSpec where
 
 import Test.Hspec
-import App.Output (groupConsec, unifiedDiff)
+import App.Output
+    ( buildHtmlReportWithDiffs
+    , groupConsec
+    , prepareMutantDiffs
+    , unifiedDiff
+    , writeAgenticJsonLoggerWithDiffs
+    , writeHtmlLoggerWithDiffs
+    )
+import App.Opts (Opts(..), defaultOpts)
 import App.Filter (parseDiffChangedLines)
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
+import Test.Mutaskell.Config (MuVar(..))
+import Test.Mutaskell.Interpreter (MutantSummary(..))
+import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Tix (toSpan)
 import Data.List (isInfixOf)
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
 
 main :: IO ()
 main = hspec spec
@@ -14,6 +29,35 @@ spec = do
         it "groups ordered positions without changing their order" $ do
             groupConsec [1, 2, 3, 6, 7, 10] `shouldBe`
                 [[1, 2, 3], [6, 7], [10]]
+
+    describe "prepared report diffs" $ do
+        it "feeds the same prepared diff to agentic JSON and HTML reports" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let original = "line 1\n"
+                    mutant = Mutant "changed\n" MutateValues (toSpan (1, 1, 1, 1))
+                    summary = MSumAlive mutant []
+                    analysis = MAnalysisSummary (-1) 1 1 0 0 0
+                    diffs = prepareMutantDiffs original [summary]
+                    opts = defaultOpts
+                        { optLoggerAgenticJson = Just (dir </> "agentic.json")
+                        , optLoggerHtml = Just (dir </> "report.html")
+                        }
+                    expected = "@@ -1,1 +1,1 @@"
+                writeAgenticJsonLoggerWithDiffs opts "Fixture.hs" original diffs analysis
+                writeHtmlLoggerWithDiffs opts "Fixture.hs" original diffs analysis
+                agentic <- readFile (dir </> "agentic.json")
+                html <- readFile (dir </> "report.html")
+                agentic `shouldSatisfy` (expected `isInfixOf`)
+                html `shouldSatisfy` (expected `isInfixOf`)
+
+        it "keeps the prepared diff path available to pure HTML rendering" $ do
+            let original = "line 1\n"
+                mutant = Mutant "changed\n" MutateValues (toSpan (1, 1, 1, 1))
+                summary = MSumAlive mutant []
+                analysis = MAnalysisSummary (-1) 1 1 0 0 0
+                diffs = prepareMutantDiffs original [summary]
+            buildHtmlReportWithDiffs "Fixture.hs" original diffs analysis
+                `shouldSatisfy` ("@@ -1,1 +1,1 @@" `isInfixOf`)
 
     describe "unifiedDiff" $ do
         it "returns empty string when inputs are identical" $ do
