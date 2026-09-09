@@ -681,14 +681,13 @@ mutate (v, op) (_, _, m) =
 -- | Sub-arrays with one fewer element (returns @[]@ for a singleton list).
 -- Enumerates the single deletions directly, so the work stays proportional to
 -- the variant count instead of walking every size-@(c-1)@ combination, which
--- needs @2^c@ steps. The variants keep the order that 'choose' produced, so
--- mutant populations and sampling draws do not change.
+-- costs exponential time. The variant order matches the previous
+-- combination-based enumeration, so mutant populations and sampling draws do
+-- not change.
 removeOneElem :: [t] -> [[t]]
 removeOneElem [_] = []
 removeOneElem xs  = go xs
   where
-    -- Deletions of one sub-list: keep the head, delete one from the rest,
-    -- then delete the head itself.
     go (y : ys) = map (y :) (go ys) ++ [ys]
     go []       = []
 

@@ -11,6 +11,7 @@ import Text.Printf (printf)
 import Test.Mutaskell.Config (Config (maxNumMutants), defaultConfig)
 import Test.Mutaskell.Mutation (genSampledMutants, getASTFromStr, removeOneElem)
 import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Utils.Common (choose)
 
 -- Do not let the consumer fuse with removeOneElem. Work must stay visible.
 runDirect :: [Int] -> [[Int]]
@@ -21,10 +22,6 @@ runDirect = removeOneElem
 -- size-(c-1) combination of the input instead of the single deletions.
 legacyRemoveOneElem :: [Int] -> [[Int]]
 legacyRemoveOneElem l = choose l (length l - 1)
-  where
-    choose _ 0 = [[]]
-    choose [] _ = []
-    choose (x : xs) n = map (x :) (choose xs (n - 1)) ++ choose xs n
 {-# NOINLINE legacyRemoveOneElem #-}
 
 -- A literal list literal of n elements, the workload shape that drives
