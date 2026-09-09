@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.24]
+  * Changed: `removeOneElem` enumerates the single deletions directly instead of requesting every size-@(c-1)@ combination, so removal variants for explicit lists, case alternatives, function clauses and let/where bindings now cost work proportional to the variant count instead of exponential combination enumeration. Variant order, empty and singleton behaviour, and sampling draws are unchanged (#32).
+  * Added: `bench/remove-one-elem.sh` and `bench/remove-one-elem-bench.hs`, which force direct and legacy removal variants over growing inputs and measure the production sampled cap-1 path on a literal list module (#32).
+
 ## [0.8.23]
   * Changed: interpreter worker children (`--workers N`) evaluate a workload document handed over by the parent — the already-selected mutant source, mutator identity and span, plus the effective tests, timeout, mutant retention and test arguments — instead of regenerating every candidate from the source. Generation and transport drop from one full generation per evaluated mutant to one per run, children no longer re-discover tests or re-measure the `--timeout-coefficient` baseline, and concurrent hint evaluations remain in separate processes (#33).
   * Added: classified worker errors for malformed or missing workload transport data; per-child transport files are cleaned up after each evaluation.
