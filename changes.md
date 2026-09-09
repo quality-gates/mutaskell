@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.19]
+  * Changed: `sample` now walks the input once (Knuth sequential sampling) instead of counting, indexing and copying a shrinking remainder on every draw. Nonpositive quotas still return empty; quotas at or above the input length still return the input in order; `sampleF` rounding and clamping are unchanged. Seeded runs are repeatable, but draws are not required to match the old shrinking-list sequence (#37).
+  * Added: `bench/sample.sh` and `bench/sample-bench.hs`, which force half-sample and fixed-cap draws over growing inputs and report elapsed time separately from allocation and residency (#37).
+
 ## [0.8.18]
   * Changed: coverage spans are reduced with a sorted sweep and indexed for candidate containment, preserving span order, duplicates, overlaps, and boundary semantics while avoiding quadratic scans (#38).
   * Changed: project and dry-run coverage parsing now builds one run-scoped `.tix` index and reuses it across source files; missing and ambiguous module handling remains unchanged (#38).
