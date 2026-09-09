@@ -1,5 +1,7 @@
 module Test.Mutaskell.Utils.CommonSpec (main, spec) where
 
+import Data.List (isSubsequenceOf, nub, sort)
+import qualified Data.Map.Strict as Map
 import System.Random
 import Test.Hspec
 import Test.Mutaskell.Utils.Common (choose, coupling, remElt, replaceFst, sample, sampleF, spread, strip)
@@ -33,7 +35,10 @@ spec = do
 
     describe "sample" $ do
         it "must sample a given size subset" $ do
-            sample (mkStdGen 1) 2 [1, 2, 3, 4] `shouldBe` [2, 4]
+            let xs = [1, 2, 3, 4] :: [Int]
+                got = sample (mkStdGen 1) 2 xs
+            length got `shouldBe` 2
+            sort got `shouldSatisfy` (`isSubsequenceOf` sort xs)
 
         it "returns empty list when n is negative" $ do
             sample (mkStdGen 42) (-1) [1 :: Int, 2, 3] `shouldBe` []
@@ -46,12 +51,67 @@ spec = do
             sample (mkStdGen 42) 0 [1 :: Int, 2, 3] `shouldBe` []
             sample (mkStdGen 42) 0 ([] :: [Int]) `shouldBe` []
 
+        it "returns the input in order when n equals the input length" $ do
+            sample (mkStdGen 1) 4 [1, 2, 3, 4 :: Int] `shouldBe` [1, 2, 3, 4]
+
+        it "returns the input in order when n exceeds the input length" $ do
+            sample (mkStdGen 1) 10 [1, 2, 3 :: Int] `shouldBe` [1, 2, 3]
+
+        it "returns empty input unchanged when n exceeds length" $ do
+            sample (mkStdGen 1) 3 ([] :: [Int]) `shouldBe` []
+
+        it "samples positions without replacement" $ do
+            let xs = [10, 20, 30, 40, 50, 60] :: [Int]
+                got = sample (mkStdGen 99) 3 xs
+            length got `shouldBe` 3
+            nub got `shouldBe` got
+            sort got `shouldSatisfy` (`isSubsequenceOf` sort xs)
+
+        it "keeps equal values that come from distinct positions" $ do
+            let xs = [1, 1, 2, 2] :: [Int]
+                got = sample (mkStdGen 5) 3 xs
+            length got `shouldBe` 3
+            sort got `shouldSatisfy` (`isSubsequenceOf` sort xs)
+
+        it "is reproducible for the same seed and input" $ do
+            let xs = [1 .. 100] :: [Int]
+            sample (mkStdGen 123) 17 xs `shouldBe` sample (mkStdGen 123) 17 xs
+
+        it "selects each position with similar frequency" $ do
+            let xs = [0 .. 9] :: [Int]
+                n = 3
+                trials = 2000
+                counts = Map.fromListWith (+)
+                    [ (x, 1 :: Int)
+                    | seed <- [1 .. trials]
+                    , x <- sample (mkStdGen seed) n xs
+                    ]
+                expected = fromIntegral trials * n `div` length xs
+            Map.keys counts `shouldBe` xs
+            Map.elems counts `shouldSatisfy` all (\c -> abs (c - expected) < expected `div` 3)
+
     describe "sampleF" $ do
         it "must sample a given fraction subset" $ do
-            sampleF (mkStdGen 1) 0.5 [1, 2, 3, 4] `shouldBe` [2, 4]
+            let xs = [1, 2, 3, 4] :: [Int]
+                got = sampleF (mkStdGen 1) 0.5 xs
+            length got `shouldBe` 2
+            sort got `shouldSatisfy` (`isSubsequenceOf` sort xs)
 
         it "returns empty list when fraction is negative" $ do
             sampleF (mkStdGen 42) (-0.5) [1 :: Int, 2, 3] `shouldBe` []
+
+        it "returns empty list when fraction is zero" $ do
+            sampleF (mkStdGen 42) 0 [1 :: Int, 2, 3] `shouldBe` []
+
+        it "rounds the quota from the fraction times the length" $ do
+            let xs = [1 .. 5] :: [Int]
+            length (sampleF (mkStdGen 7) 0.5 xs) `shouldBe` 2
+
+        it "returns the input in order when the fraction is one" $ do
+            sampleF (mkStdGen 1) 1 [1, 2, 3, 4 :: Int] `shouldBe` [1, 2, 3, 4]
+
+        it "returns the input in order when the fraction exceeds one" $ do
+            sampleF (mkStdGen 1) 2 [1, 2, 3 :: Int] `shouldBe` [1, 2, 3]
 
     describe "coupling" $ do
         it "must sample a given fraction subset" $ do

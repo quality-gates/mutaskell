@@ -30,16 +30,27 @@ replaceFst (o, n) (v : vs)
     | v == o = n : vs
     | otherwise = v : replaceFst (o, n) vs
 
-{- | The `sample` function takes a random generator and chooses a random sample
-subset of given size.
+{- | Choose a subset of the given size with no replacement.
+
+The procedure walks the input once. Seeded results are repeatable. They are
+not required to match draws from a previous shrinking-list sampler.
 -}
 sample :: (RandomGen g) => g -> Int -> [t] -> [t]
 sample _ n _ | n <= 0 = []
-sample _ n xs | length xs <= n = xs
-sample g n xs = val : sample g' (n - 1) (remElt idx xs)
+sample g n xs
+    | n >= inputLen = xs
+    | otherwise = reverse (go g n inputLen xs [])
   where
-    val = xs !! idx
-    (idx, g') = randomR (0, length xs - 1) g
+    inputLen = length xs
+    go _ need left ys acc
+        | need <= 0 = acc
+        | need >= left = reverse ys ++ acc
+    go _ _ _ [] acc = acc
+    go gen need left (y : ys) acc =
+        let (draw, gen') = randomR (0, left - 1) gen
+        in if draw < need
+            then go gen' (need - 1) (left - 1) ys (y : acc)
+            else go gen' need (left - 1) ys acc
 
 -- | Wrapper around sample providing the random seed
 rSample :: Int -> [t] -> IO [t]
