@@ -679,10 +679,17 @@ mutate (v, op) (_, _, m) =
     map (v, toSpan (getSpan op),) $ once (mkMpMuOp op) m
 
 -- | Sub-arrays with one fewer element (returns @[]@ for a singleton list).
--- 'choose' uses 'subsequences' internally and does not require 'Eq'.
+-- Enumerates the single deletions directly, so the work stays proportional to
+-- the variant count instead of walking every size-@(c-1)@ combination, which
+-- costs exponential time. The variant order matches the previous
+-- combination-based enumeration, so mutant populations and sampling draws do
+-- not change.
 removeOneElem :: [t] -> [[t]]
 removeOneElem [_] = []
-removeOneElem l   = choose l (length l - 1)
+removeOneElem xs  = go xs
+  where
+    go (y : ys) = map (y :) (go ys) ++ [ys]
+    go []       = []
 
 -- | Clause-order mutations by swapping each adjacent pair: @n-1@ variants for a
 -- list of length @n@.  This replaces the full @permutations@ ( @n!@ ) set used

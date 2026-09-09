@@ -3,8 +3,10 @@
 module Test.Mutaskell.MutationSpec.Helpers where
 
 import Here
+import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Test.Mutaskell.Mutation
-import Test.Mutaskell.MuOp (Module_, Decl_)
+import Test.Mutaskell.MuOp (Module_, Decl_, MuOp, mkMpMuOp)
+import Test.Mutaskell.Utils.Syb (once)
 
 _myprop :: String
 _myprop =
@@ -84,6 +86,16 @@ ast s = do
     case result of
         Right a  -> return a
         Left err -> error $ "Test AST parse failure: " ++ err
+
+-- | Render the mutated modules a selector produces over a parsed source,
+-- through the same 'once' step the production pipeline uses.
+renderedMutants :: (Module_ -> [MuOp]) -> String -> IO [String]
+renderedMutants selector src = do
+    ast' <- ast src
+    return [ exactPrint mutated
+           | op <- selector ast'
+           , mutated <- once (mkMpMuOp op) ast'
+           ]
 
 decl :: Module_ -> [Decl_]
 decl = getDecl
