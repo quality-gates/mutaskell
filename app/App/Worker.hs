@@ -6,7 +6,6 @@ module App.Worker
   , evalOneWorker
   , workerSerialize
   , workerDeserialize
-  , filterWorkerArgs
   , Workload(..)
   , WorkloadBase(..)
   , mutantWorkload
@@ -39,20 +38,21 @@ import Test.Mutaskell.Tix (Span, toSpan)
 import Test.Mutaskell.Utils.Common (hash)
 
 -- | Run mutant evaluation using N parallel worker subprocesses.
--- Each worker is a fresh mucheck process that evaluates a single mutant via
--- @--run-mutant-id@ and writes its 'MutantSummary' to a temp file.
--- hint is not thread-safe; process-level isolation provides safety.
-runWithWorkers :: Int -> [String] -> [Mutant] -> (MutantSummary -> IO ()) -> IO (MAnalysisSummary, [MutantSummary])
-runWithWorkers numWorkers origArgs mutants callback = do
+-- Each worker is a fresh mutaskell process that receives a 'Workload'
+-- document — the parent's already-selected mutant plus the effective
+-- evaluation settings — evaluates it via @--run-mutant-workload@ and writes
+-- its 'MutantSummary' to a temp file.  No candidate generation happens in a
+-- child.  hint is not thread-safe; process-level isolation provides safety.
+runWithWorkers :: Int -> WorkloadBase -> [Mutant] -> (MutantSummary -> IO ()) -> IO (MAnalysisSummary, [MutantSummary])
+runWithWorkers numWorkers wbase mutants callback = do
   exe    <- getExecutablePath
   tmpDir <- getTemporaryDirectory
-  let baseArgs = filterWorkerArgs origArgs
   sem    <- newQSem numWorkers
   resultVars <- forM mutants $ \mutant -> do
     var <- newEmptyMVar
     _ <- forkIO $ do
       waitQSem sem
-      result <- evalOneWorker exe tmpDir baseArgs mutant
+      result <- evalOneWorker exe tmpDir wbase mutant
       callback result
       putMVar var result
       signalQSem sem
@@ -60,27 +60,36 @@ runWithWorkers numWorkers origArgs mutants callback = do
   summaries <- mapM takeMVar resultVars
   return (summaryFromMutantSummaries summaries, summaries)
 
--- | Evaluate a single mutant by spawning a fresh mucheck subprocess.
-evalOneWorker :: FilePath -> FilePath -> [String] -> Mutant -> IO MutantSummary
-evalOneWorker exe tmpDir baseArgs mutant = do
+-- | Evaluate a single mutant by spawning a fresh mutaskell subprocess with a
+-- workload document for it.
+evalOneWorker :: FilePath -> FilePath -> WorkloadBase -> Mutant -> IO MutantSummary
+evalOneWorker exe tmpDir wbase mutant = do
   let mid        = hash (_mutant mutant)
+      wlFile     = tmpDir ++ "/mucheck-workload-" ++ mid ++ ".json"
       resultFile = tmpDir ++ "/mucheck-worker-" ++ mid ++ ".txt"
-      childArgs  = ["--run-mutant-id", mid, "--worker-output", resultFile] ++ baseArgs
-  (_, _, _, ph) <- createProcess (proc exe childArgs)
-  ec <- waitForProcess ph
-  case ec of
-    ExitSuccess -> do
-      eContent <- try $ do
-        str <- readFile resultFile
-        let n = length str
-        n `seq` return str
-      _ <- try (removeFile resultFile) :: IO (Either IOException ())
-      case eContent of
-        Left  ioerr ->
-          return $ MSumError mutant ("worker: read error: " ++ show (ioerr :: IOException)) []
-        Right content -> return $ workerDeserialize mutant content
-    ExitFailure code ->
-      return $ MSumError mutant ("worker: subprocess exited with code " ++ show code) []
+      childArgs  = [ wbTarget wbase, "--run-mutant-workload", wlFile
+                   , "--worker-output", resultFile ]
+  eWrite <- try (writeFile wlFile (encodeWorkload (mutantWorkload wbase mutant)))
+              :: IO (Either IOException ())
+  case eWrite of
+    Left ioerr -> return $ MSumError mutant ("worker: workload write error: " ++ show ioerr) []
+    Right () -> do
+      (_, _, _, ph) <- createProcess (proc exe childArgs)
+      ec <- waitForProcess ph
+      _ <- try (removeFile wlFile) :: IO (Either IOException ())
+      case ec of
+        ExitSuccess -> do
+          eContent <- try $ do
+            str <- readFile resultFile
+            let n = length str
+            n `seq` return str
+          _ <- try (removeFile resultFile) :: IO (Either IOException ())
+          case eContent of
+            Left  ioerr ->
+              return $ MSumError mutant ("worker: read error: " ++ show (ioerr :: IOException)) []
+            Right content -> return $ workerDeserialize mutant content
+        ExitFailure code ->
+          return $ MSumError mutant ("worker: subprocess exited with code " ++ show code) []
 
 -- | Serialize a 'MutantSummary' to a self-contained JSON object.
 -- A single extra newline inside a diff or test output cannot corrupt the
@@ -122,14 +131,6 @@ workerDeserialize mutant txt =
         "error"   -> MSumError   mutant err logS
         "skipped" -> MSumSkipped mutant logS
         _         -> MSumOther   mutant logS
-
--- | Remove flags that must not be forwarded to worker subprocesses.
-filterWorkerArgs :: [String] -> [String]
-filterWorkerArgs []                             = []
-filterWorkerArgs ("--workers"      : _ : rest)  = filterWorkerArgs rest
-filterWorkerArgs ("--run-mutant-id": _ : rest)  = filterWorkerArgs rest
-filterWorkerArgs ("--worker-output": _ : rest)  = filterWorkerArgs rest
-filterWorkerArgs (x                : rest)       = x : filterWorkerArgs rest
 
 -- | Version of the workload transport format. Bumped on incompatible changes
 -- so an old child rejects a document it cannot interpret.

@@ -28,7 +28,7 @@ import App.Output
     , writeJsonLogger
     , writeUpdateBaseline
     )
-import App.Worker (runWithWorkers, workerSerialize)
+import App.Worker (runWithWorkers, runWorkloadMode, workerSerialize, WorkloadBase(..))
 
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Exception (IOException, try)
@@ -97,6 +97,12 @@ runOpts opts = do
 
 runOptsFile :: Opts -> IO ()
 runOptsFile opts
+  -- Worker child mode: the parent hands us a workload document holding the
+  -- mutant it already selected, so we evaluate it directly.  No candidate
+  -- generation, test discovery or timeout calibration happens here.
+  | Just workloadPath <- optRunMutantWorkload opts = do
+      runWorkloadMode workloadPath (optWorkerOutput opts)
+      exitSuccess
   | optDryRun opts = dryRun (optFile opts)
   | optExec opts   = runOrchestrator opts
   | otherwise      = do
@@ -187,8 +193,16 @@ runOptsFile opts
         (fsum', tsum) <-
           if optWorkers opts > 1
             then do
-              origArgs <- getArgs
-              runWithWorkers (optWorkers opts) origArgs finalMutants progressCallback
+              -- Workers evaluate the mutants the parent already generated;
+              -- the shared settings travel with each mutant as a workload.
+              let wbase = WorkloadBase
+                    { wbTarget      = file
+                    , wbTests       = tests testNames
+                    , wbTimeout     = timeoutUs
+                    , wbKeepMutants = optKeepMutants opts
+                    , wbTestArgs    = optTestArgs opts
+                    }
+              runWithWorkers (optWorkers opts) wbase finalMutants progressCallback
             else evaluateMutants 1 timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
         case mtid of
           Nothing  -> return ()

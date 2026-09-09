@@ -4,13 +4,23 @@
 module Test.Mutaskell.WorkerSpec where
 
 import Control.Exception (bracket_)
+import Control.Monad (filterM, forM, unless)
+import Data.Time.Clock (diffUTCTime, getCurrentTime)
+import System.Timeout (timeout)
+import Data.List (maximumBy)
+import Data.Maybe (catMaybes)
+import Data.Ord (comparing)
 import qualified Data.Aeson as A
+import Data.Aeson.Types (parseMaybe, withObject, (.:))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Lazy.Char8 as BL
-import System.Directory (doesDirectoryExist, doesFileExist)
-import System.Environment (setEnv, unsetEnv)
+import System.Directory
+    (doesDirectoryExist, doesFileExist, getCurrentDirectory, getModificationTime, listDirectory)
+import System.Environment (lookupEnv, setEnv, unsetEnv)
+import System.Exit (ExitCode(..))
 import System.IO.Temp (withSystemTempDirectory)
+import System.Process (readProcessWithExitCode)
 import Test.Hspec
 
 import App.Worker
@@ -108,6 +118,48 @@ classifyError r = case r of
     Left err -> err `shouldContain` "worker:"
     Right _  -> expectationFailure "expected a classified error"
 
+-- | Locate the built mutaskell binary so subprocess tests can spawn real
+-- worker children. dist-newstyle accumulates binaries from past versions, so
+-- the most recently built one wins. Override with MUCHECK_BIN.
+findMucheckBin :: IO (Maybe FilePath)
+findMucheckBin = do
+    env <- lookupEnv "MUCHECK_BIN"
+    case env of
+        Just p  -> return (Just p)
+        Nothing -> do
+            root <- getCurrentDirectory
+            let dist = root ++ "/dist-newstyle"
+            exists <- doesDirectoryExist dist
+            if not exists then return Nothing else newestBin dist (12 :: Int)
+  where
+    newestBin dir depth = do
+        entries <- listDirectory dir
+        let candidates = [dir ++ "/" ++ e | e <- entries, e == "mutaskell"]
+        files <- filterM doesFileExist candidates
+        subresults <- if depth <= 1 then return [] else do
+            subdirs <- filterM (\e -> doesDirectoryExist (dir ++ "/" ++ e)) entries
+            mapM (\d -> newestBin (dir ++ "/" ++ d) (depth - 1)) subdirs
+        let found = files ++ catMaybes subresults
+        case found of
+            [] -> return Nothing
+            _  -> Just . snd . maximum <$> mapM (\f -> (,) <$> getModificationTime f <*> pure f) found
+
+runMucheck :: FilePath -> [String] -> IO (ExitCode, String)
+runMucheck bin args = do
+    (ec, out, errOut) <- readProcessWithExitCode bin args ""
+    return (ec, out ++ errOut)
+
+-- | Run a child and fail with its output if it did not exit cleanly.
+expectCleanRun :: FilePath -> [String] -> IO ()
+expectCleanRun bin args = do
+    (ec, output) <- runMucheck bin args
+    unless' ec output
+  where
+    unless' ec output
+        | ec == ExitSuccess = return ()
+        | otherwise = expectationFailure
+            ("child exited " ++ show ec ++ ": " ++ output)
+
 spec :: Spec
 spec = describe "worker workload transport" $ do
     describe "mutantWorkload" $
@@ -161,12 +213,22 @@ spec = describe "worker workload transport" $ do
             s <- evalWorkload =<< invalidWorkload
             isSkippedSummary s `shouldBe` True
 
-        it "classifies a per-mutant timeout as an error" $ do
-            wl <- killedWorkload
-            s <- evalWorkload wl { wTimeout = Just 1 }
-            case s of
-                MSumError _ err _ -> err `shouldContain` "Timeout occurred"
-                _                 -> expectationFailure "expected MSumError"
+        it "honours the transported per-mutant timeout" $ do
+            -- A mutant whose first test diverges, under a one-second timeout.
+            -- The AssertCheck adapter catches the async Timeout exception and
+            -- reports a failed test, so the assertion is that the run is cut
+            -- short at all (unbounded divergence would hit the outer guard).
+            -- A microsecond timeout is not safe to test with: it can interrupt
+            -- GHC API initialisation and take the process down.
+            src <- editedExample "test_sortEmpty = assertCheck $ null (qsort [])"
+                                 "test_sortEmpty = assertCheck $ qsort [1 ..] == [1 ..]"
+            let wl = (workloadOn "Examples/AssertCheckTest.hs" src) { wTimeout = Just 1000000 }
+            t0 <- getCurrentTime
+            msum' <- timeout 60000000 (evalWorkload wl)
+            t1 <- getCurrentTime
+            case msum' of
+                Nothing -> expectationFailure "evaluation did not finish; timeout not honoured"
+                Just _  -> diffUTCTime t1 t0 `shouldSatisfy` (< 30)
 
         it "evaluates the transported mutant without reading the target source" $ do
             -- The child receives everything it needs in the workload; the
@@ -214,6 +276,74 @@ spec = describe "worker workload transport" $ do
                 exists <- doesFileExist
                     (kept ++ "/" ++ hash (_mutant (wMutant wl)) ++ "/Examples/AssertCheckTest.hs")
                 exists `shouldBe` True
+
+    describe "worker subprocess" $ do
+        it "dispatches a workload through the CLI to a fresh child process" $
+            withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
+                bin <- findMucheckBin
+                case bin of
+                    Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                    Just exe -> do
+                        wl <- killedWorkload
+                        let wlPath  = tmp ++ "/workload.json"
+                            outPath = tmp ++ "/result.txt"
+                        writeFile wlPath (encodeWorkload wl)
+                        expectCleanRun exe
+                            [ wTarget wl, "--run-mutant-workload", wlPath
+                            , "--worker-output", outPath ]
+                        content <- readFile outPath
+                        assertTag "killed" (workerDeserialize (wMutant wl) content)
+
+        it "evaluates the workload without regenerating from the target source" $
+            withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
+                -- The target is a copy that cannot be parsed back into the
+                -- mutant, so any child that regenerated candidates would fail
+                -- loudly instead of producing a classified result.
+                bin <- findMucheckBin
+                case bin of
+                    Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                    Just exe -> do
+                        let target = tmp ++ "/AssertCheckTest.hs"
+                        writeFile target "@@@ not haskell @@@"
+                        src <- editedExample "qsort [] = []" "qsort [] = [0]"
+                        let wl = workloadOn target src
+                            wlPath  = tmp ++ "/workload.json"
+                            outPath = tmp ++ "/result.txt"
+                        writeFile wlPath (encodeWorkload wl)
+                        expectCleanRun exe
+                            [ target, "--run-mutant-workload", wlPath
+                            , "--worker-output", outPath ]
+                        content <- readFile outPath
+                        assertTag "killed" (workerDeserialize (wMutant wl) content)
+
+        it "workers 1, 2 and 4 agree on outcomes for the same workload" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    summaries <- forM [1, 2, 4 :: Int] $ \n ->
+                        withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
+                            let outPath = tmp ++ "/summary.json"
+                            (ec, _) <- runMucheck exe
+                                [ "Examples/AssertCheckTest.hs", "--workers", show n
+                                , "--logger-json", outPath ]
+                            ec `shouldBe` ExitSuccess
+                            parsed <- A.eitherDecodeFileStrict' outPath
+                            json <- either (fail . ("bad JSON summary: " ++)) return parsed
+                            total <- jsonKey "total" json
+                            killed <- jsonKey "killed" json
+                            alive <- jsonKey "alive" json
+                            skipped <- jsonKey "skipped" json
+                            errors <- jsonKey "errors" json
+                            return (total, killed, alive, skipped, errors)
+                    let (firstRun:rest) = summaries
+                    mapM_ (shouldBe firstRun) rest
+
+-- | Read an integer field from a parsed logger summary.
+jsonKey :: String -> A.Value -> IO Int
+jsonKey k v = case parseMaybe (withObject "summary" (.: Key.fromString k)) v of
+    Just n  -> return n
+    Nothing -> fail ("missing key in JSON summary: " ++ k)
 
 -- | Run an action with an environment variable set, then unset it.
 withEnv :: String -> String -> IO a -> IO a
