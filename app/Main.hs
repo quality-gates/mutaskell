@@ -300,7 +300,8 @@ dryRun file = do
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right ast -> do
       let mutants = genMutantsFromAST defaultConfig ast
-          byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
+      traceGeneration "dry-run"
+      let byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
           byType' = sortBy (comparing (Down . snd)) byType
           -- 7 is seeded into the list so 'maximum' never sees [] (a zero-mutant
           -- file, e.g. a pure re-export module, used to crash here).

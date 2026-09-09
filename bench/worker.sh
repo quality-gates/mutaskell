@@ -18,6 +18,10 @@
 # not fork children), while 2 and 4 run the workload-transport subprocess
 # path; the three agree on outcomes (see the worker spec).
 #
+# peak_rss is /usr/bin/time -l's maximum resident set size as reported by the
+# platform: bytes on macOS, KiB on Linux.  It covers the whole run, so test
+# execution (which dominates here) is included, not just generation.
+#
 # macOS/BSD stat and /usr/bin/time -l are used, with a GNU stat fallback.
 #
 # Usage: bench/worker.sh
@@ -62,7 +66,7 @@ for workers in 1 2 4; do
         awk -v w="$workers" -v r="$repeat" -v g="$gens" -v n="$total" \
             '/real/       {wall = $1}
              /maximum resident set size/ {rss = $1}
-             END {printf "workers=%s repeat=%s wall=%ss peak_rss=%sKB generations=%s throughput=%s mutants/s\n",
+             END {printf "workers=%s repeat=%s wall=%ss peak_rss=%s generations=%s throughput=%s mutants/s\n",
                   w, r, wall, rss, g, (n / wall)}' "$WORK/err"
     done
 done
