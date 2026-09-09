@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                mutaskell
-version:             0.8.19
+version:             0.8.20
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
@@ -29,7 +29,7 @@ source-repository    head
 source-repository    this
   type:              git
   location:          https://github.com/quality-gates/mutaskell.git
-  tag:               0.8.19
+  tag:               0.8.20
 
 common dependencies
   build-depends:    base >=4 && <5,
@@ -55,6 +55,7 @@ library
                     Test.Mutaskell.MuOp
                     Test.Mutaskell.Config
                     Test.Mutaskell.Interpreter
+                    Test.Mutaskell.Interpreter.ReusedSession
                     Test.Mutaskell.Mutation
                     Test.Mutaskell.Utils.Syb
                     Test.Mutaskell.Utils.Common
@@ -123,6 +124,7 @@ test-suite spec
                     Test.Mutaskell.MuVarCoverageSpec
                     Test.Mutaskell.OutputSpec
                     Test.Mutaskell.ProjectSpec
+                    Test.Mutaskell.ReusedSessionSpec
                     Test.Mutaskell.TixSpec
                     Test.Mutaskell.Utils.CommonSpec
                     Test.Mutaskell.Utils.PrintSpec
