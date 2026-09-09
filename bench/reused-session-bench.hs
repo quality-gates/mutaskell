@@ -18,7 +18,6 @@ import Trace.Hpc.Util (toHpcPos)
 import qualified Test.Mutaskell.Interpreter.ReusedSession as RS
 import Test.Mutaskell.Config (MuVar (..))
 import Test.Mutaskell.TestAdapter
-import Test.Mutaskell.TestAdapter.AssertCheck (AssertStatus)
 
 -- Same catch-free adapter the equivalence tests use: 'IO Bool' results with
 -- no 'SomeException' handler between the test and the summary.

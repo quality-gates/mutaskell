@@ -10,6 +10,25 @@ single-session variant ('LoadOncePerMutant') that loads the mutant module once
 and runs the ordered tests inside the same session, keeping the same ordering,
 short-circuiting and per-test timeout rules.
 
+'FreshPerTest' mirrors the production 'Test.Mutaskell.evalTest' shape, with
+one deliberate deviation: the captured streams are restored even when a run
+is abandoned (a timeout teardown kills the session thread mid-run), which
+production's 'Test.Mutaskell.Utils.Print.catchOutput' does not do.
+
+Known divergences of the reused policy, all of them inherent to running the
+ordered tests inside one session:
+
+* The per-test timeout is applied in the driving thread, not inside the
+  interpreted action, so a test framework whose runner catches exceptions
+  (like the AssertCheck adapter's 'Test.Mutaskell.TestAdapter.AssertCheck.withCheck')
+  turns the timeout into a plain test failure under production but is
+  recorded as an interpreter @error@ under reuse.  Such an adapter must not
+  be combined with reuse in a shipping design: the teardown's 'killThread'
+  would be swallowed by the same handler, and the session would never stop.
+* An uncaught test exception is recorded as an interpreter error and stops
+  the ordered run, while production and 'FreshPerTest' propagate it out of
+  the evaluation.
+
 This is an investigation artifact, not production behaviour: neither
 'Test.Mutaskell.mucheck' nor the CLI select a policy, and the default
 evaluator is unchanged.  Concurrent mutants still require separate processes
@@ -32,7 +51,7 @@ module Test.Mutaskell.Interpreter.ReusedSession
 
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar
-import Control.Exception (IOException, SomeException (..), bracket, try)
+import Control.Exception (IOException, SomeException (..), bracket, mask, try)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import Data.IORef
@@ -60,7 +79,8 @@ data SessionPolicy
       -- ^ One hint session and one module load per test expression; each
       --   test's timeout covers session boot, module load and the test
       --   itself.  This mirrors the production evaluator
-      --   ('Test.Mutaskell.evalTest').
+      --   ('Test.Mutaskell.evalTest'), except that the captured streams are
+      --   restored when a run is abandoned (see the module header).
     | LoadOncePerMutant
       -- ^ One hint session per mutant: the session is booted and the module
       --   loaded once, on the first test, and every remaining ordered test
@@ -72,13 +92,14 @@ data SessionPolicy
 
 -- | Instrumentation counters and timings for one mutant evaluation.
 --
--- @rsTestsRun@ counts test invocations @attempted@: a test whose session fails
--- to load the mutant module (invalid mutant) or that times out has been
--- invoked, so it is counted.
+-- @rsTestsRun@ and @rsLoads@ count test invocations and module loads
+-- @attempted@: a test whose session fails to load the mutant module (invalid
+-- mutant) has been attempted, so it is counted, while a timeout that fires
+-- before the load phase begins counts neither.
 data ReusedStats = ReusedStats
     { rsSessions :: !Int     -- ^ hint sessions started
-    , rsLoads    :: !Int     -- ^ 'I.loadModules' calls made
-    , rsTestsRun :: !Int     -- ^ test invocations attempted
+    , rsLoads    :: !Int     -- ^ 'I.loadModules' calls attempted
+    , rsTestsRun :: !Int     -- ^ test invocations attempted (see above)
     , rsSetupNs  :: !Integer -- ^ nanoseconds spent in session boot and module load
     , rsTestNs   :: !Integer -- ^ nanoseconds spent in test preparation and execution
     } deriving (Eq, Show)
@@ -157,9 +178,12 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
 
     -- Run one test in its own session: boot, module load and test all fall
     -- inside this test's timeout, matching the production 'evalTest' shape.
+    -- The whole session is captured once (as production does); the test
+    -- itself is not captured again, so the log is not truncated a second
+    -- time.  The load is counted once the load phase begins, so a compile
+    -- failure still counts while a timeout during boot does not.
     freshOne r t = do
         bumpSessions r
-        bumpLoads r
         bumpTests r
         start <- nowNs
         loadEndRef <- newIORef start
@@ -167,13 +191,14 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
                 IU.unsafeRunInterpreterWithArgs (pkgEnvArgs pkgEnv) $ do
                     bootEnd <- liftIO nowNs
                     liftIO (addSetup r (bootEnd - start))
+                    liftIO (bumpLoads r)
                     I.loadModules [mutantFile]
                     loadEnd <- liftIO nowNs
                     liftIO (addSetup r (loadEnd - bootEnd))
                     liftIO (writeIORef loadEndRef loadEnd)
                     ms <- I.getLoadedModules
                     I.setTopLevelModules ms
-                    interpretTest t
+                    interpretTest False t
         mval <- applyTimeout mtimeout runAction
         case mval of
             Nothing -> return timeoutOutput
@@ -189,16 +214,18 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
         respMV <- newEmptyMVar
         doneMV <- newEmptyMVar
         tidRef <- newIORef Nothing
-        bumpSessions r
         bumpTests r
         -- The session thread is forked inside the first test's timeout so
         -- that boot, module load and the first expression all fall inside the
-        -- first test's limit.
-        let forkAndSend = do
+        -- first test's limit.  The fork and the thread-id registration are
+        -- masked, so a timeout cannot fire between 'forkIO' and the write
+        -- that lets a later teardown find the thread (otherwise the teardown
+        -- would miss it and the session would leak).
+        let forkAndSend = mask $ \restore -> do
                 tid <- forkIO (sessionThread r reqMV respMV doneMV)
-                writeIORef tidRef (Just tid)
-                putMVar reqMV (Just t0)
-                takeMVar respMV
+                liftIO (writeIORef tidRef (Just tid))
+                liftIO (bumpSessions r)
+                restore (putMVar reqMV (Just t0) >> takeMVar respMV)
         mfirst <- case mtimeout of
             Nothing -> Just <$> forkAndSend
             Just t  -> timeout t forkAndSend
@@ -213,7 +240,11 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
                     | isSuccess out -> nextTests r reqMV respMV doneMV tidRef [v0] (drop 1 tests0)
                     | otherwise     -> finish r reqMV doneMV [v0]
 
-    -- Continue with the remaining tests once the first one passed.
+    -- Continue with the remaining tests once the first one passed.  The
+    -- blocking 'putMVar' below is safe: this branch is only reached after a
+    -- response has been consumed, so the session loop is waiting for the next
+    -- request ('finish' uses 'tryPutMVar' because it is also reached after a
+    -- response, when the session may already have stopped).
     nextTests r reqMV _respMV doneMV _tidRef acc [] = finish r reqMV doneMV acc
     nextTests r reqMV respMV doneMV tidRef acc (t:ts) = do
         bumpTests r
@@ -249,10 +280,15 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
     -- loaded on the first request, and every further request runs inside the
     -- same session.  Boot, module load and the first expression are therefore
     -- all charged to the first test's timeout, and the session is ended as
-    -- soon as a test fails, errors or the driving thread stops asking.
+    -- soon as a test fails, errors or the driving thread stops asking.  The
+    -- whole session is captured (as the production 'evalTest' does for its
+    -- one test), with each test truncating the log again from
+    -- 'interpretTest'; the bracket in 'withCapturedOutput' restores the
+    -- streams when the teardown kills this thread mid-run.
     sessionThread r reqMV respMV doneMV = do
         start <- nowNs
-        outcome <- try (IU.unsafeRunInterpreterWithArgs (pkgEnvArgs pkgEnv) (reusedAction start))
+        outcome <- try (withCapturedOutput logF $
+                IU.unsafeRunInterpreterWithArgs (pkgEnvArgs pkgEnv) (reusedAction start))
             :: IO (Either SomeException (Either I.InterpreterError ()))
         case outcome of
             Right (Right ())        -> return ()
@@ -300,15 +336,20 @@ evalOrderedTests mtimeout extraArgs mutantFile logF pkgEnv policy tests0@(t0:_) 
                     keep <- runAndRespond t
                     when keep loopTests
 
-    -- Run one test expression inside the current session.
-    interpretTest :: TestStr -> I.Interpreter t
-    interpretTest t = do
+    -- Run one test expression inside the current session.  When the caller
+    -- already captures the whole session ('FreshPerTest'), the test is not
+    -- captured again, so the log is not truncated a second time; the reused
+    -- session captures per test, since its capture spans many tests.
+    interpretTest :: Bool -> TestStr -> I.Interpreter t
+    interpretTest capture t = do
         act <- I.interpret t (I.as :: ((Typeable t) => IO t))
-        liftIO (withArgs extraArgs (withCapturedOutput logF act))
+        liftIO $ if capture
+            then withArgs extraArgs (withCapturedOutput logF act)
+            else withArgs extraArgs act
 
     runTestInSession :: TestStr -> I.Interpreter (InterpreterOutput t)
     runTestInSession t = do
-        v <- interpretTest t
+        v <- interpretTest True t
         return Io{_io = Right v, _ioLog = logF}
 
 -- | Apply the optional per-test timeout.

@@ -13,7 +13,6 @@ module Test.Mutaskell.Interpreter
     , MutantSummary (..)
     , isSkippedSummary
     , findPkgEnvArgs
-    , resolveMutantDir
     , mutantPaths
     , parentDir
     ) where

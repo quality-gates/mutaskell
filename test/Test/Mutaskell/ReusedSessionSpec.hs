@@ -19,6 +19,15 @@
 -- difference is asserted explicitly; those differences are the compatibility
 -- evidence reported on issue #36.
 --
+-- Known reuse divergence this suite cannot pin: with an exception-catching
+-- adapter like AssertCheck, production delivers the timeout inside the
+-- interpreted action, so the runner records a plain failure (@killed@),
+-- while the reused policy applies the timeout in the driving thread and
+-- records an @error@ — and its teardown 'killThread' would be swallowed by
+-- the same handler, hanging the session.  A case for it would therefore
+-- deadlock the suite; the divergence is recorded in the prototype's module
+-- header and on the issue instead.
+--
 -- Three fixtures cannot run through the production evaluator here: the
 -- fixture-with-imported-module case needs a helper module on the interpreter
 -- search path (which requires a working directory without the package
@@ -33,7 +42,7 @@
 -- asserted in every other case.
 module Test.Mutaskell.ReusedSessionSpec (main, spec) where
 
-import Control.Exception (SomeException, try)
+import Control.Exception (SomeException, evaluate, try)
 import Data.Typeable (Typeable)
 import Data.List (isPrefixOf)
 import qualified Language.Haskell.Interpreter as I
@@ -79,15 +88,23 @@ earlyKillSrc = unlines
     , "test_pass1 = assertCheck (inc 2 == 3)"
     ]
 
--- | A fixture module whose second test fails.
+-- | A fixture module whose second test fails.  The failing test also prints
+-- a marker on stderr (unbuffered, so it reliably lands in the captured log)
+-- to keep the log-parity assertion from degenerating into empty strings.
+-- The AssertCheck test values are pure, so the marker goes through
+-- @unsafePerformIO@, evaluated when the test expression is forced.
 lateKillSrc :: String
 lateKillSrc = unlines
     [ "module MutLateKill where"
     , "import Test.Mutaskell.TestAdapter.AssertCheck"
+    , "import System.IO (hPutStrLn, stderr)"
+    , "import System.IO.Unsafe (unsafePerformIO)"
     , "inc :: Int -> Int"
     , "inc n = n + 1"
     , "test_pass1 = assertCheck (inc 1 == 2)"
-    , "test_fail2 = assertCheck (inc 2 == 99)"
+    , "test_fail2 = unsafePerformIO $ do"
+    , "  hPutStrLn stderr \"late-kill-mutant-output\""
+    , "  return (assertCheck (inc 2 == 99))"
     ]
 
 -- | A fixture module that does not compile.
@@ -436,6 +453,9 @@ spec = describe "ReusedSession" $ do
                     _ <- evalMutantWithPolicy Nothing False dir pkgEnv [] LoadOncePerMutant lateKillTests (mkMutant lateKillSrc)
                         :: IO (ReusedStats, [InterpreterOutput AssertStatus])
                     readLog dir (mkMutant lateKillSrc)
+                -- The failing test's marker keeps this from pinning empty
+                -- strings against each other.
+                lines freshLog `shouldSatisfy` elem "late-kill-mutant-output"
                 lines reusedLog `shouldBe` lines freshLog
 
     describe "invalid mutant" $
@@ -570,8 +590,9 @@ spec = describe "ReusedSession" $ do
             -- and restore them after the run so later output stays visible.
             goodOut <- hDuplicate stdout
             goodErr <- hDuplicate stderr
-            prodExc <- try (evalMutant Nothing False "/tmp/mutcheck-bool" [] boolTests (mkMutant boomSrc))
-                :: IO (Either SomeException [InterpreterOutput Bool])
+            prodExc <- withSystemTempDirectory "mutcheck-reused" $ \dir ->
+                try (evalMutant Nothing False dir [] boolTests (mkMutant boomSrc))
+                    :: IO (Either SomeException [InterpreterOutput Bool])
             hDuplicateTo goodOut stdout
             hDuplicateTo goodErr stderr
             hClose goodOut
@@ -599,4 +620,11 @@ isLeft _        = False
 
 -- | The log file of a mutant written under @dir@.
 readLog :: FilePath -> Mutant -> IO String
-readLog dir mutant = let (_, _, logF) = mutantPaths dir mutant in readFile logF
+readLog dir mutant = do
+    let (_, _, logF) = mutantPaths dir mutant
+    -- Force the whole read before returning so the file's handle is closed
+    -- (a lazily held thunk keeps the read lock and breaks the next run's
+    -- truncating open of the same log).
+    contents <- readFile logF
+    _ <- evaluate (length contents)
+    return contents
