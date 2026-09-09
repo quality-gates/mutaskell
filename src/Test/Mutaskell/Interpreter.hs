@@ -3,7 +3,20 @@
 {- | The Interpreter module is responible for invoking the Hint interpreter to
 evaluate mutants.
 -}
-module Test.Mutaskell.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, summaryFromMutantSummaries, MutantSummary (..), isSkippedSummary) where
+module Test.Mutaskell.Interpreter
+    ( evaluateMutants
+    , evalMethod
+    , evalMutant
+    , evalTest
+    , summarizeResults
+    , summaryFromMutantSummaries
+    , MutantSummary (..)
+    , isSkippedSummary
+    , findPkgEnvArgs
+    , resolveMutantDir
+    , mutantPaths
+    , parentDir
+    ) where
 
 import Control.Exception (IOException, try)
 import Control.Monad (when)
@@ -147,6 +160,22 @@ summarizeResults m tests (mutant, ioresults) =
         logS = zipWith (summarize mutant) tests ioresults
         summarize = summarize_ m
 
+-- | Compute the paths a mutant is evaluated through.
+--
+-- The mutant file is written to a path matching its module name so that GHC
+-- (via hint) can load it regardless of whether it enforces the
+-- file-path\/module-name correspondence (behaviour that varies by GHC
+-- version).  A per-mutant hash subdirectory keeps concurrent mutants
+-- for the same module from colliding.
+--
+-- Returns the hash directory, the module file path, and the log file path.
+mutantPaths :: FilePath -> Mutant -> (FilePath, FilePath, FilePath)
+mutantPaths mutantDir Mutant{..} = (hashDir, mutantFile, mutantFile ++ ".log")
+  where
+    hashDir    = mutantDir ++ "/" ++ hash _mutant
+    modRelPath = moduleNameToPath (extractModuleName _mutant)
+    mutantFile = hashDir ++ "/" ++ modRelPath
+
 -- | Run all tests on a mutant
 evalMutant ::
     (Typeable t, Summarizable t) =>
@@ -164,16 +193,8 @@ evalMutant ::
     Mutant ->
     -- | Returns the result of test runs
     IO [InterpreterOutput t]
-evalMutant mtimeout doDelete mutantDir extraArgs tests Mutant{..} = do
-    -- Write the mutant file to a path matching its module name so that GHC
-    -- (via hint) can load it regardless of whether it enforces the
-    -- file-path/module-name correspondence (behaviour that varies by GHC
-    -- version).  A per-mutant hash subdirectory keeps concurrent mutants
-    -- for the same module from colliding.
-    let hashDir    = mutantDir ++ "/" ++ hash _mutant
-        modRelPath = moduleNameToPath (extractModuleName _mutant)
-        mutantFile = hashDir ++ "/" ++ modRelPath
-        logF       = mutantFile ++ ".log"
+evalMutant mtimeout doDelete mutantDir extraArgs tests mutant@Mutant{..} = do
+    let (hashDir, mutantFile, logF) = mutantPaths mutantDir mutant
 
     say mutantFile
 
