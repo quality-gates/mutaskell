@@ -681,7 +681,9 @@ mutants a run evaluates. The quota is spent at one of two stages:
     `--git-diff-lines`, or inline `-- mucheck: disable-next-line`
     suppression) samples mutation operators before any mutant is applied and
     rendered. Only the selected operators cost rendering work, so generation
-    time is bounded by the sample size. A configured filter counts as active
+    time is bounded by the sample size: each selected operator applies at
+    exactly one site, so at most one application and one rendering are
+    performed per selected operator. A configured filter counts as active
     even when its file or list is empty. Duplicate sources and no-op mutants
     may make the final sample smaller than the cap; mutaskell does not draw
     more operators to refill it. The library `mucheck` entry point uses the

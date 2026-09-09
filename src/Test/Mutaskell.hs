@@ -45,11 +45,13 @@ mucheck moduleFile tix = do
           run (-1) smutants
         -- Coverage reporting needs the exact candidate population, so this
         -- path enumerates every candidate and filters to the covered spans
-        -- before sampling.
+        -- before sampling.  The reported covered count is the full candidate
+        -- total, not the count that survives the coverage filter.
         Right (Just uncovered) -> do
-          let mutants = removeUncovered uncovered (genMutantsFromAST defaultConfig ast)
-          smutants <- sampler defaultConfig mutants
-          run (length mutants) smutants
+          let candidates = genMutantsFromAST defaultConfig ast
+              covered    = removeUncovered uncovered candidates
+          smutants <- sampler defaultConfig covered
+          run (length candidates) smutants
   where
     run len smutants = do
       testRes <- getAllTests (getName moduleFile)

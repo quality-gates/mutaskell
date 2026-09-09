@@ -226,10 +226,7 @@ genMutantsWithExtra ::
     Module_ ->
     [Mutant]
 genMutantsWithExtra config extraSels origAst =
-    nubRendered $
-        filter (\m -> _mutant m /= origStr) $
-            map (toMutant . apTh exactPrint) $
-                nubOpSites (mutatesN ops origAst 1)
+    renderedMutantsFrom origStr origAst ops
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
 
@@ -279,11 +276,7 @@ genSampledMutantsWith ::
     Config -> Maybe [Span] -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
 genSampledMutantsWith config muncovered extraSels origAst = do
     sampledOps <- sampleOps config (gate ops)
-    return $
-        nubRendered $
-            filter (\m -> _mutant m /= origStr) $
-                map (toMutant . apTh exactPrint) $
-                    nubOpSites (mutatesN sampledOps origAst 1)
+    return $ renderedMutantsFrom origStr origAst sampledOps
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
     uncoveredIndex = indexSpans <$> muncovered
@@ -295,12 +288,28 @@ genSampledMutantsWith config muncovered extraSels origAst = do
         let sp = toSpan (getSpan op)
         in not (spanIndexContains index sp)
 
+-- | Shared tail of every generation path: keep one candidate per (mutator,
+-- span) site, drop identity mutations, render each survivor once, and dedup
+-- by rendered source.
+renderedMutantsFrom ::
+    -- | The exact-printed original module, for identity-mutation removal
+    String ->
+    -- | The original AST the operators were applied to
+    Module_ ->
+    -- | The (possibly sampled) operators to apply
+    [(MuVar, MuOp)] ->
+    [Mutant]
+renderedMutantsFrom origStr origAst ops =
+    nubRendered $
+        filter (\m -> _mutant m /= origStr) $
+            map (toMutant . apTh exactPrint) $
+                nubOpSites (mutatesN ops origAst 1)
+
 -- | Deduplicate mutants by rendered source, keeping the first value for each
 -- distinct source.  Candidates are indexed by source hash, so the cost is
 -- ~O(n) hashing plus one full-string comparison per candidate against the
 -- (few) sources sharing its hash bucket — not O(n^2) /full-source/ string
--- comparisons, which dominated generation on large modules (every pair
--- compared two ~50KB module renderings).
+-- comparisons, which dominated generation on large modules.
 nubRendered :: [Mutant] -> [Mutant]
 nubRendered = dedupRenderedSource _mutant (H.hash . _mutant)
 

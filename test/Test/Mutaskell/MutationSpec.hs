@@ -739,7 +739,7 @@ e = 50
                   ,(MutateValues, toSpan (2, 1, 2, 2), ())
                   ,(MutateFunctions, toSpan (1, 1, 1, 2), ())]
 
-        it "matches the pre-change pairwise dedup on a mixed fixture" $ do
+        it "matches the equivalent pairwise dedup on a mixed fixture" $ do
             let text =
                     [e|
 module M where
@@ -749,9 +749,9 @@ h b = b && (not b)
 |]
             ast <- H.ast text
             let (origStr, ops) = prepareSelectorInputs defaultConfig [] ast
-                -- The pre-change pipeline: pairwise type/span key comparison
-                -- and pairwise full-source comparison.  Serves as the
-                -- independent oracle for the indexed deduplication.
+                -- The straightforward pairwise definition of the same
+                -- semantics, used as an independent oracle for the indexed
+                -- deduplication.
                 reference =
                     nubBy (\a b -> _mutant a == _mutant b) $
                         filter (\m -> _mutant m /= origStr) $
