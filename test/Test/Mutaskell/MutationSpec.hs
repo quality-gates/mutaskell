@@ -3,7 +3,7 @@
 module Test.Mutaskell.MutationSpec where
 
 import Control.Monad (forM_)
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, nubBy)
 import Here
 import System.Directory (createDirectoryIfMissing, withCurrentDirectory)
 import System.FilePath ((</>))
@@ -13,12 +13,18 @@ import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Test.Mutaskell.Config (MuVar (..), defaultConfig, maxNumMutants)
 import Test.Mutaskell.MuOp (mkMpMuOp)
 import Test.Mutaskell.Mutation
+import Test.Mutaskell.Tix (toSpan)
+import Test.Mutaskell.TestAdapter (toMutant)
+import Test.Mutaskell.Utils.Common (apTh)
 import Test.Mutaskell.TestAdapter (Mutant (..))
 import Test.Mutaskell.Utils.Syb (once, relevantOps)
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
 
 main :: IO ()
 main = hspec spec
+
+mutantWith :: String -> Mutant
+mutantWith src = Mutant src MutateValues (toSpan (1, 1, 1, 2))
 
 spec :: Spec
 spec = do
@@ -677,6 +683,83 @@ e = 50
             ast <- H.ast text
             ms <- genSampledMutants (defaultConfig { maxNumMutants = 3 }) ast
             length ms `shouldSatisfy` (<= 3)
+
+        it "returns nothing for a zero or negative cap" $ do
+            ast <- H.ast "module M where\nf x = x + 1\n"
+            ms <- genSampledMutants (defaultConfig { maxNumMutants = 0 }) ast
+            ms `shouldBe` []
+            ms' <- genSampledMutants (defaultConfig { maxNumMutants = -1 }) ast
+            ms' `shouldBe` []
+
+        it "keeps materialization bounded by the cap as the module grows" $ do
+            let dense n = unlines
+                    ("module Dense where" : ["f" ++ show i ++ " x = x + 1" | i <- [1..n]])
+            forM_ [20, 60, 120 :: Int] $ \n -> do
+                ast <- H.ast (dense n)
+                sampled <- genSampledMutants (defaultConfig { maxNumMutants = 2 }) ast
+                -- The cap is spent on operators before rendering, so the
+                -- rendered count stays at the cap no matter how many
+                -- candidates the module would offer.
+                length sampled `shouldSatisfy` (<= 2)
+                sampled `shouldSatisfy` (not . null)
+                let exact = genMutantsFromAST (defaultConfig { maxNumMutants = 2 }) ast
+                length exact `shouldSatisfy` (> 2)
+
+        it "may underfill the cap when selected operators collapse to duplicates" $ do
+            ast <- H.ast "module M where\nf x = x + 1\n"
+            ms <- genSampledMutants (defaultConfig { maxNumMutants = 100 }) ast
+            -- Every operator is selected under a cap above the candidate
+            -- count, and same-site variants collapse to one mutant each, so
+            -- the rendered set is smaller than the cap.
+            ms `shouldSatisfy` (not . null)
+            length ms `shouldSatisfy` (< 100)
+
+    describe "dedupRenderedSource" $ do
+        it "keeps the first value for each rendered source" $
+            map _mutant (nubRendered [mutantWith "a", mutantWith "b", mutantWith "a"])
+                `shouldBe` ["a", "b"]
+
+        it "retains every distinct source when hash keys collide" $
+            -- Every candidate shares one hash key, so the index must verify
+            -- the rendered sources themselves.
+            dedupRenderedSource id (const 0) ["b", "a", "b", "c"] `shouldBe` ["b", "a", "c"]
+
+        it "drops nothing for distinct hash keys" $
+            dedupRenderedSource id (length :: String -> Int) ["a", "b", "c", "a"]
+                `shouldBe` ["a", "b", "c"]
+
+    describe "nubOpSites" $ do
+        it "keeps the first candidate for each mutator and span" $
+            let sites = [(MutateValues, toSpan (1, 1, 1, 2), ())
+                        ,(MutateValues, toSpan (1, 1, 1, 2), ())
+                        ,(MutateValues, toSpan (2, 1, 2, 2), ())
+                        ,(MutateFunctions, toSpan (1, 1, 1, 2), ())]
+            in nubOpSites sites `shouldBe`
+                  [(MutateValues, toSpan (1, 1, 1, 2), ())
+                  ,(MutateValues, toSpan (2, 1, 2, 2), ())
+                  ,(MutateFunctions, toSpan (1, 1, 1, 2), ())]
+
+        it "matches the equivalent pairwise dedup on a mixed fixture" $ do
+            let text =
+                    [e|
+module M where
+f x = x + 1
+g y = if y > 0 then y else y
+h b = b && (not b)
+|]
+            ast <- H.ast text
+            let (origStr, ops) = prepareSelectorInputs defaultConfig [] ast
+                -- The straightforward pairwise definition of the same
+                -- semantics, used as an independent oracle for the indexed
+                -- deduplication.
+                reference =
+                    nubBy (\a b -> _mutant a == _mutant b) $
+                        filter (\m -> _mutant m /= origStr) $
+                            map (toMutant . apTh exactPrint) $
+                                nubBy
+                                    (\(v1, s1, _) (v2, s2, _) -> v1 == v2 && s1 == s2)
+                                    (mutatesN ops ast 1)
+            genMutantsFromAST defaultConfig ast `shouldBe` reference
 
     describe "needsCabalMacros" $ do
         it "returns True for source containing MIN_VERSION_*" $ do

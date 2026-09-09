@@ -670,6 +670,37 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--max-mutants N`: Cap the total number of mutants evaluated (in project mode, across the whole run).
 *   `--time-budget SECONDS`: Stop a project run after a wall-clock budget and report a partial score.
 
+### How mutants are sampled
+
+`--max-mutants N` (and the library `maxNumMutants` setting) caps how many
+mutants a run evaluates. The quota is spent at one of two stages:
+
+*   **Operator-first sampling.** A single-file run that requests no coverage
+    data (`--coverage`, `--tix`) and applies no candidate filter (`--disable`,
+    `--enable`, baseline, blacklist, `--run-mutant-id`, `--ignore-lines`,
+    `--git-diff-lines`, or inline `-- mucheck: disable-next-line`
+    suppression) samples mutation operators before any mutant is applied and
+    rendered. Only the selected operators cost rendering work, so generation
+    time is bounded by the sample size: each selected operator applies at
+    exactly one site, so at most one application and one rendering are
+    performed per selected operator. A configured filter counts as active
+    even when its file or list is empty. Duplicate sources and no-op mutants
+    may make the final sample smaller than the cap; mutaskell does not draw
+    more operators to refill it. The library `mucheck` entry point uses the
+    same operator-first sampling when its coverage file holds no data for the
+    module.
+*   **Rendered sampling.** Runs with a coverage requirement or any candidate
+    filter first apply and render every candidate, deduplicate the rendered
+    sources, apply the filters in order, and then sample the filtered list.
+    These runs need the full candidate list, so generation costs more.
+
+Both stages use the same per-mutator fractions and the same cap. The two
+stages draw from different populations (operators versus rendered mutants), so
+an eligible run does not select the same mutants as the same run with one
+filter active. Deduplication keeps the first candidate for each mutator and
+source site, and indexes candidates by a source hash with full comparison on
+collisions, so distinct sources are never dropped because their hashes match.
+
 ### Project mode (run on a whole repository)
 
 Point mutaskell at a **directory** and it runs over the whole project the way

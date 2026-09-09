@@ -11,6 +11,7 @@ import App.Filter
     , applyRunMutantIdCached
     , cacheMutantIds
     , checkGitDiff
+    , operatorSamplingEligible
     , parseAnnotations
     )
 import App.Opts
@@ -47,7 +48,9 @@ import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
 import Test.Mutaskell.Config (Config(..), defaultConfig, showMuVar)
 import Test.Mutaskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
-import Test.Mutaskell.Mutation (genMutants, genMutantsFromAST, getASTFromFile, getAllTests)
+import Test.Mutaskell.Mutation
+    ( genMutants, genMutantsFromAST, genSampledMutants, getASTFromFile
+    , getASTFromStr, getAllTests )
 import Test.Mutaskell.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
 import Test.Mutaskell.TestAdapter.AssertCheckAdapter
 
@@ -112,14 +115,29 @@ runOptsFile opts
         origSrc <- readFile (optFile opts)
         let modFile  = toRun (optFile opts) :: AssertCheckRun
             anns     = parseAnnotations origSrc
-        tix <- if optCoverage opts && null (optTix opts)
-               then do
-                 mf <- findTixFile
-                 case mf of
-                   Just f  -> hPutStrLn stderr ("Coverage: using " ++ f) >> return f
-                   Nothing -> hPutStrLn stderr "Coverage: no .tix file found; proceeding without" >> return ""
-               else return (optTix opts)
-        res <- genMutants (getName modFile) tix
+            maxN     = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
+        res <-
+          if operatorSamplingEligible opts anns
+            then
+              -- No coverage requirement or deterministic filter applies, so
+              -- the sample quota can be spent before any mutant is applied
+              -- and rendered.  The covered count is unknown in the same way
+              -- as a run without coverage data.
+              let cfg = defaultConfig { maxNumMutants = maxN }
+              in do
+                eAst <- getASTFromStr origSrc
+                case eAst of
+                  Left err  -> return (Left err)
+                  Right ast -> Right . (,) (-1) <$> genSampledMutants cfg ast
+            else do
+              tix <- if optCoverage opts && null (optTix opts)
+                     then do
+                       mf <- findTixFile
+                       case mf of
+                         Just f  -> hPutStrLn stderr ("Coverage: using " ++ f) >> return f
+                         Nothing -> hPutStrLn stderr "Coverage: no .tix file found; proceeding without" >> return ""
+                     else return (optTix opts)
+              genMutants (getName modFile) tix
         (len, mutants) <- case res of
           Left err -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
           Right r -> return r
@@ -133,7 +151,6 @@ runOptsFile opts
         cached4 <- applyDiffLinesCached (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) cached3
         let cached5   = applyIgnoreLinesCached origSrc (optIgnoreLines opts) cached4
             preFilter = map fst (applyRunMutantIdCached (optRunMutantId opts) cached5)
-            maxN      = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
         finalMutants <- sampler (defaultConfig { maxNumMutants = maxN }) preFilter
         let tests = map (genTest modFile)
         testRes <- getAllTests (getName modFile)
