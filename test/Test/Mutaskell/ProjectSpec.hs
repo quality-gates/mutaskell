@@ -36,6 +36,7 @@ import App.Project
     , restrictToShard
     , runProject
     )
+import Test.Mutaskell.Tix (tixReadCount)
 
 -- | A small module with constructs every mutator family can hit.
 sampleModule :: String -> String
@@ -125,6 +126,16 @@ spec = describe "runProject (serial)" $ do
             alive `shouldSatisfy` (> 0)    -- M2/M3 mutants, and untouched sentinels
             skipped `shouldBe` 0           -- the build command cannot fail
             killed + alive + skipped `shouldBe` total
+
+    it "reads project coverage once across multiple source files" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 3
+            writeFile (root </> "coverage.tix") "Tix []"
+            before <- tixReadCount
+            runProjectRestoring $ (projectOpts root (root </> "result.txt"))
+                { optTix = "coverage.tix" }
+            after <- tixReadCount
+            after - before `shouldBe` 1
 
     it "records completed files for resume" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do

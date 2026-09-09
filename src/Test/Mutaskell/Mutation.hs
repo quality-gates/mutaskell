@@ -197,7 +197,8 @@ genMutantsWith config filename tix = do
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]
 removeUncovered uspans = filter mutantIsCovered
   where
-    mutantIsCovered Mutant{..} = not $ any (insideSpan _mspan) uspans
+    uncoveredIndex = indexSpans uspans
+    mutantIsCovered Mutant{..} = not $ spanIndexContains uncoveredIndex _mspan
 
 -- | Get the module name from a parsed AST.
 getModuleName :: Module_ -> String
@@ -287,13 +288,14 @@ genSampledMutantsWith config muncovered extraSels origAst = do
                         (mutatesN sampledOps origAst 1)
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
+    uncoveredIndex = indexSpans <$> muncovered
     -- Drop operators whose span is inside an uncovered region.
-    gate os = case muncovered of
-        Nothing        -> os
-        Just uncovered -> filter (covered uncovered) os
-    covered uncovered (_, op) =
+    gate os = case uncoveredIndex of
+        Nothing    -> os
+        Just index -> filter (covered index) os
+    covered index (_, op) =
         let sp = toSpan (getSpan op)
-        in not (any (insideSpan sp) uncovered)
+        in not (spanIndexContains index sp)
 
 -- | Deduplicate mutants by rendered source, keyed on a hash so the cost is
 -- ~O(n) hashing + O(n^2) cheap 'Int' comparisons instead of O(n^2) /full-source/

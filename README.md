@@ -728,7 +728,8 @@ this skips wasted build/test cycles. Generate the `.tix` by running the suite
 with HPC first (e.g. `cabal test --enable-coverage`). Note: for cabal projects
 the `.mix` files live under `dist-newstyle`; point `.hpc` resolution at them (a
 symlink works) — fully automatic discovery of the cabal HPC layout is not yet
-done.
+done. In project mode, the selected `.tix` is parsed once per run and reused
+for every source file.
 
 ### Orchestrator mode (`--exec`)
 
@@ -817,5 +818,3 @@ enable_mutators: [functions]                         # Restrict to these mutator
 ignore_source_lines: [NOTEST, uncovered]             # Skip mutations on lines containing these substrings
 exclude_dirs: [vendor/, generated/]                  # Skip target if path starts with any listed prefix
 ```
-
-

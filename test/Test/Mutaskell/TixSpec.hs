@@ -1,10 +1,22 @@
 module Test.Mutaskell.TixSpec where
 
 import Test.Hspec
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
 import Test.Mutaskell.Config (MuVar(..))
 import Test.Mutaskell.Mutation (removeUncovered)
 import Test.Mutaskell.TestAdapter (Mutant(..))
-import Test.Mutaskell.Tix (removeRedundantSpans, toSpan)
+import Test.Mutaskell.Tix
+    ( getUnCoveredPatchesFromIndex
+    , buildTixIndex
+    , insideSpan
+    , indexSpans
+    , parseTixIndex
+    , removeRedundantSpans
+    , spanIndexContains
+    , toSpan
+    )
+import Trace.Hpc.Tix (TixModule (..))
 
 mkMutant :: (Int, Int, Int, Int) -> Mutant
 mkMutant coords = Mutant
@@ -33,6 +45,35 @@ spec = describe "Test.Mutaskell.Tix" $ do
           sp2 = toSpan (2, 1, 2, 5)
       in removeRedundantSpans [sp1, sp2] `shouldBe` [sp1, sp2]
 
+    it "preserves survivor order and duplicate spans" $
+      let inner = toSpan (2, 2, 2, 8)
+          touching = toSpan (4, 1, 4, 5)
+          outer = toSpan (2, 1, 3, 10)
+      in removeRedundantSpans [inner, touching, outer, outer]
+          `shouldBe` [touching, outer, outer]
+
+    it "keeps overlapping and boundary-touching spans" $
+      let overlapA = toSpan (1, 1, 2, 5)
+          overlapB = toSpan (2, 1, 3, 5)
+          boundaryA = toSpan (4, 1, 4, 5)
+          boundaryB = toSpan (4, 5, 5, 5)
+      in removeRedundantSpans [overlapA, overlapB, boundaryA, boundaryB]
+          `shouldBe` [overlapA, overlapB, boundaryA, boundaryB]
+
+    it "agrees with pairwise containment on mixed span shapes" $
+      let spans = map toSpan
+            [ (1, 1, 1, 4)
+            , (1, 1, 1, 4)
+            , (1, 2, 1, 3)
+            , (2, 1, 3, 5)
+            , (3, 1, 4, 5)
+            , (5, 1, 5, 5)
+            , (5, 5, 6, 1)
+            ]
+          expected = filter (\sp -> not $ any (containsOther sp) spans) spans
+          containsOther sp other = sp /= other && insideSpan sp other
+      in removeRedundantSpans spans `shouldBe` expected
+
   describe "removeUncovered" $ do
     it "returns all mutants when uncovered span list is empty" $
       let ms = [mkMutant (3, 1, 3, 10), mkMutant (5, 1, 5, 10)]
@@ -53,3 +94,28 @@ spec = describe "Test.Mutaskell.Tix" $ do
       let uncovered = [toSpan (1, 1, 20, 1)]
           ms = [mkMutant (3, 1, 3, 10), mkMutant (5, 1, 5, 10)]
       in removeUncovered uncovered ms `shouldBe` []
+
+  describe "parsed coverage index" $ do
+    it "answers containment queries with HPC's inclusive boundaries" $
+      let indexed = indexSpans [toSpan (2, 1, 4, 10)]
+          inside = toSpan (2, 1, 4, 10)
+          boundary = toSpan (3, 1, 4, 10)
+          overlapping = toSpan (4, 10, 5, 1)
+      in map (spanIndexContains indexed) [inside, boundary, overlapping]
+          `shouldBe` [True, True, False]
+
+    it "answers an unmatched module query from a parsed tix snapshot" $
+      withSystemTempDirectory "mutaskell-tix" $ \root -> do
+        let path = root </> "coverage.tix"
+        writeFile path "Tix []"
+        index <- parseTixIndex path
+        getUnCoveredPatchesFromIndex index "Missing"
+          `shouldReturn` Right Nothing
+
+    it "does not gate an ambiguous unqualified module name" $ do
+      let index = buildTixIndex
+            [ TixModule "one/Shared" 1 1 []
+            , TixModule "two/Shared" 2 1 []
+            ]
+      getUnCoveredPatchesFromIndex index "Shared"
+        `shouldReturn` Right Nothing

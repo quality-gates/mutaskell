@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.18]
+  * Changed: coverage spans are reduced with a sorted sweep and indexed for candidate containment, preserving span order, duplicates, overlaps, and boundary semantics while avoiding quadratic scans (#38).
+  * Changed: project and dry-run coverage parsing now builds one run-scoped `.tix` index and reuses it across source files; missing and ambiguous module handling remains unchanged (#38).
+  * Added: `bench/coverage.sh` forces disjoint-span reduction and indexed containment queries over growing inputs (#38).
+
 ## [0.8.17]
   * Changed: selector metadata now indexes test names and local type signatures once per generation path, preserving annotation exclusion and first-match zero-return behavior. Selector variants share their rendered before-node identity check, so no-op rejection remains before sampling without repeating that printing for every replacement (#39).
   * Added: `bench/mutation.sh` and `bench/mutation-bench.hs`, which measure selector work separately from cap-1 sampled rendering on typed-declaration-heavy and nested-subtree fixtures without attributing an end-to-end speedup absent a printing profile (#39).
