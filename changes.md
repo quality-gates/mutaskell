@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.21]
+  * Changed: positional mutant diffs now compare source lines and merge contextual hunk ranges in linear passes, preserving valid ranges, changed-line parsing and empty-line boundaries (#35).
+  * Changed: terminal, agentic JSON and HTML reports share each prepared mutant diff instead of rendering it independently (#35).
+  * Added: `bench/diff.sh` and `bench/diff-bench.hs`, which measure single-change and many-change diff scaling over growing inputs (#35).
+
 ## [0.8.20]
   * Added: `Test.Mutaskell.Interpreter.ReusedSession`, an investigation prototype for reusing one hint session per mutant across its ordered tests (#36). It provides an instrumented fresh-session policy (matching the production evaluator, except that it restores the captured streams when a run is abandoned), a single-session policy with the same ordering, short-circuiting and per-test timeout rules, and a run-scoped package-environment cache. Neither `mucheck` nor the CLI selects a policy; the production evaluator and its defaults are unchanged. Equivalence tests cover survivors, early/late kills, invalid mutants, timeouts, runtime exceptions, mutable-state fixtures and every in-repo adapter plus a minimal custom adapter; stateful tests change results under reuse (an imported module's mutable state persists across tests), so reuse must stay an explicit opt-in. Documented reuse divergences: a timeout under an exception-catching test runner is recorded as an error instead of a kill, and an uncaught test exception is recorded as an error instead of propagating.
   * Added: `bench/reused-session.sh` and `bench/reused-session-bench.hs`, which force results over growing ordered test counts for survivors and late kills, reporting session/load counts, tests run, setup versus test execution time, wall time and peak residency (#36).

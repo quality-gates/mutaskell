@@ -17,12 +17,13 @@ import App.Opts
 import App.Orchestrator (runOrchestrator)
 import App.Project (runProject, runProjectDryRun)
 import App.Output
-    ( printMutantDetails
+    ( prepareMutantDiffs
     , printMutatorBreakdown
-    , writeAgenticJsonLogger
+    , printMutantDetailsWithDiffs
+    , writeAgenticJsonLoggerWithDiffs
     , writeGithubLogger
     , writeGitlabLogger
-    , writeHtmlLogger
+    , writeHtmlLoggerWithDiffs
     , writeJsonLogger
     , writeUpdateBaseline
     )
@@ -193,15 +194,16 @@ runOptsFile opts
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
-        unless (optSilent opts) $ printMutantDetails opts origSrc tsum
+            reportDiffs = prepareMutantDiffs origSrc tsum
+        unless (optSilent opts) $ printMutantDetailsWithDiffs opts reportDiffs
         unless (isSingleMutantMode opts) $ do
           print msum
           unless (optSilent opts) $ printMutatorBreakdown opts tsum
           writeJsonLogger opts msum
           writeGithubLogger opts (optFile opts) tsum
           writeGitlabLogger opts (optFile opts) tsum
-          writeAgenticJsonLogger opts (optFile opts) origSrc tsum msum
-          writeHtmlLogger opts (optFile opts) origSrc tsum msum
+          writeAgenticJsonLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
+          writeHtmlLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
           writeUpdateBaseline opts tsum
           applyExitPolicy opts msum
 
@@ -269,4 +271,3 @@ dryRun file = do
       putStrLn sep
       putStrLn $ "  " ++ pad "Total" ++ show total
       putStrLn "(upper bound; identical mutations are deduplicated before evaluation)"
-
