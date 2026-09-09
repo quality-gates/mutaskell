@@ -13,6 +13,8 @@ module App.Worker
   , encodeWorkload
   , decodeWorkload
   , decodeWorkloadFile
+  , evalWorkload
+  , runWorkloadMode
   ) where
 
 import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
@@ -29,9 +31,10 @@ import System.Process (createProcess, proc, waitForProcess)
 import Trace.Hpc.Util (fromHpcPos)
 
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary)
-import Test.Mutaskell.Config (parseMuVar, showMuVar)
-import Test.Mutaskell.Interpreter (MutantSummary(..), summaryFromMutantSummaries)
-import Test.Mutaskell.TestAdapter (Mutant(..), Summary(..))
+import Test.Mutaskell.Config (MuVar(..), parseMuVar, showMuVar)
+import Test.Mutaskell.Interpreter (MutantSummary(..), evaluateMutants, summaryFromMutantSummaries)
+import Test.Mutaskell.TestAdapter (Mutant(..), Summary(..), toRun)
+import Test.Mutaskell.TestAdapter.AssertCheckAdapter (AssertCheckRun(..))
 import Test.Mutaskell.Tix (Span, toSpan)
 import Test.Mutaskell.Utils.Common (hash)
 
@@ -233,3 +236,46 @@ decodeWorkloadFile path = do
     return $ case result of
         Left err -> Left ("worker: cannot read workload: " ++ show err)
         Right s  -> decodeWorkload s
+
+-- | Placeholder mutant for results produced before a workload could be read.
+-- The parent re-attaches the real mutant when deserialising the result.
+workloadErrorMutant :: Mutant
+workloadErrorMutant = Mutant
+    { _mutant = ""
+    , _mtype  = MutateOther "workload"
+    , _mspan  = toSpan (0, 0, 0, 0)
+    }
+
+-- | Evaluate a transported workload in this process and classify the result.
+--
+-- This is the child-side evaluation. The mutant arrives fully formed, so no
+-- candidate generation runs here: the child writes the mutant file, runs the
+-- transported tests against it, and summarises, exactly as the serial path
+-- does for a single mutant.
+evalWorkload :: Workload -> IO MutantSummary
+evalWorkload wl = do
+    let modFile = toRun (wTarget wl) :: AssertCheckRun
+    (_, summaries) <- evaluateMutants
+        1                       -- serial within the child; parallelism is the parent's job
+        (wTimeout wl)
+        (wKeepMutants wl)
+        (wTestArgs wl)
+        Nothing
+        modFile
+        [wMutant wl]
+        (wTests wl)
+    return $ case summaries of
+        (s:_) -> s
+        []    -> MSumError (wMutant wl) "worker: evaluation produced no summary" []
+
+-- | Child entry point: evaluate the workload document at the given path and
+-- write the result JSON to the worker-output file, if one was requested.
+runWorkloadMode :: FilePath -> Maybe FilePath -> IO ()
+runWorkloadMode workloadPath mOut = do
+    eWl <- decodeWorkloadFile workloadPath
+    summary <- case eWl of
+        Left err -> return $ MSumError workloadErrorMutant err []
+        Right wl -> evalWorkload wl
+    case mOut of
+        Nothing -> return ()
+        Just f  -> writeFile f (workerSerialize summary)
