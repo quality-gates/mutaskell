@@ -7,23 +7,32 @@ module App.Worker
   , workerSerialize
   , workerDeserialize
   , filterWorkerArgs
+  , Workload(..)
+  , WorkloadBase(..)
+  , mutantWorkload
+  , encodeWorkload
+  , decodeWorkload
+  , decodeWorkloadFile
   ) where
 
 import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
 import Control.Concurrent.QSem (newQSem, waitQSem, signalQSem)
 import Control.Exception (IOException, try)
-import Control.Monad (forM)
-import Data.Aeson (encode, decode, object, (.=), withObject, (.:), (.:?))
-import Data.Aeson.Types (parseMaybe, Parser)
+import Control.Monad (forM, when)
+import Data.Aeson (encode, decode, eitherDecode, object, (.=), withObject, (.:), (.:?), Value)
+import Data.Aeson.Types (parseEither, parseMaybe, Parser, (.!=))
 import qualified Data.ByteString.Lazy.Char8 as BL
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.Environment (getExecutablePath)
 import System.Exit (ExitCode(..))
 import System.Process (createProcess, proc, waitForProcess)
+import Trace.Hpc.Util (fromHpcPos)
 
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary)
+import Test.Mutaskell.Config (parseMuVar, showMuVar)
 import Test.Mutaskell.Interpreter (MutantSummary(..), summaryFromMutantSummaries)
 import Test.Mutaskell.TestAdapter (Mutant(..), Summary(..))
+import Test.Mutaskell.Tix (Span, toSpan)
 import Test.Mutaskell.Utils.Common (hash)
 
 -- | Run mutant evaluation using N parallel worker subprocesses.
@@ -118,3 +127,109 @@ filterWorkerArgs ("--workers"      : _ : rest)  = filterWorkerArgs rest
 filterWorkerArgs ("--run-mutant-id": _ : rest)  = filterWorkerArgs rest
 filterWorkerArgs ("--worker-output": _ : rest)  = filterWorkerArgs rest
 filterWorkerArgs (x                : rest)       = x : filterWorkerArgs rest
+
+-- | Version of the workload transport format. Bumped on incompatible changes
+-- so an old child rejects a document it cannot interpret.
+workloadVersion :: Int
+workloadVersion = 1
+
+-- | The evaluation settings every worker child shares. The parent resolves
+-- them once; each child receives them inside its per-mutant 'Workload'.
+data WorkloadBase = WorkloadBase
+  { wbTarget      :: FilePath     -- ^ original source file the mutants came from
+  , wbTests       :: [String]     -- ^ fully-built test strings to run
+  , wbTimeout     :: Maybe Int    -- ^ per-mutant timeout in microseconds
+  , wbKeepMutants :: Maybe FilePath -- ^ keep-dir for mutant files (Nothing = temp, deleted)
+  , wbTestArgs    :: [String]     -- ^ extra args forwarded to test invocations
+  } deriving (Eq, Show)
+
+-- | The complete input for one worker child: the parent's already-selected
+-- mutant plus the effective evaluation settings. Carrying the mutant itself
+-- is what lets the child skip candidate generation entirely.
+data Workload = Workload
+  { wTarget      :: FilePath     -- ^ original source file the mutant came from
+  , wMutant      :: Mutant       -- ^ the exact mutant the parent selected
+  , wTests       :: [String]     -- ^ fully-built test strings to run
+  , wTimeout     :: Maybe Int    -- ^ per-mutant timeout in microseconds
+  , wKeepMutants :: Maybe FilePath
+  , wTestArgs    :: [String]
+  } deriving (Eq, Show)
+
+-- | Build the per-mutant workload a child evaluates from the shared
+-- settings and the parent's selected mutant.
+mutantWorkload :: WorkloadBase -> Mutant -> Workload
+mutantWorkload base' m = Workload
+  { wTarget      = wbTarget base'
+  , wMutant      = m
+  , wTests       = wbTests base'
+  , wTimeout     = wbTimeout base'
+  , wKeepMutants = wbKeepMutants base'
+  , wTestArgs    = wbTestArgs base'
+  }
+
+-- | Serialize a 'Workload' to the JSON transport format.
+encodeWorkload :: Workload -> String
+encodeWorkload w = BL.unpack $ encode $ object
+    [ "version"    .= workloadVersion
+    , "target"     .= wTarget w
+    , "mutant"     .= _mutant m
+    , "mutator"    .= showMuVar (_mtype m)
+    , "span"       .= spanCoords (_mspan m)
+    , "tests"      .= wTests w
+    , "timeout"    .= wTimeout w
+    , "keepMutants".= wKeepMutants w
+    , "testArgs"   .= wTestArgs w
+    ]
+  where m = wMutant w
+
+-- | The four span coordinates, as written to and read back from JSON.
+spanCoords :: Span -> [Int]
+spanCoords sp = let (l1, c1, l2, c2) = fromHpcPos sp in [l1, c1, l2, c2]
+
+-- | Deserialize a 'Workload' from the JSON transport format.
+-- Malformed or missing data is reported as a classified error carrying the
+-- @worker:@ prefix used for all child-side failures.
+decodeWorkload :: String -> Either String Workload
+decodeWorkload txt = do
+    val <- either (\e -> Left ("worker: workload JSON parse error: " ++ e)) Right
+             (eitherDecode (BL.pack txt) :: Either String Value)
+    case parseEither parseWorkload val of
+        Left err -> Left ("worker: workload schema error: " ++ err)
+        Right wl -> Right wl
+  where
+    parseWorkload = withObject "Workload" $ \o -> do
+        ver <- o .: "version" :: Parser Int
+        when (ver /= workloadVersion) $
+            fail ("unsupported transport version " ++ show ver)
+        msrc    <- o .: "mutant"
+        mutName <- o .: "mutator"
+        mtype   <- case parseMuVar mutName of
+            Just mv -> pure mv
+            Nothing -> fail ("unknown mutator name: " ++ mutName)
+        coords  <- o .: "span" :: Parser [Int]
+        sp      <- case coords of
+            [l1, c1, l2, c2] -> pure (toSpan (l1, c1, l2, c2))
+            _                -> fail ("expected 4 span coordinates, got " ++ show coords)
+        target  <- o .: "target"
+        tests   <- o .: "tests"
+        mtimeout    <- o .:? "timeout"
+        mKeepMutants<- o .:? "keepMutants"
+        testArgs    <- o .:? "testArgs" .!= []
+        pure $ Workload
+            { wTarget      = target
+            , wMutant      = Mutant{_mutant = msrc, _mtype = mtype, _mspan = sp}
+            , wTests       = tests
+            , wTimeout     = mtimeout
+            , wKeepMutants = mKeepMutants
+            , wTestArgs    = testArgs
+            }
+
+-- | Read and decode a workload file. A missing or unreadable file is a
+-- classified error, matching the child's other failure modes.
+decodeWorkloadFile :: FilePath -> IO (Either String Workload)
+decodeWorkloadFile path = do
+    result <- try (readFile path >>= \s -> length s `seq` return s)
+                :: IO (Either IOException String)
+    return $ case result of
+        Left err -> Left ("worker: cannot read workload: " ++ show err)
+        Right s  -> decodeWorkload s
