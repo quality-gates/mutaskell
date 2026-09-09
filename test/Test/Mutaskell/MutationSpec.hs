@@ -316,6 +316,79 @@ myFn (x:xs) = 1 + myFn xs
             ops `shouldSatisfy` (not . null)
             ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
+        it "removes one clause at a time, keeping the remaining clauses" $ do
+            let text =
+                    [e|
+module Prop where
+
+g [] = 0
+g (x:xs) = 1 + g xs
+g [_] = 2
+|]
+            srcs <- H.renderedMutants selectFnMatches text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any (\s ->
+                "1 + g xs" `isInfixOf` s && "g [_] = 2" `isInfixOf` s
+                    && not ("g [] = 0" `isInfixOf` s))
+            normSrcs `shouldSatisfy` any (\s ->
+                "g [] = 0" `isInfixOf` s && "g [_] = 2" `isInfixOf` s
+                    && not ("1 + g xs" `isInfixOf` s))
+            normSrcs `shouldSatisfy` any (\s ->
+                "g [] = 0" `isInfixOf` s && "1 + g xs" `isInfixOf` s
+                    && not ("g [_] = 2" `isInfixOf` s))
+            mapM_ H.ast srcs
+
+    describe "selectCaseAltRemoveOps" $ do
+        it "removes one alternative at a time, keeping the others" $ do
+            let text =
+                    [e|
+module Prop where
+
+f x = case x of
+  1 -> 10
+  2 -> 20
+  _ -> 30
+|]
+            srcs <- H.renderedMutants selectCaseAltRemoveOps text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("case x of 1 -> 10 2 -> 20" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("case x of 1 -> 10 _ -> 30" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("case x of 2 -> 20 _ -> 30" `isInfixOf`)
+            mapM_ H.ast srcs
+
+    describe "selectRemoveLetBindingOps" $ do
+        it "removes one let binding at a time, keeping the body" $ do
+            let text =
+                    [e|
+module Prop where
+
+h x = let a = x + 1
+          b = x + 2
+      in a + b
+|]
+            srcs <- H.renderedMutants selectRemoveLetBindingOps text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("let a = x + 1 in a + b" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("let b = x + 2 in a + b" `isInfixOf`)
+            mapM_ H.ast srcs
+
+    describe "selectRemoveWhereBindingOps" $ do
+        it "removes one where binding at a time, keeping the body" $ do
+            let text =
+                    [e|
+module Prop where
+
+k x = s + t
+  where
+    s = x * 1
+    t = x * 2
+|]
+            srcs <- H.renderedMutants selectRemoveWhereBindingOps text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("where s = x * 1" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("where t = x * 2" `isInfixOf`)
+            mapM_ H.ast srcs
+
     describe "selectExplicitListOps" $ do
         it "returns muops for a non-empty explicit list literal" $ do
             let text =
@@ -325,6 +398,26 @@ myFn = [1, 2, 3 :: Int]
 |]
             ast <- H.ast text
             selectExplicitListOps ast `shouldSatisfy` (not . null)
+
+        it "removes one element at a time, keeping other declarations intact" $ do
+            let text =
+                    [e|
+module Prop where
+
+myFn = [1, 2, 3 :: Int]
+
+other y = y
+|]
+            srcs <- H.renderedMutants selectExplicitListOps text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("myFn = []" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("myFn = [1, 2, ]" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("myFn = [1, 3 :: Int]" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("myFn = [ 2, 3 :: Int]" `isInfixOf`)
+            normSrcs `shouldSatisfy` all ("other y = y" `isInfixOf`)
+            -- No parse check here: removing the last element of a list whose
+            -- last element carries a type annotation prints a trailing comma,
+            -- which does not parse.  That pre-existing rendering is unchanged.
 
     describe "selectBindToSequenceOps" $ do
         it "returns muops for a do-block with a named bind" $ do
@@ -565,6 +658,19 @@ g xs = take 3 xs
             adjacentSwaps [1 :: Int, 2, 3] `shouldBe` [[2, 1, 3], [1, 3, 2]]
         it "is empty for a singleton (nothing to reorder)" $
             adjacentSwaps [1 :: Int] `shouldBe` []
+
+    describe "removeOneElem" $ do
+        it "enumerates each single deletion in place, keeping the original order" $
+            removeOneElem [1 :: Int, 2, 3] `shouldBe` [[1, 2], [1, 3], [2, 3]]
+        it "keeps one variant per position for a two-element list" $
+            removeOneElem [1 :: Int, 2] `shouldBe` [[1], [2]]
+        it "is empty for an empty or singleton list (nothing to remove)" $ do
+            removeOneElem ([] :: [Int]) `shouldBe` []
+            removeOneElem [1 :: Int] `shouldBe` []
+        it "keeps positional behaviour for repeated values" $
+            removeOneElem [1 :: Int, 1, 1] `shouldBe` [[1, 1], [1, 1], [1, 1]]
+        it "produces one variant per element" $
+            removeOneElem [1 :: Int, 2, 3, 4] `shouldSatisfy` ((== 4) . length)
 
     describe "selector metadata" $ do
         it "excludes annotated test declarations from generated source" $ do
