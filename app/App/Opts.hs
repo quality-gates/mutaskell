@@ -50,6 +50,7 @@ data Opts = Opts
   , optUpdateBaseline :: Maybe FilePath
   , optBlacklist    :: Maybe FilePath
   , optRunMutantId  :: Maybe String
+  , optRunMutantWorkload :: Maybe FilePath
   , optLoggerGithub :: Maybe FilePath
   , optLoggerGitlab :: Maybe FilePath
   , optTimeoutCoef  :: Maybe Double
@@ -101,6 +102,7 @@ defaultOpts = Opts
   , optUpdateBaseline = Nothing
   , optBlacklist    = Nothing
   , optRunMutantId  = Nothing
+  , optRunMutantWorkload = Nothing
   , optLoggerGithub = Nothing
   , optLoggerGitlab = Nothing
   , optTimeoutCoef  = Nothing
@@ -315,6 +317,11 @@ optsParser base = Opts
           ( long "run-mutant-id" <> metavar "ID"
           <> value (optRunMutantId base)
           <> help "Evaluate only the mutant with the given stable ID"
+          <> internal )
+    <*> option (Just <$> str)
+          ( long "run-mutant-workload" <> metavar "FILE"
+          <> value (optRunMutantWorkload base)
+          <> help "Evaluate the workload document FILE (worker child mode)"
           <> internal )
     <*> option (Just <$> str)
           ( long "logger-github" <> metavar "FILE"
