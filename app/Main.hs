@@ -33,6 +33,7 @@ import App.Worker (runWithWorkers, runWorkloadMode, workerSerialize, WorkloadBas
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when)
+import qualified Data.ByteString.Lazy as BL
 import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.Maybe (fromMaybe, isJust)
 import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
@@ -40,7 +41,7 @@ import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (doesDirectoryExist, listDirectory)
-import System.Environment (getArgs)
+import System.Environment (getArgs, lookupEnv)
 import System.Exit (ExitCode(..), exitSuccess, exitWith)
 import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
 
@@ -95,6 +96,17 @@ runOpts opts = do
     then if optDryRun opts then runProjectDryRun opts else runProject opts
     else runOptsFile opts
 
+-- | Trace one candidate-generation invocation to stderr when MUCHECK_TRACE is
+-- set.  The number of these lines per run is the generation count the
+-- benchmark reports.  A worker child evaluates the workload it is handed and
+-- emits none, so a child that started regenerating candidates would show up
+-- as extra trace lines.
+traceGeneration :: String -> IO ()
+traceGeneration what = do
+  tracing <- lookupEnv "MUCHECK_TRACE"
+  when (isJust tracing) $
+    hPutStrLn stderr ("trace: generation invocation (" ++ what ++ ")")
+
 runOptsFile :: Opts -> IO ()
 runOptsFile opts
   -- Worker child mode: the parent hands us a workload document holding the
@@ -147,6 +159,7 @@ runOptsFile opts
         (len, mutants) <- case res of
           Left err -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
           Right r -> return r
+        traceGeneration "parent"
         -- Apply all deterministic filters before sampling so the sample quota is
         -- spent only on candidates that survive every filter.
         let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) mutants
@@ -218,7 +231,7 @@ runOptsFile opts
         case optWorkerOutput opts of
           Just outFile -> do
             case tsum of
-              (ms : _) -> writeFile outFile (workerSerialize ms)
+              (ms : _) -> BL.writeFile outFile (workerSerialize ms)
               []       -> return ()
             exitSuccess
           Nothing -> return ()

@@ -22,7 +22,8 @@ import Control.Exception (IOException, try)
 import Control.Monad (forM, when)
 import Data.Aeson (encode, decode, eitherDecode, object, (.=), withObject, (.:), (.:?), Value)
 import Data.Aeson.Types (parseEither, parseMaybe, Parser, (.!=))
-import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.Environment (getExecutablePath)
 import System.Exit (ExitCode(..))
@@ -69,34 +70,38 @@ evalOneWorker exe tmpDir wbase mutant = do
       resultFile = tmpDir ++ "/mucheck-worker-" ++ mid ++ ".txt"
       childArgs  = [ wbTarget wbase, "--run-mutant-workload", wlFile
                    , "--worker-output", resultFile ]
-  eWrite <- try (writeFile wlFile (encodeWorkload (mutantWorkload wbase mutant)))
+  eWrite <- try (BL.writeFile wlFile (encodeWorkload (mutantWorkload wbase mutant)))
               :: IO (Either IOException ())
   case eWrite of
     Left ioerr -> return $ MSumError mutant ("worker: workload write error: " ++ show ioerr) []
     Right () -> do
       (_, _, _, ph) <- createProcess (proc exe childArgs)
       ec <- waitForProcess ph
-      _ <- try (removeFile wlFile) :: IO (Either IOException ())
+      removeQuiet wlFile
       case ec of
         ExitSuccess -> do
-          eContent <- try $ do
-            str <- readFile resultFile
-            let n = length str
-            n `seq` return str
-          _ <- try (removeFile resultFile) :: IO (Either IOException ())
+          eContent <- try (BS.readFile resultFile) :: IO (Either IOException BS.ByteString)
+          removeQuiet resultFile
           case eContent of
             Left  ioerr ->
               return $ MSumError mutant ("worker: read error: " ++ show (ioerr :: IOException)) []
-            Right content -> return $ workerDeserialize mutant content
+            Right content -> return $ workerDeserialize mutant (BL.fromStrict content)
         ExitFailure code ->
           return $ MSumError mutant ("worker: subprocess exited with code " ++ show code) []
 
--- | Serialize a 'MutantSummary' to a self-contained JSON object.
--- A single extra newline inside a diff or test output cannot corrupt the
--- deserialiser since JSON handles embedded newlines safely.
--- Does not serialize the 'Mutant' body; the parent already holds that.
-workerSerialize :: MutantSummary -> String
-workerSerialize ms = BL.unpack $ encode $ object
+-- | Remove a file, swallowing IO errors. Cleanup is best-effort: a failed
+-- unlink must not replace the worker's real result with an error.
+removeQuiet :: FilePath -> IO ()
+removeQuiet p = do
+    _ <- try (removeFile p) :: IO (Either IOException ())
+    return ()
+
+-- | Serialize a 'MutantSummary' to a self-contained JSON object.  A single
+-- extra newline inside a diff or test output cannot corrupt the deserialiser
+-- since JSON handles embedded newlines safely.  Does not serialize the
+-- 'Mutant' body; the parent already holds that.
+workerSerialize :: MutantSummary -> BL.ByteString
+workerSerialize ms = encode $ object
     [ "version"   .= (1 :: Int)
     , "result"    .= tag
     , "error"     .= err
@@ -113,9 +118,9 @@ workerSerialize ms = BL.unpack $ encode $ object
 
 -- | Deserialize a 'MutantSummary' from the JSON worker IPC format.
 -- Uses the supplied 'Mutant' (which the parent already holds) for the body.
-workerDeserialize :: Mutant -> String -> MutantSummary
+workerDeserialize :: Mutant -> BL.ByteString -> MutantSummary
 workerDeserialize mutant txt =
-  case decode (BL.pack txt) >>= parseMaybe parseResult of
+  case decode txt >>= parseMaybe parseResult of
     Nothing -> MSumError mutant "worker: JSON parse/schema error in result file" []
     Just ms -> ms
   where
@@ -171,9 +176,11 @@ mutantWorkload base' m = Workload
   , wTestArgs    = wbTestArgs base'
   }
 
--- | Serialize a 'Workload' to the JSON transport format.
-encodeWorkload :: Workload -> String
-encodeWorkload w = BL.unpack $ encode $ object
+-- | Serialize a 'Workload' to the JSON transport format.  aeson emits UTF-8,
+-- and the file transfer below moves the raw bytes, so a mutant containing
+-- non-ASCII characters reaches the child unchanged regardless of locale.
+encodeWorkload :: Workload -> BL.ByteString
+encodeWorkload w = encode $ object
     [ "version"    .= workloadVersion
     , "target"     .= wTarget w
     , "mutant"     .= _mutant m
@@ -193,10 +200,10 @@ spanCoords sp = let (l1, c1, l2, c2) = fromHpcPos sp in [l1, c1, l2, c2]
 -- | Deserialize a 'Workload' from the JSON transport format.
 -- Malformed or missing data is reported as a classified error carrying the
 -- @worker:@ prefix used for all child-side failures.
-decodeWorkload :: String -> Either String Workload
+decodeWorkload :: BL.ByteString -> Either String Workload
 decodeWorkload txt = do
     val <- either (\e -> Left ("worker: workload JSON parse error: " ++ e)) Right
-             (eitherDecode (BL.pack txt) :: Either String Value)
+             (eitherDecode txt :: Either String Value)
     case parseEither parseWorkload val of
         Left err -> Left ("worker: workload schema error: " ++ err)
         Right wl -> Right wl
@@ -229,14 +236,14 @@ decodeWorkload txt = do
             }
 
 -- | Read and decode a workload file. A missing or unreadable file is a
--- classified error, matching the child's other failure modes.
+-- classified error, matching the child's other failure modes.  The file is
+-- read as raw bytes, so decoding sees the exact bytes the parent wrote.
 decodeWorkloadFile :: FilePath -> IO (Either String Workload)
 decodeWorkloadFile path = do
-    result <- try (readFile path >>= \s -> length s `seq` return s)
-                :: IO (Either IOException String)
+    result <- try (BS.readFile path) :: IO (Either IOException BS.ByteString)
     return $ case result of
         Left err -> Left ("worker: cannot read workload: " ++ show err)
-        Right s  -> decodeWorkload s
+        Right s  -> decodeWorkload (BL.fromStrict s)
 
 -- | Placeholder mutant for results produced before a workload could be read.
 -- The parent re-attaches the real mutant when deserialising the result.
@@ -279,4 +286,4 @@ runWorkloadMode workloadPath mOut = do
         Right wl -> evalWorkload wl
     case mOut of
         Nothing -> return ()
-        Just f  -> writeFile f (workerSerialize summary)
+        Just f  -> BL.writeFile f (workerSerialize summary)

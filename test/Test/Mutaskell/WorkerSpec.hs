@@ -9,12 +9,13 @@ import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import System.Timeout (timeout)
 import Data.List (maximumBy)
 import Data.Maybe (catMaybes)
+import Data.String (fromString)
 import Data.Ord (comparing)
 import qualified Data.Aeson as A
 import Data.Aeson.Types (parseMaybe, withObject, (.:))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
-import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString.Lazy as BL
 import System.Directory
     (doesDirectoryExist, doesFileExist, getCurrentDirectory, getModificationTime, listDirectory)
 import System.Environment (lookupEnv, setEnv, unsetEnv)
@@ -66,7 +67,7 @@ mutant = Mutant
 workload :: Workload
 workload = mutantWorkload base mutant
 
--- | Replace a source line in the example module, standing in for a generated
+-- | Replace a source line in the example module, producing source text for a
 -- mutant of it.
 editedExample :: String -> String -> IO String
 editedExample from to = do
@@ -78,6 +79,14 @@ workloadOn target src = workload
     { wTarget = target
     , wMutant = mutant { _mutant = src }
     }
+
+-- | A workload whose mutant source carries non-ASCII text (a comment
+-- annotating the mutated line).  The transport must preserve it byte for byte,
+-- and the mutation itself stays detected by the tests.
+nonAsciiWorkload :: IO Workload
+nonAsciiWorkload =
+    workloadOn "Examples/AssertCheckTest.hs"
+        <$> editedExample "qsort [] = []" "qsort [] = [0] -- mutated: π < 3,15"
 
 killedWorkload :: IO Workload
 killedWorkload = workloadOn "Examples/AssertCheckTest.hs"
@@ -95,11 +104,11 @@ invalidWorkload = do
 -- | A hand-built workload document in the same shape 'encodeWorkload' emits.
 -- Entries in @overrides@ replace top-level keys, so malformed variants can be
 -- constructed without duplicating the whole document.
-workloadDoc :: [(String, A.Value)] -> String
-workloadDoc overrides = BL.unpack (A.encode obj)
+workloadDoc :: [(String, A.Value)] -> BL.ByteString
+workloadDoc overrides = A.encode obj
   where
     obj = foldl (\m (k, v) -> KM.insert (Key.fromString k) v m) baseKm overrides
-    baseKm = case A.decode (BL.pack (encodeWorkload workload)) of
+    baseKm = case A.decode (encodeWorkload workload) of
         Just km -> km
         Nothing -> error "worker spec: could not re-parse an encoded workload"
 
@@ -175,12 +184,16 @@ spec = describe "worker workload transport" $ do
         it "round-trips a workload" $
             decodeWorkload (encodeWorkload workload) `shouldBe` Right workload
 
+        it "round-trips non-ASCII mutant source without corrupting it" $
+            nonAsciiWorkload >>= \wl ->
+                decodeWorkload (encodeWorkload wl) `shouldBe` Right wl
+
         it "round-trips a workload without timeout or keep-dir" $ do
             let bare = workload { wTimeout = Nothing, wKeepMutants = Nothing, wTestArgs = [] }
             decodeWorkload (encodeWorkload bare) `shouldBe` Right bare
 
         it "rejects malformed JSON with a classified error" $
-            classifyError (decodeWorkload "not json at all")
+            classifyError (decodeWorkload (fromString "not json at all"))
 
         it "rejects an unsupported transport version with a classified error" $
             classifyError (decodeWorkload (workloadDoc [("version", A.toJSON (2 :: Int))]))
@@ -195,7 +208,7 @@ spec = describe "worker workload transport" $ do
         it "reads an encoded workload back from disk" $
             withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
                 let path = tmp ++ "/workload.json"
-                writeFile path (encodeWorkload workload)
+                BL.writeFile path (encodeWorkload workload)
                 result <- decodeWorkloadFile path
                 result `shouldBe` Right workload
 
@@ -219,7 +232,7 @@ spec = describe "worker workload transport" $ do
             -- reports a failed test, so the assertion is that the run is cut
             -- short at all (unbounded divergence would hit the outer guard).
             -- A microsecond timeout is not safe to test with: it can interrupt
-            -- GHC API initialisation and take the process down.
+            -- GHC API initialisation and abort the whole spec process.
             src <- editedExample "test_sortEmpty = assertCheck $ null (qsort [])"
                                  "test_sortEmpty = assertCheck $ qsort [1 ..] == [1 ..]"
             let wl = (workloadOn "Examples/AssertCheckTest.hs" src) { wTimeout = Just 1000000 }
@@ -245,16 +258,26 @@ spec = describe "worker workload transport" $ do
                 wl <- killedWorkload
                 let wlPath  = tmp ++ "/workload.json"
                     outPath = tmp ++ "/result.txt"
-                writeFile wlPath (encodeWorkload wl)
+                BL.writeFile wlPath (encodeWorkload wl)
                 runWorkloadMode wlPath (Just outPath)
-                content <- readFile outPath
+                content <- BL.readFile outPath
+                assertTag "killed" (workerDeserialize (wMutant wl) content)
+
+        it "preserves non-ASCII mutant source through the file round trip" $
+            withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
+                wl <- nonAsciiWorkload
+                let wlPath  = tmp ++ "/workload.json"
+                    outPath = tmp ++ "/result.txt"
+                BL.writeFile wlPath (encodeWorkload wl)
+                runWorkloadMode wlPath (Just outPath)
+                content <- BL.readFile outPath
                 assertTag "killed" (workerDeserialize (wMutant wl) content)
 
         it "writes a classified error for a missing workload file" $
             withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
                 let outPath = tmp ++ "/result.txt"
                 runWorkloadMode "/nonexistent/mucheck-workload-missing.json" (Just outPath)
-                content <- readFile outPath
+                content <- BL.readFile outPath
                 case workerDeserialize mutant content of
                     MSumError _ err _ -> err `shouldContain` "worker:"
                     _                 -> expectationFailure "expected MSumError"
@@ -287,18 +310,37 @@ spec = describe "worker workload transport" $ do
                         wl <- killedWorkload
                         let wlPath  = tmp ++ "/workload.json"
                             outPath = tmp ++ "/result.txt"
-                        writeFile wlPath (encodeWorkload wl)
+                        BL.writeFile wlPath (encodeWorkload wl)
                         expectCleanRun exe
                             [ wTarget wl, "--run-mutant-workload", wlPath
                             , "--worker-output", outPath ]
-                        content <- readFile outPath
+                        content <- BL.readFile outPath
+                        assertTag "killed" (workerDeserialize (wMutant wl) content)
+
+        it "preserves non-ASCII mutant source on the way to a child process" $
+            withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
+                -- The parent writes the document and the child reads raw
+                -- bytes, so the mutant text is classified identically to the
+                -- same workload evaluated in-process.
+                bin <- findMucheckBin
+                case bin of
+                    Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                    Just exe -> do
+                        wl <- nonAsciiWorkload
+                        let wlPath  = tmp ++ "/workload.json"
+                            outPath = tmp ++ "/result.txt"
+                        BL.writeFile wlPath (encodeWorkload wl)
+                        expectCleanRun exe
+                            [ wTarget wl, "--run-mutant-workload", wlPath
+                            , "--worker-output", outPath ]
+                        content <- BL.readFile outPath
                         assertTag "killed" (workerDeserialize (wMutant wl) content)
 
         it "evaluates the workload without regenerating from the target source" $
             withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
                 -- The target is a copy that cannot be parsed back into the
                 -- mutant, so any child that regenerated candidates would fail
-                -- loudly instead of producing a classified result.
+                -- with a parse error instead of producing a classified result.
                 bin <- findMucheckBin
                 case bin of
                     Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
@@ -309,11 +351,11 @@ spec = describe "worker workload transport" $ do
                         let wl = workloadOn target src
                             wlPath  = tmp ++ "/workload.json"
                             outPath = tmp ++ "/result.txt"
-                        writeFile wlPath (encodeWorkload wl)
+                        BL.writeFile wlPath (encodeWorkload wl)
                         expectCleanRun exe
                             [ target, "--run-mutant-workload", wlPath
                             , "--worker-output", outPath ]
-                        content <- readFile outPath
+                        content <- BL.readFile outPath
                         assertTag "killed" (workerDeserialize (wMutant wl) content)
 
         it "workers 1, 2 and 4 agree on outcomes for the same workload" $ do
