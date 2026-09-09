@@ -28,11 +28,12 @@ import App.Output
     , writeJsonLogger
     , writeUpdateBaseline
     )
-import App.Worker (runWithWorkers, workerSerialize)
+import App.Worker (runWithWorkers, runWorkloadMode, workerSerialize, WorkloadBase(..))
 
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Exception (IOException, try)
 import Control.Monad (unless, when)
+import qualified Data.ByteString.Lazy as BL
 import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.Maybe (fromMaybe, isJust)
 import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
@@ -40,7 +41,7 @@ import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (doesDirectoryExist, listDirectory)
-import System.Environment (getArgs)
+import System.Environment (getArgs, lookupEnv)
 import System.Exit (ExitCode(..), exitSuccess, exitWith)
 import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
 
@@ -95,8 +96,25 @@ runOpts opts = do
     then if optDryRun opts then runProjectDryRun opts else runProject opts
     else runOptsFile opts
 
+-- | Trace one candidate-generation invocation to stderr when MUCHECK_TRACE is
+-- set.  The number of these lines per run is the generation count the
+-- benchmark reports.  A worker child evaluates the workload it is handed and
+-- emits none, so a child that started regenerating candidates would show up
+-- as extra trace lines.
+traceGeneration :: String -> IO ()
+traceGeneration what = do
+  tracing <- lookupEnv "MUCHECK_TRACE"
+  when (isJust tracing) $
+    hPutStrLn stderr ("trace: generation invocation (" ++ what ++ ")")
+
 runOptsFile :: Opts -> IO ()
 runOptsFile opts
+  -- Worker child mode: the parent hands us a workload document holding the
+  -- mutant it already selected, so we evaluate it directly.  No candidate
+  -- generation, test discovery or timeout calibration happens here.
+  | Just workloadPath <- optRunMutantWorkload opts = do
+      runWorkloadMode workloadPath (optWorkerOutput opts)
+      exitSuccess
   | optDryRun opts = dryRun (optFile opts)
   | optExec opts   = runOrchestrator opts
   | otherwise      = do
@@ -141,6 +159,7 @@ runOptsFile opts
         (len, mutants) <- case res of
           Left err -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
           Right r -> return r
+        traceGeneration "parent"
         -- Apply all deterministic filters before sampling so the sample quota is
         -- spent only on candidates that survive every filter.
         let filtered0 = applyDisableEnable (optDisable opts) (optEnable opts) mutants
@@ -187,8 +206,16 @@ runOptsFile opts
         (fsum', tsum) <-
           if optWorkers opts > 1
             then do
-              origArgs <- getArgs
-              runWithWorkers (optWorkers opts) origArgs finalMutants progressCallback
+              -- Workers evaluate the mutants the parent already generated;
+              -- the shared settings travel with each mutant as a workload.
+              let wbase = WorkloadBase
+                    { wbTarget      = file
+                    , wbTests       = tests testNames
+                    , wbTimeout     = timeoutUs
+                    , wbKeepMutants = optKeepMutants opts
+                    , wbTestArgs    = optTestArgs opts
+                    }
+              runWithWorkers (optWorkers opts) wbase finalMutants progressCallback
             else evaluateMutants 1 timeoutUs (optKeepMutants opts) (optTestArgs opts) mcallback modFile finalMutants (tests testNames)
         case mtid of
           Nothing  -> return ()
@@ -204,7 +231,7 @@ runOptsFile opts
         case optWorkerOutput opts of
           Just outFile -> do
             case tsum of
-              (ms : _) -> writeFile outFile (workerSerialize ms)
+              (ms : _) -> BL.writeFile outFile (workerSerialize ms)
               []       -> return ()
             exitSuccess
           Nothing -> return ()
@@ -273,7 +300,8 @@ dryRun file = do
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right ast -> do
       let mutants = genMutantsFromAST defaultConfig ast
-          byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
+      traceGeneration "dry-run"
+      let byType  = [(v, length g) | g@(v:_) <- group . sort $ map _mtype mutants]
           byType' = sortBy (comparing (Down . snd)) byType
           -- 7 is seeded into the list so 'maximum' never sees [] (a zero-mutant
           -- file, e.g. a pure re-export module, used to crash here).

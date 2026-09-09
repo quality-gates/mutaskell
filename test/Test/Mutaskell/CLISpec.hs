@@ -118,6 +118,13 @@ spec = do
             let result = parseOptsFrom defaultOpts ["--jobs", "4", "F.hs"]
             fmap optJobs result `shouldBe` Right 4
 
+        it "--run-mutant-workload sets optRunMutantWorkload" $ do
+            let result = parseOptsFrom defaultOpts ["--run-mutant-workload", "wl.json", "F.hs"]
+            fmap optRunMutantWorkload result `shouldBe` Right (Just "wl.json")
+
+        it "defaults: optRunMutantWorkload is Nothing" $
+            optRunMutantWorkload defaultOpts `shouldBe` Nothing
+
         it "defaults: optJobs is 1, optExec is False, optMaxMutants is Nothing" $ do
             optJobs defaultOpts `shouldBe` 1
             optExec defaultOpts `shouldBe` False

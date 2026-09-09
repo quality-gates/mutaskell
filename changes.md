@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.23]
+  * Changed: interpreter worker children (`--workers N`) evaluate a workload document handed over by the parent — the already-selected mutant source, mutator identity and span, plus the effective tests, timeout, mutant retention and test arguments — instead of regenerating every candidate from the source. Generation and transport drop from one full generation per evaluated mutant to one per run, children no longer re-discover tests or re-measure the `--timeout-coefficient` baseline, and concurrent hint evaluations remain in separate processes (#33).
+  * Added: classified worker errors for malformed or missing workload transport data; per-child transport files are cleaned up after each evaluation.
+  * Added: workload documents and worker results are transferred as UTF-8 bytes, so mutant sources with non-ASCII text reach the child unchanged regardless of locale.
+  * Added: `MUCHECK_TRACE=1` prints one stderr line per candidate-generation invocation; a run's trace-line count is its generation count.
+  * Added: `bench/worker.sh` measures generation-only time (`--dry-run`) separately from end-to-end worker runs across worker counts 1, 2 and 4, reporting generation count, throughput and peak RSS per run.
+
 ## [0.8.22]
   * Changed: eligible single-file runs and the no-coverage `mucheck` path sample mutation operators before rendering, so only the selected operators are applied and rendered. Eligibility excludes coverage runs (`--coverage`, `--tix`) and any candidate filter (mutator patterns, inline suppression, baseline, blacklist, selected IDs, ignore or diff lines); a configured filter counts as active even when empty. Sampled runs may end below the cap after deduplication and no-op rejection, and their population can differ from the rendered-sampling path (#34).
   * Changed: mutant deduplication is indexed — rendered sources by hash buckets with full comparison on collisions, mutator/span candidates by an ordered set — preserving the first-occurrence population without the quadratic pairwise scans (#34).
