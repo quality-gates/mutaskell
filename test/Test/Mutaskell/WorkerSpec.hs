@@ -301,6 +301,20 @@ spec = describe "worker workload transport" $ do
                 exists `shouldBe` True
 
     describe "worker subprocess" $ do
+        it "links the mutaskell executable against the threaded runtime" $ do
+            -- runWithWorkers fans out via forkIO and waits on each child with
+            -- waitForProcess. On the non-threaded RTS that wait blocks the
+            -- whole runtime, so --workers N evaluates one child at a time
+            -- (issue #59); the threaded RTS is what lets the parent wait on
+            -- many children concurrently.
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, _) <- readProcessWithExitCode exe ["+RTS", "--info"] ""
+                    ec `shouldBe` ExitSuccess
+                    out `shouldContain` "\"RTS way\", \"rts_thr\""
+
         it "dispatches a workload through the CLI to a fresh child process" $
             withSystemTempDirectory "mucheck-worker-spec" $ \tmp -> do
                 bin <- findMucheckBin
