@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.25]
+  * Fixed: the `mutaskell` executable now links the threaded runtime, so `--workers N` actually evaluates up to N worker children concurrently. The non-threaded RTS blocked the whole runtime in each child's `waitForProcess`, so workers ran one at a time — and slower than `--workers 1` (#59). A spec test asserts the built executable reports the threaded RTS way; outcomes are unchanged.
+
 ## [0.8.24]
   * Changed: `removeOneElem` enumerates the single deletions directly instead of requesting every size-@(c-1)@ combination, so removal variants for explicit lists, case alternatives, function clauses and let/where bindings now cost work proportional to the variant count instead of exponential combination enumeration. Variant order, empty and singleton behaviour, and sampling draws are unchanged (#32).
   * Added: `bench/remove-one-elem.sh` and `bench/remove-one-elem-bench.hs`, which force direct and legacy removal variants over growing inputs and measure the production sampled cap-1 path on a literal list module (#32).
