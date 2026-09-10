@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 -- | Output, logging, and reporting functions.
 module App.Output
@@ -22,7 +23,9 @@ module App.Output
   ) where
 
 import Control.Monad (forM_, unless, when)
-import Data.List (intercalate, nub, sort)
+import Data.Aeson (encode, object, (.=))
+import qualified Data.ByteString.Lazy as BL
+import Data.List (nub, sort)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 
@@ -252,20 +255,16 @@ writeGitlabLogger opts file tsum = case optLoggerGitlab opts of
           let ln   = spanStartLine (_mspan m)
               fp   = hash (_mutant m)
               desc = "Mutant survived: " ++ showMuVar (_mtype m)
-          in intercalate "\n"
-             [ "  {"
-             , "    \"description\": " ++ show desc ++ ","
-             , "    \"fingerprint\": " ++ show fp ++ ","
-             , "    \"severity\": \"major\","
-             , "    \"location\": {"
-             , "      \"path\": " ++ show file ++ ","
-             , "      \"lines\": { \"begin\": " ++ show ln ++ " }"
-             , "    }"
-             , "  }"
+          in object
+             [ "description" .= desc
+             , "fingerprint" .= fp
+             , "severity" .= ("major" :: String)
+             , "location" .= object
+                 [ "path" .= file
+                 , "lines" .= object [ "begin" .= ln ]
+                 ]
              ]
-        entries = map entry aliveMs
-        body    = intercalate ",\n" entries
-    writeFile path $ "[\n" ++ body ++ (if null entries then "" else "\n") ++ "]\n"
+    BL.writeFile path (BL.snoc (encode (map entry aliveMs)) 10)
 
 -- | Write a per-mutant agentic JSON file for LLM consumption.
 writeAgenticJsonLogger :: Opts -> FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> IO ()
@@ -299,7 +298,7 @@ writeAgenticJsonLoggerWithDiffs opts file origSrc diffs msum = case optLoggerAge
           let start = max 1 (ln - contextWindow)
               end   = min (length oLines) (ln + contextWindow)
               numbered = zip [start..] (drop (start - 1) (take end oLines))
-          in  concatMap (\(i, l) -> "    " ++ show i ++ ": " ++ l ++ "\\n") numbered
+          in  concatMap (\(i, l) -> "    " ++ show i ++ ": " ++ l ++ "\n") numbered
         entry (MutantDiff s diffText) =
           let m   = mutOf s
               ln  = spanStartLine (_mspan m)
@@ -307,36 +306,32 @@ writeAgenticJsonLoggerWithDiffs opts file origSrc diffs msum = case optLoggerAge
               desc = mutatorDescription (_mtype m)
               mid  = hash (_mutant m)
               ctx  = contextFor ln
-          in  intercalate "\n"
-              [ "  {"
-              , "    \"id\": " ++ show mid ++ ","
-              , "    \"type\": " ++ show (showMuVar (_mtype m)) ++ ","
-              , "    \"file\": " ++ show file ++ ","
-              , "    \"line\": " ++ show ln ++ ","
-              , "    \"description\": " ++ show desc ++ ","
-              , "    \"context_start_line\": " ++ show (max 1 (ln - contextWindow)) ++ ","
-              , "    \"context\": " ++ show ctx ++ ","
-              , "    \"diff\": " ++ show diffText ++ ","
-              , "    \"result\": " ++ show res ++ ","
-              , "    \"reminder\": \"If result is alive, this mutation was not detected by any test. Consider adding a test that exercises this code path.\""
-              , "  }"
+          in object
+              [ "id" .= mid
+              , "type" .= showMuVar (_mtype m)
+              , "file" .= file
+              , "line" .= ln
+              , "description" .= desc
+              , "context_start_line" .= max 1 (ln - contextWindow)
+              , "context" .= ctx
+              , "diff" .= diffText
+              , "result" .= res
+              , "reminder" .= ("If result is alive, this mutation was not detected by any test. Consider adding a test that exercises this code path." :: String)
               ]
         entries = map entry diffs
-        mutantsBody = intercalate ",\n" entries
-        summaryJson = intercalate "\n"
-          [ "  \"summary\": {"
-          , "    \"total\": " ++ show _maNumMutants ++ ","
-          , "    \"killed\": " ++ show _maKilled ++ ","
-          , "    \"alive\": " ++ show _maAlive ++ ","
-          , "    \"skipped\": " ++ show _maSkipped ++ ","
-          , "    \"errors\": " ++ show _maErrors ++ ","
-          , "    \"msi\": " ++ show msiVal
-          , "  }"
+        summaryJson = object
+          [ "total" .= _maNumMutants
+          , "killed" .= _maKilled
+          , "alive" .= _maAlive
+          , "skipped" .= _maSkipped
+          , "errors" .= _maErrors
+          , "msi" .= msiVal
           ]
-        json = "{\n  \"mutants\": [\n" ++ mutantsBody ++
-               (if null entries then "" else "\n") ++
-               "  ],\n" ++ summaryJson ++ "\n}\n"
-    writeFile path json
+        json = object
+          [ "mutants" .= entries
+          , "summary" .= summaryJson
+          ]
+    BL.writeFile path (BL.snoc (encode json) 10)
 
 -- | Write a standalone HTML mutation report.
 writeHtmlLogger :: Opts -> FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> IO ()
