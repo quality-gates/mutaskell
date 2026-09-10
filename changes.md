@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.26]
+  * Fixed: `--logger-agentic-json` and `--logger-gitlab` now emit valid JSON for Unicode and control characters; agentic context lines use single-escaped newlines (#61).
+
 ## [0.8.25]
   * Fixed: the `mutaskell` executable now links the threaded runtime, so `--workers N` actually evaluates up to N worker children concurrently. The non-threaded RTS blocked the whole runtime in each child's `waitForProcess`, so workers ran one at a time — and slower than `--workers 1` (#59). A spec test asserts the built executable reports the threaded RTS way; outcomes are unchanged.
 
