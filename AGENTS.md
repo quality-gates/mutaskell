@@ -58,6 +58,32 @@ The output shows a mutation score, per-mutant results, and a per-mutator breakdo
 
 Some errors are expected and normal — for example, the `/` operator mutation on `uncoveredDummy` produces `0 / a :: Int`, which does not typecheck. Some mutants will always escape because the example tests are not exhaustive.
 
+## Shared Fleet host
+
+Fleet runs this repository with other autonomous jobs on one macOS host.
+
+Use one mutation worker and a 30-second per-mutant timeout for a local
+single-source run:
+
+```bash
+cabal run mutaskell -- SOURCE_FILE --workers 1 --timeout 30
+```
+
+Use one mutation worker, one project job, a 30-second per-mutant timeout, and a
+30-minute project budget for a local project run:
+
+```bash
+cabal run mutaskell -- PROJECT_DIR --workers 1 --jobs 1 --timeout 30 --time-budget 1800
+```
+
+Use higher parallelism in isolated CI or in a resource-capped environment that
+has a verified command. Keep local Fleet-host commands at these limits.
+
+`--workers` and `--jobs` default to 1, while `--timeout` and `--time-budget`
+default to unset: `--timeout 30` is a per-mutant limit, and `--time-budget 1800`
+is a project-mode wall-clock limit. Always pass explicit limits on the shared
+host; do not rely on the defaults.
+
 ## Shipping workflow
 
 Follow these steps in order when landing a change:
