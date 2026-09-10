@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.27]
+  * Added: a "Shared Fleet host" section in the agent instructions with bounded mutation commands — `--workers 1 --timeout 30` for local single-source runs and `--workers 1 --jobs 1 --timeout 30 --time-budget 1800` for local project runs — documenting that worker/job defaults are 1 while timeout and time budget default to unset, and reserving higher parallelism for isolated CI or a resource-capped environment (#58).
+
 ## [0.8.26]
   * Fixed: `--logger-agentic-json` and `--logger-gitlab` now emit valid JSON for Unicode and control characters; agentic context lines use single-escaped newlines (#61).
 
