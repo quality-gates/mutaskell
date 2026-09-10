@@ -1,5 +1,8 @@
 module Test.Mutaskell.OutputSpec where
 
+import Data.Aeson (FromJSON(..), (.:), withObject)
+import qualified Data.Aeson as A
+import qualified Data.Aeson.Key as Key
 import Test.Hspec
 import App.Output
     ( buildHtmlReportWithDiffs
@@ -7,6 +10,7 @@ import App.Output
     , prepareMutantDiffs
     , unifiedDiff
     , writeAgenticJsonLoggerWithDiffs
+    , writeGitlabLogger
     , writeHtmlLoggerWithDiffs
     )
 import App.Opts (Opts(..), defaultOpts)
@@ -20,11 +24,82 @@ import Data.List (isInfixOf)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 
+data AgenticDocument = AgenticDocument [AgenticMutant]
+    deriving (Eq, Show)
+
+data AgenticMutant = AgenticMutant
+    { agenticContext :: String
+    , agenticDiff :: String
+    }
+    deriving (Eq, Show)
+
+instance FromJSON AgenticDocument where
+    parseJSON = withObject "AgenticDocument" $ \obj ->
+        AgenticDocument <$> obj .: Key.fromString "mutants"
+
+instance FromJSON AgenticMutant where
+    parseJSON = withObject "AgenticMutant" $ \obj ->
+        AgenticMutant <$> obj .: Key.fromString "context"
+                      <*> obj .: Key.fromString "diff"
+
+data GitlabEntry = GitlabEntry String String
+    deriving (Eq, Show)
+
+instance FromJSON GitlabEntry where
+    parseJSON = withObject "GitlabEntry" $ \obj -> do
+        description <- obj .: Key.fromString "description"
+        location <- obj .: Key.fromString "location"
+        path <- location .: Key.fromString "path"
+        return (GitlabEntry description path)
+
 main :: IO ()
 main = hspec spec
 
 spec :: Spec
 spec = do
+    describe "JSON loggers" $ do
+        it "encodes agentic JSON Unicode and context newlines exactly once" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let original = "line —\n"
+                    mutant = Mutant "changed —\n" MutateValues (toSpan (1, 1, 1, 1))
+                    summary = MSumAlive mutant []
+                    analysis = MAnalysisSummary (-1) 1 1 0 0 0
+                    sourcePath = dir </> "Fixture.hs"
+                    outputPath = dir </> "agentic.json"
+                    opts = defaultOpts
+                        { optLoggerAgenticJson = Just outputPath }
+                writeFile sourcePath original
+                source <- readFile sourcePath
+                writeAgenticJsonLoggerWithDiffs opts sourcePath source
+                    (prepareMutantDiffs source [summary]) analysis
+                parsed <- A.eitherDecodeFileStrict' outputPath
+                document <- case parsed of
+                    Left err -> expectationFailure ("invalid agentic JSON: " ++ err)
+                               >> return (AgenticDocument [])
+                    Right value -> return value
+                document `shouldBe`
+                    AgenticDocument [AgenticMutant "    1: line —\n" "@@ -1,1 +1,1 @@\n-line —\n+changed —\n"]
+
+        it "encodes GitLab JSON Unicode in paths and descriptions" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let source = "module Fixture where\n-- π\n"
+                    sourcePath = dir </> "Fixture.hs"
+                    targetPath = dir </> "Fixture—.hs"
+                    outputPath = dir </> "gitlab.json"
+                    mutant = Mutant source (MutateOther "custom—mutator")
+                        (toSpan (1, 1, 1, 1))
+                    opts = defaultOpts
+                        { optLoggerGitlab = Just outputPath }
+                writeFile sourcePath source
+                writeGitlabLogger opts targetPath [MSumAlive mutant []]
+                parsed <- A.eitherDecodeFileStrict' outputPath
+                document <- case parsed of
+                    Left err -> expectationFailure ("invalid GitLab JSON: " ++ err)
+                               >> return []
+                    Right value -> return value
+                document `shouldBe`
+                    [GitlabEntry "Mutant survived: other:custom—mutator" targetPath]
+
     describe "groupConsec" $ do
         it "groups ordered positions without changing their order" $ do
             groupConsec [1, 2, 3, 6, 7, 10] `shouldBe`
