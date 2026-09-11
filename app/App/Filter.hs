@@ -116,7 +116,8 @@ applyAnnotations anns ms = filter (not . isSuppressed) ms
       case IntMap.lookup (spanStartLine (_mspan m)) idx of
         Nothing -> False
         Just (suppressAll, names) ->
-          suppressAll || Set.member (showMuVar (_mtype m)) names
+          suppressAll
+            || any (\pat -> matchesPat pat (showMuVar (_mtype m))) names
 
 -- | Load a baseline file and filter out mutants whose hash appears in it.
 applyBaseline :: Maybe FilePath -> [Mutant] -> IO [Mutant]

@@ -55,6 +55,11 @@ guide and `setups/`.
 Disable mutators or narrow scope via config and CLI. See the full guide
 (Supported Mutations, Config file, project mode).
 
+For a source-local suppression, put `-- mucheck: disable-next-line` immediately
+before the line to skip. Add comma-separated mutator names to limit the
+suppression; names may end in `*` for a prefix match, so `other:*` matches all
+`other:` mutators and `*` suppresses every mutator on the next line.
+
 ## Drop it into CI
 
 ```yaml
