@@ -40,6 +40,7 @@ module App.Project
     , restrictToShard
     , runProject
     , runProjectDryRun
+    , firstDiff
     ) where
 
 import Control.Exception (SomeException, evaluate, finally, try)
@@ -902,9 +903,13 @@ survivorLine origSrc file m =
 
 firstDiff :: String -> String -> Maybe (Int, String, String)
 firstDiff a b =
-    safeHead
+    let la = lines a
+        lb = lines b
+        maxLen = max (length la) (length lb)
+        pad xs = take maxLen (xs ++ repeat "")
+    in safeHead
         [ (i, x, y)
-        | (i, x, y) <- zip3 [1 ..] (lines a ++ repeat "") (lines b ++ repeat "")
+        | (i, x, y) <- zip3 [1 .. maxLen] (pad la) (pad lb)
         , x /= y
         ]
   where safeHead (z : _) = Just z
@@ -1024,4 +1029,3 @@ printLogTail = do
         hPutStrLn stderr "  Last output:"
         mapM_ (hPutStrLn stderr . ("    " ++)) tailLines
         hPutStrLn stderr ""
-
