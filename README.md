@@ -723,8 +723,11 @@ In project mode mutaskell:
 *   **survives bad files** — a file it cannot parse or whose generation blows up
     is logged and skipped, and the run continues;
 *   is **resumable** — completed files are recorded in `.mutaskell/progress`, so
-    a re-run skips finished work; surviving mutants are written to
-    `.mutaskell/survivors.txt` with a before/after line diff;
+    an interrupted run skips finished work on re-run; `.mutaskell/progress` is
+    cleared when a run completes all files so the next run starts fresh. Delete
+    `.mutaskell/` to force a fully fresh run if an interrupted run should not be
+    resumed; surviving mutants are written to `.mutaskell/survivors.txt` with a
+    before/after line diff;
 *   ends with a single **project-level score**.
 
 All run-state (progress, survivor report, build/test log) lives under a single

@@ -12,6 +12,9 @@ spec = do
         it "shows percent values correctly" $ do
             (./.) 5 10 `shouldBe` "(50%)"
 
+        it "shows (0%) when denominator is zero" $ do
+            (./.) 0 0 `shouldBe` "(0%)"
+
     describe "showAS" $ do
         it "joins strings with newlines" $ do
             showAS ["a", "b"] `shouldBe` "a\nb"

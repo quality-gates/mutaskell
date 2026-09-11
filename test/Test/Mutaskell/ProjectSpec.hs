@@ -17,6 +17,7 @@ import Control.Monad (forM_)
 import Data.List (isInfixOf, sort)
 import System.Directory
     ( createDirectoryIfMissing
+    , doesFileExist
     , getCurrentDirectory
     , listDirectory
     , setCurrentDirectory
@@ -37,6 +38,7 @@ import App.Project
     , runProject
     )
 import Test.Mutaskell.Tix (tixReadCount)
+import Test.Mutaskell.Utils.Print (catchOutputStr)
 
 -- | A small module with constructs every mutator family can hit.
 sampleModule :: String -> String
@@ -137,41 +139,60 @@ spec = describe "runProject (serial)" $ do
             after <- tixReadCount
             after - before `shouldBe` 1
 
-    it "records completed files for resume" $
+    it "clears progress on a completed run" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
             makeProject root 3
             let resF = root </> "result.txt"
             runProjectRestoring (projectOpts root resF)
-            progress <- listDirectory (root </> stateDir)
-            progress `shouldContain` ["progress"]
-            done <- lines <$> strictRead (root </> stateDir </> "progress")
-            done `shouldContain` ["M1.hs"]
-            done `shouldContain` ["M2.hs"]
-            done `shouldContain` ["M3.hs"]
+            exists <- doesFileExist (root </> stateDir </> "progress")
+            exists `shouldBe` False
 
-    it "skips completed files on a resumed run" $
+    it "produces identical mutant counts and gate evaluations on a second run in an unchanged tree" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
             makeProject root 3
-            let resF = root </> "result.txt"
-            runProjectRestoring (projectOpts root resF)
-            (_, _, _, total) <- readCounts resF
-            total `shouldSatisfy` (> 0)
-            runProjectRestoring (projectOpts root resF)
-            counts <- readCounts resF
-            counts `shouldBe` (0, 0, 0, 0)
+            let resF1 = root </> "result1.txt"
+                resF2 = root </> "result2.txt"
+                opts1 = (projectOpts root resF1) { optMinMsi = Just 10 }
+                opts2 = (projectOpts root resF2) { optMinMsi = Just 10 }
+            res1 <- try (runProjectRestoring opts1) :: IO (Either ExitCode ())
+            res1 `shouldBe` Right ()
+            counts1 <- readCounts resF1
+            res2 <- try (runProjectRestoring opts2) :: IO (Either ExitCode ())
+            res2 `shouldBe` Right ()
+            counts2 <- readCounts resF2
+            counts2 `shouldBe` counts1
 
-    it "stops at the mutant budget and leaves the rest for resume" $
+    it "preserves progress on an interrupted run and skips completed files on resume" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
             makeProject root 3
+            let resF1 = root </> "result1.txt"
+                resF2 = root </> "result2.txt"
+                opts1 = (projectOpts root resF1) { optMaxMutants = Just 1 }
+                opts2 = projectOpts root resF2
+            runProjectRestoring opts1
+            (_, _, _, total1) <- readCounts resF1
+            total1 `shouldBe` 1
+            done1 <- lines <$> strictRead (root </> stateDir </> "progress")
+            length done1 `shouldBe` 1
+
+            -- Second run resumes and evaluates remaining files
+            runProjectRestoring opts2
+            (_, _, _, total2) <- readCounts resF2
+            total2 `shouldSatisfy` (> 0)
+            -- Once all files are complete, progress is cleared
+            exists <- doesFileExist (root </> stateDir </> "progress")
+            exists `shouldBe` False
+
+    it "prints nothing to do without emitting a summary when all discovered files are already done" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 3
+            createDirectoryIfMissing True (root </> stateDir)
+            writeFile (root </> stateDir </> "progress") "M1.hs\nM2.hs\nM3.hs\n"
             let resF = root </> "result.txt"
-                opts = (projectOpts root resF) { optMaxMutants = Just 1 }
-            runProjectRestoring opts
-            (_, _, _, total) <- readCounts resF
-            -- These counts derive from the configured budget, not from the
-            -- mutator set, so they are stable to assert.
-            total `shouldBe` 1
-            done <- lines <$> strictRead (root </> stateDir </> "progress")
-            length done `shouldBe` 1
+                opts = (projectOpts root resF) { optMinMsi = Just 50 }
+            (_, out) <- catchOutputStr (runProjectRestoring opts)
+            out `shouldSatisfy` ("All 3 discovered file(s) already done (per .mutaskell/progress). Nothing to do." `isInfixOf`)
+            out `shouldNotSatisfy` ("==== Project mutation summary ====" `isInfixOf`)
 
     it "reports surviving mutants and fails under --fail-on-escaped" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
