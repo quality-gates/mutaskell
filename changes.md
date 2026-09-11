@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.33]
+  * Fixed: inline `-- mucheck: disable-next-line` annotations now honor the same trailing-wildcard mutator patterns as `--disable` / `--enable`, including `other:*` and `*` (#69).
+
 ## [0.8.32]
   * Fixed: a coverage run with 0 covered mutants now reports covered-MSI as 0% in the summary, JSON, and `--min-covered-msi` gate, instead of silently falling back to the overall MSI and bypassing the gate (#68).
   * Fixed: `--min-covered-msi` now exits with code 2 and an explanatory message when coverage data is absent at the end of a run (e.g. the sampled-mutant fast path), instead of falling back to the overall MSI (#68).
