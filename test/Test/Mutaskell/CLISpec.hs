@@ -36,6 +36,24 @@ spec = do
                           ["--disable", "literal-values", "--enable", "functions", "SomeFile.hs"]
             result `shouldBe` Left "Cannot use --enable and --disable together; use one or the other"
 
+        it "rejects --min-covered-msi without --tix or --coverage, naming both flags" $ do
+            let result = parseOptsFrom defaultOpts ["--min-covered-msi", "50", "F.hs"]
+            case result of
+                Left err -> do
+                    err `shouldContain` "--min-covered-msi"
+                    err `shouldContain` "--tix"
+                Right _ -> expectationFailure "Expected Left but got Right"
+
+        it "accepts --min-covered-msi with --tix" $ do
+            let result = parseOptsFrom defaultOpts
+                          ["--min-covered-msi", "50", "--tix", "c.tix", "F.hs"]
+            fmap optMinCoveredMsi result `shouldBe` Right (Just 50)
+
+        it "accepts --min-covered-msi with --coverage" $ do
+            let result = parseOptsFrom defaultOpts
+                          ["--min-covered-msi", "50", "--coverage", "F.hs"]
+            fmap optMinCoveredMsi result `shouldBe` Right (Just 50)
+
         it "returns Left for unknown flags" $ do
             let result = parseOptsFrom defaultOpts ["--unknown-flag", "SomeFile.hs"]
             case result of

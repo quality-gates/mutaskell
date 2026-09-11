@@ -23,7 +23,7 @@ Common next steps:
 
 ```console
 cabal run mutaskell -- --tix your-test-suite.tix src/YourModule.hs
-cabal run mutaskell -- --min-covered-msi 70 src/YourModule.hs
+cabal run mutaskell -- --tix your-test-suite.tix --min-covered-msi 70 src/YourModule.hs
 cabal run mutaskell -- --git-diff-base origin/main .
 ```
 
@@ -45,6 +45,7 @@ workers: 4
 quiet: true
 ```
 
+`min_covered_msi` needs coverage data: pass `--tix FILE` (or `--coverage`).
 Raise floors over time. Use covered-MSI so untested new code does not look like
 weaker existing tests. Diff-only and baseline-style workflows are in the full
 guide and `setups/`.
@@ -59,7 +60,7 @@ Disable mutators or narrow scope via config and CLI. See the full guide
 ```yaml
 # GitHub Actions — copy setups/github-actions.yml
 - run: cabal build --write-ghc-environment-files=always all
-- run: cabal run mutaskell -- --min-covered-msi 70 src
+- run: cabal run mutaskell -- --tix your-test-suite.tix --min-covered-msi 70 src
 ```
 
 ```yaml
@@ -643,7 +644,7 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
 *   `--fail-on-escaped`: Exit with code 4 if any mutant survives.
 *   `--min-msi PCT`: Exit with code 5 if overall MSI is below PCT percent.
-*   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent (requires `--tix`).
+*   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent. Requires `--tix FILE`, or `--coverage` finding a `.tix`; without one the run exits with code 2 before mutating.
 *   `--ignore-msi-with-no-mutations`: Treat MSI quality gates as passed when no mutable constructs are found.
 *   `--disable NAME` / `--enable NAME`: Skip or run only mutants of the named type (repeatable).
 *   `--quiet`: Suppress output for killed and errored mutants; show only alive mutants.
@@ -662,7 +663,8 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--logger-agentic-json FILE`: Write per-mutant JSON with stable IDs, descriptions, context, and MSI summary for LLM consumption.
 *   `--logger-html FILE`: Write a standalone HTML mutation report to FILE with per-mutant diffs, source context, and a colour-coded summary.
 *   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
-*   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`.
+*   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`. If none is found the run proceeds without coverage.
+*   `--tix FILE`: If FILE does not exist or does not parse, the run exits with code 2 and an error naming FILE.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
 *   `--exec`: Orchestrator mode — drive the project's real build/test commands instead of the `hint` interpreter (see below).
 *   `--build-cmd CMD`: Build command for project/`--exec` mode (default: auto-detected, e.g. `cabal build all`).

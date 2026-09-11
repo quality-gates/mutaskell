@@ -9,6 +9,7 @@ import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix
     ( getUnCoveredPatchesFromIndex
     , buildTixIndex
+    , getUnCoveredPatches
     , insideSpan
     , indexSpans
     , parseTixIndex
@@ -108,9 +109,34 @@ spec = describe "Test.Mutaskell.Tix" $ do
       withSystemTempDirectory "mutaskell-tix" $ \root -> do
         let path = root </> "coverage.tix"
         writeFile path "Tix []"
-        index <- parseTixIndex path
+        Right index <- parseTixIndex path
         getUnCoveredPatchesFromIndex index "Missing"
           `shouldReturn` Right Nothing
+
+  describe "unreadable tix files" $ do
+    it "reports a missing tix file by path" $
+      withSystemTempDirectory "mutaskell-tix" $ \root -> do
+        let path = root </> "missing.tix"
+        result <- getUnCoveredPatches path "M"
+        case result of
+          Left err -> do
+            err `shouldContain` path
+            err `shouldContain` "not found"
+          Right r -> expectationFailure ("expected Left, got Right " ++ show r)
+
+    it "reports a malformed tix file by path and as a parse failure" $
+      withSystemTempDirectory "mutaskell-tix" $ \root -> do
+        let path = root </> "bad.tix"
+        writeFile path "not a tix file"
+        result <- parseTixIndex path
+        case result of
+          Left err -> do
+            err `shouldContain` path
+            err `shouldContain` "parse"
+          Right _ -> expectationFailure "expected Left for a malformed tix file"
+
+    it "treats an empty tix path as no coverage requested" $
+      getUnCoveredPatches "" "M" `shouldReturn` Right Nothing
 
     it "does not gate an ambiguous unqualified module name" $ do
       let index = buildTixIndex

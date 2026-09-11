@@ -2,7 +2,7 @@
 #
 # Rename this file to .mucheck.yaml at your project root to activate it.
 
-min_covered_msi: 80        # 80% of covered mutations must be killed
+min_covered_msi: 80        # 80% of covered mutations must be killed (needs --tix FILE or --coverage)
 min_msi: 60                # Also gates on raw MSI to catch coverage gaps
 timeout: 30
 workers: 4

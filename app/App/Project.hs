@@ -42,14 +42,14 @@ module App.Project
     , runProjectDryRun
     ) where
 
-import Control.Exception (SomeException, evaluate, finally, throwIO, try)
+import Control.Exception (SomeException, evaluate, finally, try)
 import Control.Monad (filterM, foldM, forM, unless, when)
 import Data.Char (toLower)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
 import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, nub)
 import qualified Data.Set as Set
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import System.Timeout (timeout)
 import Text.Read (readMaybe)
@@ -73,7 +73,7 @@ import System.Process (callProcess, createProcess, proc, waitForProcess)
 
 import App.Exit (applyExitPolicy)
 import App.Filter (applyDisableEnable)
-import App.Opts (Opts (..))
+import App.Opts (Opts (..), missingCoverageForMinCoveredMsi)
 import App.Orchestrator
     ( Outcome (..)
     , evaluateFile
@@ -154,6 +154,9 @@ runSerial opts = do
                 ++ show (length done) ++ " already done, "
                 ++ show (length pending) ++ " pending.\n"
 
+            -- Load coverage before the baseline so an unreadable --tix fails fast.
+            coverage <- loadCoverage opts
+
             -- Baseline runs exactly once for the whole project (AC 10), not per file.
             putStrLn "Baseline: building unmodified project..."
             b0 <- runCmd Nothing buildCmd
@@ -168,7 +171,6 @@ runSerial opts = do
             let deadline = fmap (\s -> addUTCTime (fromIntegral s) start) (optTimeBudget opts)
                 totalBudget = fromMaybe maxBound (optMaxMutants opts)
             budgetRef <- newIORef totalBudget
-            coverage <- loadCoverage opts
 
             -- Each file's evaluation restores the original after every mutant and in a
             -- `finally`, so an interrupt cannot leave mutated source behind (AC 6).
@@ -576,18 +578,27 @@ writeResult opts msum = case optResultOut opts of
 -- Coverage gating (AC 12)
 -- ---------------------------------------------------------------------------
 
--- | Parsed coverage for one project run.  A parse failure is retained so the
--- existing per-file skip behavior can report it without rereading the file.
-type CoverageSnapshot = Maybe (Either SomeException TixIndex)
+-- | Parsed coverage for one project run.
+type CoverageSnapshot = Maybe TixIndex
 
 -- | Parse the selected @.tix@ once for this project run.  'Nothing' means
 -- coverage gating is disabled or no automatically discovered file exists.
+-- A missing or unparseable @.tix@ exits with code 2 and names the file; so
+-- does @--min-covered-msi@ when @--coverage@ discovery finds no file.
 loadCoverage :: Opts -> IO CoverageSnapshot
 loadCoverage opts = do
     mt <- resolveTix opts
     case mt of
-        Nothing  -> return Nothing
-        Just tix -> Just <$> try (parseTixIndex tix)
+        Nothing
+            | isJust (optMinCoveredMsi opts) -> do
+                hPutStrLn stderr ("Coverage: no .tix file found; " ++ missingCoverageForMinCoveredMsi)
+                exitWith (ExitFailure 2)
+            | otherwise -> return Nothing
+        Just tix -> do
+            eindex <- parseTixIndex tix
+            case eindex of
+                Left err    -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
+                Right index -> return (Just index)
 
 -- | Uncovered spans for a module, when coverage is enabled and a @.tix@ is
 -- available.  'Nothing' means "do not gate".  The parsed coverage snapshot is
@@ -595,8 +606,7 @@ loadCoverage opts = do
 resolveUncovered :: CoverageSnapshot -> String -> IO (Maybe [Span])
 resolveUncovered coverage modName = case coverage of
     Nothing       -> return Nothing
-    Just (Left ex) -> throwIO ex
-    Just (Right index) -> do
+    Just index -> do
         result <- getUnCoveredPatchesFromIndex index modName
         return $ case result of
             Left _    -> Nothing

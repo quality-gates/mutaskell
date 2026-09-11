@@ -13,7 +13,7 @@
 #
 # Rename to .mucheck.yaml and drop --config if you want it as your default.
 
-min_covered_msi: 70
+min_covered_msi: 70        # needs --tix FILE or --coverage
 timeout: 20
 workers: 4
 quiet: true
