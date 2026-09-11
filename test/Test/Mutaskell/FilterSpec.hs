@@ -83,6 +83,29 @@ spec = do
             applyAnnotations [(1, ["literal-values"])] [mA, mFn, mB]
                 `shouldBe` [mFn, mB]
 
+        it "matches prefix wildcards in inline annotations" $ do
+            let other = mkMutant "other" (MutateOther "flip-maybe") 2
+                fn = mkMutant "fn" MutateFunctions 2
+            applyAnnotations [(1, ["other:*"])] [mA, other, fn, mB]
+                `shouldBe` [mA, fn, mB]
+
+        it "treats a wildcard annotation as suppressing every mutator" $
+            applyAnnotations [(1, ["*"])] [mA, mFn, mB]
+                `shouldBe` [mB]
+
+        it "matches comma-separated exact and wildcard patterns from comments" $ do
+            let src = unlines
+                    [ "module M where"
+                    , "-- mucheck: disable-next-line literal-values,other:*"
+                    , "f = 1"
+                    ]
+                anns = parseAnnotations src
+                onLiteral = mkMutant "f" MutateValues 3
+                onOther = mkMutant "f" (MutateOther "flip-maybe") 3
+                onFn = mkMutant "f" MutateFunctions 3
+            applyAnnotations anns [onLiteral, onOther, onFn]
+                `shouldBe` [onFn]
+
         it "treats overlapping annotations on the same line as a union, including suppress-all" $ do
             applyAnnotations [(1, ["literal-values"]), (1, ["functions"])] [mA, mFn, mB]
                 `shouldBe` [mB]
