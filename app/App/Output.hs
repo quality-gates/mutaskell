@@ -207,14 +207,14 @@ writeJsonLogger opts msum = case optLoggerJson opts of
         msiVal = if noerrors > 0
                  then fromIntegral _maKilled / fromIntegral noerrors
                  else 0.0
-        covNoerrors = if _maCoveredNumMutants > 0
-                      then _maCoveredNumMutants - _maErrors
+        covNoerrors = if _maCoveredNumMutants >= 0
+                      then max 0 (_maCoveredNumMutants - _maErrors)
                       else noerrors
         covMsiVal :: Double
         covMsiVal = if covNoerrors > 0
                     then fromIntegral _maKilled / fromIntegral covNoerrors
                     else 0.0
-        covMsiField = if _maCoveredNumMutants > 0
+        covMsiField = if _maCoveredNumMutants >= 0
                       then show covMsiVal
                       else "null"
         json = unlines

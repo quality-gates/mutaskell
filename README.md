@@ -124,6 +124,8 @@ Covered-MSI only counts mutations in lines your test suite actually ran through,
 
 Use `--min-covered-msi 70` as a starting point. To get covered-MSI, build your test suite with `--enable-coverage` and pass the resulting `.tix` file via `--tix` — the get-started section below shows the exact commands.
 
+Two edge cases behave conservatively: if your tests cover none of the module's mutants, covered-MSI is 0% (not silently replaced by the raw MSI); and if `--min-covered-msi` is set but no coverage data is available at the end of a run, the run fails with an error naming the missing prerequisite.
+
 ## Get started
 
 **Minimal run** (no coverage data):
