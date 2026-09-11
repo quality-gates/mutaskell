@@ -29,8 +29,11 @@ tree.  The design decisions that make it usable on real repos:
 module App.Project
     ( DiscoveryStats (..)
     , clearProgress
+    , discoverSources
     , discoverSourcesWithStats
     , distribute
+    , findProjectRoot
+    , isProjectRoot
     , progressFile
     , readProgress
     , recordDone
@@ -55,6 +58,7 @@ import System.Directory
     , createDirectoryIfMissing
     , doesDirectoryExist
     , doesFileExist
+    , getCurrentDirectory
     , getTemporaryDirectory
     , listDirectory
     , removeDirectoryRecursive
@@ -63,7 +67,7 @@ import System.Directory
     )
 import System.Environment (getExecutablePath)
 import System.Exit (ExitCode (..), exitSuccess, exitWith)
-import System.FilePath (takeExtension, takeFileName, (</>))
+import System.FilePath (makeRelative, takeDirectory, takeExtension, takeFileName, (</>))
 import System.IO (hPutStrLn, readFile', stderr)
 import System.Process (callProcess, createProcess, proc, waitForProcess)
 
@@ -115,19 +119,22 @@ runProject opts
 -- its shard via @--only-files@).
 runSerial :: Opts -> IO ()
 runSerial opts = do
-    root <- canonicalizePath (optFile opts)
+    scope <- canonicalizePath (optFile opts)
+    root <- maybe (noProjectRootFound scope) return =<< findProjectRoot scope
     setCurrentDirectory root
     createDirectoryIfMissing True stateDir
     (buildCmd, testCmd) <- detectCommands opts
     let mtimeout = fmap (* 1000000) (optTimeout opts)
+        relScope = normalise (makeRelative root scope)
 
-    putStrLn $ "Project mode on " ++ root
+    putStrLn $ "Project mode on " ++ scope
+    putStrLn $ "  root:  " ++ root
     putStrLn $ "  build: " ++ buildCmd
     putStrLn $ "  test:  " ++ testCmd
     reportBudget opts
     putStrLn ""
 
-    allFiles <- discoverSources opts
+    allFiles <- discoverSources opts { optFile = relScope }
     files <- restrictToShard opts allFiles
     when (null files) $ do
         hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
@@ -281,10 +288,13 @@ processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file = d
 -- generation (AC 3, AC 13) on a repo that is not built.
 runProjectDryRun :: Opts -> IO ()
 runProjectDryRun opts = do
-    root <- canonicalizePath (optFile opts)
+    scope <- canonicalizePath (optFile opts)
+    root <- maybe (noProjectRootFound scope) return =<< findProjectRoot scope
     setCurrentDirectory root
-    (files, stats) <- discoverSourcesWithStats opts
-    putStrLn $ "Project dry-run on " ++ root
+    let relScope = normalise (makeRelative root scope)
+    (files, stats) <- discoverSourcesWithStats opts { optFile = relScope }
+    putStrLn $ "Project dry-run on " ++ scope
+    putStrLn $ "  root:  " ++ root
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s)."
     putStrLn $ "Discovery scan: " ++ show (dsRoots stats) ++ " root(s) walked, "
         ++ show (dsDirs stats) ++ " director(ies) listed.\n"
@@ -391,10 +401,12 @@ genSetupCeilingSecs = 30
 -- appears once per-mutant build+test dominates, which it does on real repos.
 runParallel :: Opts -> IO ()
 runParallel opts = do
-    root <- canonicalizePath (optFile opts)
+    scope <- canonicalizePath (optFile opts)
+    root <- maybe (noProjectRootFound scope) return =<< findProjectRoot scope
     setCurrentDirectory root
     createDirectoryIfMissing True stateDir
-    allFiles <- discoverSources opts
+    let relScope = normalise (makeRelative root scope)
+    allFiles <- discoverSources opts { optFile = relScope }
     done <- readProgress
     let n       = optJobs opts
         pending = dropCompleted done allFiles
@@ -409,7 +421,8 @@ runParallel opts = do
             self <- getExecutablePath
             tmp  <- getTemporaryDirectory
             putStrLn $ "Project mode (parallel: " ++ show (length shards)
-                ++ " job(s)) on " ++ root
+                ++ " job(s)) on " ++ scope
+            putStrLn $ "  root:  " ++ root
             putStrLn $ "Discovered " ++ show (length allFiles)
                 ++ " source file(s); sharding across workers.\n"
             let perJobMax = fmap (\m -> max 1 (m `div` length shards)) (optMaxMutants opts)
@@ -625,6 +638,33 @@ isCabalProject = do
         then return True
         else not . null <$> cabalFilesIn "."
 
+-- | Check if a directory is a project root containing cabal.project, *.cabal, or stack.yaml.
+isProjectRoot :: FilePath -> IO Bool
+isProjectRoot dir = do
+    hasProject <- doesFileExist (dir </> "cabal.project")
+    hasStack   <- doesFileExist (dir </> "stack.yaml")
+    hasCabal   <- not . null <$> cabalFilesIn dir
+    return (hasProject || hasStack || hasCabal)
+
+-- | Walk upwards from a directory to find the nearest project root.
+findProjectRoot :: FilePath -> IO (Maybe FilePath)
+findProjectRoot dir = do
+    isRoot <- isProjectRoot dir
+    if isRoot
+        then return (Just dir)
+        else do
+            let parent = takeDirectory dir
+            if parent == dir
+                then return Nothing
+                else findProjectRoot parent
+
+-- | Abort because no project root was found above the scope directory.
+noProjectRootFound :: FilePath -> IO a
+noProjectRootFound scope = do
+    hPutStrLn stderr $ "Error: no project root found above " ++ scope
+        ++ " (missing cabal.project, *.cabal, or stack.yaml)"
+    exitWith (ExitFailure 3)
+
 -- ---------------------------------------------------------------------------
 -- Source discovery (AC 3)
 -- ---------------------------------------------------------------------------
@@ -636,6 +676,35 @@ data DiscoveryStats = DiscoveryStats
     , dsDirs  :: Int   -- ^ distinct directories listed
     , dsFiles :: Int   -- ^ Haskell files discovered
     } deriving (Eq, Show)
+
+-- | Resolve the scope directory relative to the current directory (project root).
+resolveRelScope :: Opts -> IO FilePath
+resolveRelScope opts = do
+    root <- getCurrentDirectory
+    let target = optFile opts
+    if null target || target == "."
+        then return "."
+        else do
+            canon <- canonicalizePath target
+            let rel = normalise (makeRelative root canon)
+            return (if null rel then "." else rel)
+
+-- | True if dir could contain relScope or relScope could contain dir.
+overlapsScope :: FilePath -> FilePath -> Bool
+overlapsScope relScope dir
+    | relScope `elem` [".", ""] = True
+    | dir `elem` [".", ""]      = True
+    | otherwise                 =
+        dir == relScope
+        || (dir ++ "/") `isPrefixOf` relScope
+        || (relScope ++ "/") `isPrefixOf` dir
+
+-- | True if the file path falls within relScope.
+isInScope :: FilePath -> FilePath -> Bool
+isInScope relScope p
+    | relScope `elem` [".", ""] = True
+    | otherwise                 =
+        p == relScope || (relScope ++ "/") `isPrefixOf` p
 
 -- | Discover Haskell source files for the project, relative to the (already
 -- chdir'd) project root.  Roots are the @hs-source-dirs@ declared in every
@@ -652,6 +721,7 @@ discoverSources opts = fst <$> discoverSourcesWithStats opts
 -- sorted, de-duplicated union — identical to walking every root and pooling.
 discoverSourcesWithStats :: Opts -> IO ([FilePath], DiscoveryStats)
 discoverSourcesWithStats opts = do
+    relScope <- resolveRelScope opts
     cabals <- cabalFilesIn "."
     parsed <- mapM cabalDirsOf cabals
     let libDirs  = concatMap fst parsed
@@ -662,19 +732,20 @@ discoverSourcesWithStats opts = do
         -- executable's own code and must still be mutated).
         testDirs = concatMap (filter (`notElem` ([".", ""] ++ libDirs)) . snd) parsed
         pkgDirs  = nub (map dirOf cabals)
+        scopeRoots = [relScope | relScope `notElem` [".", ""]]
         -- With no cabal files (or none yielding a directory) fall back to walking
         -- the project root, so a plain directory of Haskell still works.
-        roots0   = case nub (map canonicalDir (libDirs ++ pkgDirs)) of
+        roots0   = case nub (map canonicalDir (libDirs ++ pkgDirs ++ scopeRoots)) of
                       [] -> ["."]
                       rs -> rs
     existing <- filterM doesDirectoryExist roots0
     -- Only roots that will really be walked are counted; pruning removes
     -- containers, exclusion removes roots nothing may be collected from.
     let roots  = pruneRoots existing
-        walked = [r | r <- roots, not (excluded testDirs r)]
+        walked = [r | r <- roots, not (excluded testDirs r), overlapsScope relScope r]
     visitedRef <- newIORef Set.empty
     statsRef <- newIORef (DiscoveryStats (length walked) 0 0)
-    files <- concat <$> mapM (walkDir visitedRef statsRef testDirs) walked
+    files <- concat <$> mapM (walkDir visitedRef statsRef testDirs relScope) walked
     stats <- readIORef statsRef
     -- Set membership replaces the O(F^2) nub: the pool comes out unique and
     -- sorted, in the order files are processed.
@@ -713,10 +784,10 @@ discoverSourcesWithStats opts = do
         && not ("Setup.hs" `isSuffixOf` takeFileName p)
 
     walkDir :: IORef (Set.Set FilePath) -> IORef DiscoveryStats
-            -> [FilePath] -> FilePath -> IO [FilePath]
-    walkDir visitedRef statsRef testDirs dir = do
+            -> [FilePath] -> FilePath -> FilePath -> IO [FilePath]
+    walkDir visitedRef statsRef testDirs relScope dir = do
         isDir <- doesDirectoryExist dir
-        if not isDir || excluded testDirs dir
+        if not isDir || excluded testDirs dir || not (overlapsScope relScope dir)
             then return []
             else do
                 seen <- readIORef visitedRef
@@ -731,8 +802,8 @@ discoverSourcesWithStats opts = do
                             let p = normalise (dir </> e)
                             d <- doesDirectoryExist p
                             if d
-                                then walkDir visitedRef statsRef testDirs p
-                                else return [p | isHaskell p]
+                                then walkDir visitedRef statsRef testDirs relScope p
+                                else return [p | isHaskell p && isInScope relScope p]
 
 -- | List @.cabal@ files directly inside a directory.
 cabalFilesIn :: FilePath -> IO [FilePath]
@@ -741,7 +812,7 @@ cabalFilesIn dir = do
     if not exists then return [] else do
         es <- listDirectory dir
         let cs = filter ((== ".cabal") . takeExtension) es
-        return [normalise (dir </> c) | c <- cs]
+        filterM doesFileExist [normalise (dir </> c) | c <- cs]
 
 -- | Parse @(buildable-dirs, test\/bench-dirs)@ from a cabal file (same-line
 -- @hs-source-dirs@ values; comma/space separated).  Stanza-aware: dirs under
