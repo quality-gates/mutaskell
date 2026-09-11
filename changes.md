@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.28]
+  * Fixed: project mode clears `.mutaskell/progress` upon completing all discovered files so subsequent runs start fresh instead of evaluating zero mutants and failing gates (#60).
+  * Fixed: project mode runs with zero pending files now output an explicit notice naming the progress record rather than running a 0-mutant summary (#60).
+  * Fixed: zero-mutant summaries format ratios with `(0%)` consistently with non-zero runs (#60).
+
 ## [0.8.27]
   * Added: a "Shared Fleet host" section in the agent instructions with bounded mutation commands — `--workers 1 --timeout 30` for local single-source runs and `--workers 1 --jobs 1 --timeout 30 --time-budget 1800` for local project runs — documenting that worker/job defaults are 1 while timeout and time budget default to unset, and reserving higher parallelism for isolated CI or a resource-capped environment (#58).
 
