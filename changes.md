@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.31]
+  * Fixed: survivor line-diff reporting in orchestrator and project mode now terminates with `(no line diff)` when the original and mutant have identical lines, instead of searching an infinite padded stream (#67).
+
 ## [0.8.30]
   * Fixed: an explicit `--tix FILE` that does not exist or does not parse is now a hard error (exit 2) naming the file, instead of silently running without coverage and failing `--min-covered-msi` at 0% (#63).
   * Fixed: `--min-covered-msi` (or `min_covered_msi`) without `--tix`, or with `--coverage` finding no `.tix`, exits with code 2 and explains that covered-MSI needs a tix file (#63).

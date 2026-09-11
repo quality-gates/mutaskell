@@ -28,8 +28,10 @@ import System.FilePath ((</>), takeDirectory)
 import System.IO.Temp (emptySystemTempFile, withSystemTempDirectory)
 import Test.Hspec
 
+import qualified App.Orchestrator as Orchestrator
 import App.Orchestrator (stateDir)
 import App.Opts (Opts (..), defaultOpts)
+import qualified App.Project as Project
 import App.Project
     ( DiscoveryStats (..)
     , discoverSourcesWithStats
@@ -119,6 +121,21 @@ readCounts p = do
 
 spec :: Spec
 spec = describe "runProject (serial)" $ do
+    it "finds first changed lines and terminates when sources have no line diff" $ do
+        let check firstDiff a b expected =
+                firstDiff a b `shouldBe` expected
+        forM_ [Orchestrator.firstDiff, Project.firstDiff] $ \firstDiff -> do
+            check firstDiff "" "" Nothing
+            check firstDiff "same\nlines" "same\nlines" Nothing
+            check firstDiff "old\nvalue" "new\nvalue"
+                (Just (1, "old", "new"))
+            check firstDiff "first\nold\nlast" "first\nnew\nlast"
+                (Just (2, "old", "new"))
+            check firstDiff "only line" "only line\nadded"
+                (Just (2, "", "added"))
+            check firstDiff "first line\nremoved" "first line"
+                (Just (2, "removed", ""))
+
     it "evaluates every pending file and reports kill and escape counts" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
             makeProject root 3

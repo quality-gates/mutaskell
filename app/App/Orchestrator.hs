@@ -43,6 +43,7 @@ module App.Orchestrator
     , execLog
     , stateDir
     , genTimeoutSecs
+    , firstDiff
     ) where
 
 import Control.Exception (SomeException, evaluate, finally, try)
@@ -282,8 +283,12 @@ printSurvivor origSrc m =
 -- | First line that differs between original and mutant (1-indexed).
 firstDiff :: String -> String -> Maybe (Int, String, String)
 firstDiff a b =
-    find (\(_, x, y) -> x /= y)
-        (zip3 [1 ..] (lines a ++ repeat "") (lines b ++ repeat ""))
+    let la = lines a
+        lb = lines b
+        maxLen = max (length la) (length lb)
+        pad xs = take maxLen (xs ++ repeat "")
+    in find (\(_, x, y) -> x /= y)
+        (zip3 [1 .. maxLen] (pad la) (pad lb))
 
 -- | Pad a string with trailing spaces to a given width.
 padTo :: Int -> String -> String
