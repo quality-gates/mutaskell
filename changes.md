@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.30]
+  * Fixed: an explicit `--tix FILE` that does not exist or does not parse is now a hard error (exit 2) naming the file, instead of silently running without coverage and failing `--min-covered-msi` at 0% (#63).
+  * Fixed: `--min-covered-msi` (or `min_covered_msi`) without `--tix`, or with `--coverage` finding no `.tix`, exits with code 2 and explains that covered-MSI needs a tix file (#63).
+  * Changed: `parseTix` / `parseTixIndex` return `Either String` so callers can tell an unreadable file apart from "no coverage requested"; project mode loads coverage before its baseline build (#63).
+
 ## [0.8.29]
   * Fixed: project mode separates mutation scope from project root, discovering the build working directory by walking upward for `cabal.project`, `*.cabal`, or `stack.yaml`, so invoking mutaskell on a subdirectory (e.g. `mutaskell src`) mutates only files under that scope while running build and test commands from the project root (#62).
   * Fixed: the startup banner prints both the mutation scope directory and the discovered project root (#62).
