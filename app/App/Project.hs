@@ -28,8 +28,12 @@ tree.  The design decisions that make it usable on real repos:
 -}
 module App.Project
     ( DiscoveryStats (..)
+    , clearProgress
     , discoverSourcesWithStats
     , distribute
+    , progressFile
+    , readProgress
+    , recordDone
     , restrictToShard
     , runProject
     , runProjectDryRun
@@ -40,7 +44,7 @@ import Control.Monad (filterM, foldM, forM, unless, when)
 import Data.Char (toLower)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
-import Data.List (dropWhileEnd, foldl', isInfixOf, isPrefixOf, isSuffixOf, nub)
+import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, nub)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
@@ -132,61 +136,76 @@ runSerial opts = do
 
     done <- readProgress
     let pending = dropCompleted done files
-    putStrLn $ "Discovered " ++ show (length files) ++ " source file(s); "
-        ++ show (length done) ++ " already done, "
-        ++ show (length pending) ++ " pending.\n"
+    if null pending
+        then do
+            putStrLn $ "All " ++ show (length files)
+                ++ " discovered file(s) already done (per "
+                ++ progressFile ++ "). Nothing to do."
+            maybe (return ()) (`writeFile` "0 0 0 0") (optResultOut opts)
+        else do
+            putStrLn $ "Discovered " ++ show (length files) ++ " source file(s); "
+                ++ show (length done) ++ " already done, "
+                ++ show (length pending) ++ " pending.\n"
 
-    -- Baseline runs exactly once for the whole project (AC 10), not per file.
-    putStrLn "Baseline: building unmodified project..."
-    b0 <- runCmd Nothing buildCmd
-    when (b0 /= ExitSuccess) $ baselineBuildFailed buildCmd
-    putStrLn "Baseline: running the test suite on unmodified project..."
-    t0 <- runCmd mtimeout testCmd
-    when (t0 /= ExitSuccess) $ baselineTestFailed testCmd (t0 == ExitFailure 124)
-    putStrLn "Baseline OK.\n"
+            -- Baseline runs exactly once for the whole project (AC 10), not per file.
+            putStrLn "Baseline: building unmodified project..."
+            b0 <- runCmd Nothing buildCmd
+            when (b0 /= ExitSuccess) $ baselineBuildFailed buildCmd
+            putStrLn "Baseline: running the test suite on unmodified project..."
+            t0 <- runCmd mtimeout testCmd
+            when (t0 /= ExitSuccess) $ baselineTestFailed testCmd (t0 == ExitFailure 124)
+            putStrLn "Baseline OK.\n"
 
-    -- Budget state shared across files.
-    start <- getCurrentTime
-    let deadline = fmap (\s -> addUTCTime (fromIntegral s) start) (optTimeBudget opts)
-        totalBudget = fromMaybe maxBound (optMaxMutants opts)
-    budgetRef <- newIORef totalBudget
-    coverage <- if null pending then return Nothing else loadCoverage opts
+            -- Budget state shared across files.
+            start <- getCurrentTime
+            let deadline = fmap (\s -> addUTCTime (fromIntegral s) start) (optTimeBudget opts)
+                totalBudget = fromMaybe maxBound (optMaxMutants opts)
+            budgetRef <- newIORef totalBudget
+            coverage <- loadCoverage opts
 
-    -- Each file's evaluation restores the original after every mutant and in a
-    -- `finally`, so an interrupt cannot leave mutated source behind (AC 6).
-    -- Between files no file is in a mutated state, so no extra guard is needed.
-    msum <- walk opts buildCmd testCmd mtimeout deadline coverage budgetRef pending
+            -- Each file's evaluation restores the original after every mutant and in a
+            -- `finally`, so an interrupt cannot leave mutated source behind (AC 6).
+            -- Between files no file is in a mutated state, so no extra guard is needed.
+            (completedAll, msum) <- walk opts buildCmd testCmd mtimeout deadline coverage budgetRef pending
 
-    putStrLn ""
-    putStrLn "==== Project mutation summary ===="
-    print msum
-    putStrLn $ "Surviving mutants written to " ++ survivorsFile
-        ++ " (when any survived)."
-    writeResult opts msum
-    applyExitPolicy opts msum
+            putStrLn ""
+            putStrLn "==== Project mutation summary ===="
+            print msum
+            putStrLn $ "Surviving mutants written to " ++ survivorsFile
+                ++ " (when any survived)."
+            writeResult opts msum
+            doneAfter <- readProgress
+            let allDone = completedAll && null (dropCompleted doneAfter files)
+            when (allDone && isNothing (optOnlyFiles opts)) clearProgress
+            applyExitPolicy opts msum
 
 -- | Walk pending files, folding each file's strict summary into the project
 -- total and honouring the budget.  A file's full results are released once its
 -- survivor report is written, so mutant source bodies do not stay live for the
 -- rest of the run — summary state stays O(1) per file, not O(file source).
+-- Returns @(completedAll, summary)@ where @completedAll@ is 'True' if all
+-- pending files were evaluated without stopping early for a budget.
 walk
     :: Opts -> String -> String -> Maybe Int -> Maybe UTCTime
-    -> CoverageSnapshot -> IORef Int -> [FilePath] -> IO MAnalysisSummary
+    -> CoverageSnapshot -> IORef Int -> [FilePath] -> IO (Bool, MAnalysisSummary)
 walk opts buildCmd testCmd mtimeout deadline coverage budgetRef pending = do
     sumRef <- newIORef mempty
-    let go []       = readIORef sumRef
+    let go []       = return True
         go (f : fs) = do
             stop <- shouldStop deadline budgetRef
             if stop
                 then do
                     hPutStrLn stderr "Budget exhausted; stopping with a partial result."
-                    readIORef sumRef
+                    return False
                 else do
                     fsum <- processFile opts buildCmd testCmd mtimeout deadline
                             coverage budgetRef f
                     modifyIORef' sumRef (<> fsum)
                     go fs
-    go pending >>= \total -> evaluate (forceSummary total) >> return total
+    completedAll <- go pending
+    total <- readIORef sumRef
+    _ <- evaluate (forceSummary total)
+    return (completedAll, total)
 
 -- | True if the time budget has passed or the mutant budget is spent.
 shouldStop :: Maybe UTCTime -> IORef Int -> IO Bool
@@ -212,6 +231,7 @@ processFile opts buildCmd testCmd mtimeout deadline coverage budgetRef file = do
         Right fsum -> return fsum
         Left (ex :: SomeException) -> do
             hPutStrLn stderr $ "SKIP " ++ file ++ ": " ++ show ex
+            recordDone file
             return mempty
 
 processFile'
@@ -223,6 +243,7 @@ processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file = d
     case eAst of
         Left err -> do
             hPutStrLn stderr $ "SKIP " ++ file ++ " (parse): " ++ firstLine err
+            recordDone file
             return mempty
         Right ast -> do
             remaining <- readIORef budgetRef
@@ -433,7 +454,11 @@ runParallel opts = do
             -- A worker that fails its baseline (or crashes) exits non-zero and
             -- writes no result; its shard would otherwise vanish silently.
             if null failed
-                then applyExitPolicy opts msum
+                then do
+                    doneAfter <- readProgress
+                    let allDone = null (dropCompleted doneAfter allFiles)
+                    when allDone clearProgress
+                    applyExitPolicy opts msum
                 else do
                     hPutStrLn stderr $ "ERROR: " ++ show (length failed)
                         ++ " of " ++ show (length jobs)
@@ -766,13 +791,19 @@ normalise p = case p of
 -- Resume + report (AC 9)
 -- ---------------------------------------------------------------------------
 
+-- | Read the list of source files recorded as completed.
 readProgress :: IO [FilePath]
 readProgress = do
     exists <- doesFileExist progressFile
     if not exists then return [] else lines <$> readFile' progressFile
 
+-- | Append a completed source file to the progress record.
 recordDone :: FilePath -> IO ()
 recordDone file = appendFile progressFile (file ++ "\n")
+
+-- | Remove the progress record so subsequent runs evaluate all files.
+clearProgress :: IO ()
+clearProgress = removeIfExists progressFile
 
 recordSurvivors :: String -> FilePath -> [(Mutant, Outcome)] -> IO ()
 recordSurvivors origSrc file rs = do

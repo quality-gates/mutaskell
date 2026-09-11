@@ -77,6 +77,11 @@ spec = do
             out `shouldSatisfy` ("Mutation score (MSI): 100%" `isInfixOf`)
             out `shouldSatisfy` ("Covered code MSI: 50%" `isInfixOf`)
 
+        it "formats a zero-mutant summary with (0%) percentages" $ do
+            let out = show (mempty :: MAnalysisSummary)
+            out `shouldSatisfy` ("Errors: 0  (0%)" `isInfixOf`)
+            out `shouldSatisfy` ("Killed: 0/0 (0%)" `isInfixOf`)
+
     describe "applyExitPolicy" $ do
         it "evaluates --min-msi against evaluated mutant MSI and passes when MSI meets threshold" $ do
             let s = MAnalysisSummary 200 100 0 100 0 0
