@@ -6,7 +6,7 @@
 #
 # Rename this file to .mucheck.yaml at your project root to activate it.
 
-min_covered_msi: 40        # Low bar to start; raise it as your tests improve
+min_covered_msi: 40        # Low bar to start; raise it as your tests improve (needs --tix FILE or --coverage)
 timeout: 60                # Generous — lower it once you know your typical eval time
 workers: 2
 max_mutants: 100           # Cap to keep the first runs fast

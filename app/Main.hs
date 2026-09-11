@@ -153,7 +153,11 @@ runOptsFile opts
                        mf <- findTixFile
                        case mf of
                          Just f  -> hPutStrLn stderr ("Coverage: using " ++ f) >> return f
-                         Nothing -> hPutStrLn stderr "Coverage: no .tix file found; proceeding without" >> return ""
+                         Nothing
+                           | isJust (optMinCoveredMsi opts) -> do
+                               hPutStrLn stderr ("Coverage: no .tix file found; " ++ missingCoverageForMinCoveredMsi)
+                               exitWith (ExitFailure 2)
+                           | otherwise -> hPutStrLn stderr "Coverage: no .tix file found; proceeding without" >> return ""
                      else return (optTix opts)
               genMutants (getName modFile) tix
         (len, mutants) <- case res of

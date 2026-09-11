@@ -9,6 +9,7 @@ module App.Opts
   , parseOpts
   , parseOptsFrom
   , validateOpts
+  , missingCoverageForMinCoveredMsi
   , loadConfig
   , parseYamlConfigStr
   , splitOn
@@ -18,7 +19,7 @@ import Data.ByteString.Char8 (pack)
 import System.Directory (doesFileExist)
 import Data.Char (isSpace)
 import Data.List (intercalate)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Options.Applicative
 import Options.Applicative.Help.Pretty (Doc, vsep, pretty)
 import qualified Data.Aeson.Key as Key
@@ -431,7 +432,7 @@ footerText = vsep (map pretty
     , ""
     , "Exit codes:"
     , "  0  Tests ran; no quality gate triggered"
-    , "  2  Bad arguments"
+    , "  2  Bad arguments (including a missing or unparseable --tix file)"
     , "  3  Pre-flight failure (--noop: tests fail on original source)"
     , "  4  Escaped mutants (--fail-on-escaped)"
     , "  5  MSI below threshold (--min-msi / --min-covered-msi)"
@@ -450,10 +451,17 @@ parseOptsFrom base args =
         Failure f           -> Left $ fst (renderFailure f "mucheck")
         CompletionInvoked _ -> Left "completion requested"
 
+-- | Error for --min-covered-msi without any coverage data to measure against.
+missingCoverageForMinCoveredMsi :: String
+missingCoverageForMinCoveredMsi =
+  "--min-covered-msi requires coverage data: pass --tix FILE (or --coverage with a .tix file in the current directory)"
+
 -- | Post-parse validation: reject mutually exclusive flag combinations.
 validateOpts :: Opts -> Either String Opts
 validateOpts opts
   | not (null (optEnable opts)) && not (null (optDisable opts))
   = Left "Cannot use --enable and --disable together; use one or the other"
+  | isJust (optMinCoveredMsi opts) && null (optTix opts) && not (optCoverage opts)
+  = Left missingCoverageForMinCoveredMsi
   | otherwise
   = Right opts

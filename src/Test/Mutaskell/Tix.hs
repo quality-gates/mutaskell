@@ -3,12 +3,13 @@
 -- | Read the HPC Tix and Mix files.
 module Test.Mutaskell.Tix where
 
-import Control.Exception (catch, SomeException)
+import Control.Exception (catch, evaluate, try, SomeException)
 import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Ord (Down (..))
+import System.Directory (doesFileExist)
 import System.IO.Unsafe (unsafePerformIO)
 import Trace.Hpc.Mix
 import Trace.Hpc.Tix
@@ -51,15 +52,27 @@ mixTix s (Mix _fp _int _h _i mixEntry) tix = (s, zipWith toLocC mymixes mytixes)
     isCov _ = TCovered
 
 {- | reads a tix file. The tix is named for the binary run, and contains a list
-of modules involved.
+of modules involved.  Returns 'Left' naming the path if the file does not
+exist or cannot be parsed, so an unreadable file is never mistaken for "no
+coverage requested".
 -}
-parseTix :: String -> IO [TixModule]
+parseTix :: String -> IO (Either String [TixModule])
 parseTix path = do
     atomicModifyIORef' tixReadCountRef (\n -> (n + 1, ()))
-    tix <- readTix path
-    case tix of
-        Nothing -> return []
-        Just (Tix tms) -> return tms
+    exists <- doesFileExist path
+    if not exists
+        then return $ Left $ "Coverage error: tix file not found: " ++ path
+        else do
+            -- readTix parses lazily: force the Tix itself so a malformed file
+            -- fails here rather than as an uncaught 'read' error later.
+            tix <- try (readTix path >>= traverse evaluate)
+            return $ case tix of
+                Right (Just (Tix tms)) -> Right tms
+                Right Nothing -> Left $ unparseable "file could not be read"
+                Left (e :: SomeException) -> Left $ unparseable (takeWhile (/= '\n') (show e))
+  where
+    unparseable why =
+        "Coverage error: cannot parse tix file " ++ path ++ " (" ++ why ++ ")"
 
 -- | Number of Tix-file reads performed by this process.  This is diagnostic
 -- instrumentation used to verify that project runs reuse their parsed input.
@@ -75,9 +88,10 @@ tixReadCountRef = unsafePerformIO (newIORef 0)
 -- match an unqualified source module name.
 newtype TixIndex = TixIndex (Map.Map String [TixModule])
 
--- | Parse a tix file into a reusable project coverage index.
-parseTixIndex :: String -> IO TixIndex
-parseTixIndex path = buildTixIndex <$> parseTix path
+-- | Parse a tix file into a reusable project coverage index, or a 'Left'
+-- error naming the file if it is missing or unparseable.
+parseTixIndex :: String -> IO (Either String TixIndex)
+parseTixIndex path = fmap buildTixIndex <$> parseTix path
 
 -- | Build a reusable project coverage index from parsed tix modules.
 buildTixIndex :: [TixModule] -> TixIndex
@@ -167,24 +181,32 @@ tryReadMix fp target = (Just <$> readMix fp target) `catch` (\(_ :: SomeExceptio
 -- | return the tix and mix information, or a 'Left' error if any .mix file is missing.
 getMixedTix :: String -> IO (Either String [(String, [(Span, TCovered)])])
 getMixedTix file = do
-    tms <- parseTix file
-    eResults <- mapM getMix tms
-    case sequence eResults of
+    etms <- parseTix file
+    case etms of
         Left err -> return (Left err)
-        Right mixs -> do
-            let names = map tixModuleName tms
-            return $ Right $ zipWith3 mixTix names mixs tms
+        Right tms -> do
+            eResults <- mapM getMix tms
+            case sequence eResults of
+                Left err -> return (Left err)
+                Right mixs -> do
+                    let names = map tixModuleName tms
+                    return $ Right $ zipWith3 mixTix names mixs tms
 
 {- | getUnCoveredPatches returns the largest parts of the named module that are
 not covered.  Only the requested module's @.mix@ is read, so coverage data for a
 multi-module @.tix@ (e.g. a cabal project whose test-suite modules' @.mix@ files
 live in a different directory) still works — previously a single missing @.mix@
 for /any/ module failed the whole lookup.  Returns 'Left' with a user-readable
-error only if the requested module's own @.mix@ cannot be found.
+error if the @.tix@ file is missing or unparseable, or if the requested module's
+own @.mix@ cannot be found.  An empty path means no coverage was requested.
 -}
 getUnCoveredPatches :: String -> String -> IO (Either String (Maybe [Span]))
-getUnCoveredPatches file name =
-    parseTixIndex file >>= (`getUnCoveredPatchesFromIndex` name)
+getUnCoveredPatches "" _ = return (Right Nothing)
+getUnCoveredPatches file name = do
+    eindex <- parseTixIndex file
+    case eindex of
+        Left err    -> return (Left err)
+        Right index -> getUnCoveredPatchesFromIndex index name
 
 -- | Does a tix module's name match the requested (unqualified) module name?
 matchesName :: String -> TixModule -> Bool
