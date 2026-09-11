@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.29]
+  * Fixed: project mode separates mutation scope from project root, discovering the build working directory by walking upward for `cabal.project`, `*.cabal`, or `stack.yaml`, so invoking mutaskell on a subdirectory (e.g. `mutaskell src`) mutates only files under that scope while running build and test commands from the project root (#62).
+  * Fixed: the startup banner prints both the mutation scope directory and the discovered project root (#62).
+  * Fixed: project mode reports an explicit error naming missing project markers (`cabal.project`, `*.cabal`, `stack.yaml`) if no project root is found above the scope directory (#62).
+
 ## [0.8.28]
   * Fixed: project mode clears `.mutaskell/progress` upon completing all discovered files so subsequent runs start fresh instead of evaluating zero mutants and failing gates (#60).
   * Fixed: project mode runs with zero pending files now output an explicit notice naming the progress record rather than running a 0-mutant summary (#60).

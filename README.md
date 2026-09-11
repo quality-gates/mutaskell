@@ -701,18 +701,23 @@ filter active. Deduplication keeps the first candidate for each mutator and
 source site, and indexes candidates by a source hash with full comparison on
 collisions, so distinct sources are never dropped because their hashes match.
 
-### Project mode (run on a whole repository)
+### Project mode (run on a whole repository or subtree)
 
-Point mutaskell at a **directory** and it runs over the whole project the way
+Point mutaskell at a **directory** and it runs over that scope the way
 Infection (PHP) or a folder-level Go tool does — no flags required:
 
 ```bash
 mutaskell ~/code/pandoc      # a whole repo
 mutaskell .                  # the project you're standing in
+mutaskell src                # scope mutation to files under src/
 ```
 
 In project mode mutaskell:
 
+*   **separates mutation scope from project root** — pointing at a subdirectory
+    (e.g. `src`) mutates only files within that scope while build and test
+    commands run from the project root (discovered by walking up for
+    `cabal.project`, `*.cabal`, or `stack.yaml`);
 *   **auto-detects** the build/test commands (cabal → `cabal build all` /
     `cabal test all`; stack → `stack build` / `stack test`); override with
     `--build-cmd` / `--test-cmd`;

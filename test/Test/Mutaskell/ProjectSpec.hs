@@ -34,6 +34,7 @@ import App.Project
     ( DiscoveryStats (..)
     , discoverSourcesWithStats
     , distribute
+    , findProjectRoot
     , restrictToShard
     , runProject
     )
@@ -57,7 +58,8 @@ sampleModule name = unlines
 
 -- | Write @n@ independent source files into @root@.
 makeProject :: FilePath -> Int -> IO ()
-makeProject root n =
+makeProject root n = do
+    writeFile (root </> "cabal.project") "packages: .\n"
     forM_ [1 .. n] $ \i ->
         writeFile (root </> ("M" ++ show i ++ ".hs")) (sampleModule ("M" ++ show i))
 
@@ -208,6 +210,42 @@ spec = describe "runProject (serial)" $ do
             survivors `shouldSatisfy`
                 containsAll ["    - ", "    + "]
 
+    it "mutates only files under a scope subdirectory while running commands from project root" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            let srcDir = root </> "src"
+                otherDir = root </> "other"
+            createDirectoryIfMissing True srcDir
+            createDirectoryIfMissing True otherDir
+            writeFile (srcDir </> "M1.hs") (sampleModule "M1")
+            writeFile (otherDir </> "M2.hs") (sampleModule "M2")
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF)
+                    { optFile = srcDir
+                    , optTestCmd = Just "grep -q 'x + 1' src/M1.hs"
+                    }
+            (_, out) <- catchOutputStr (runProjectRestoring opts)
+            out `shouldSatisfy` (("Project mode on " ++ srcDir) `isInfixOf`)
+            out `shouldSatisfy` (("root:  " ++ root) `isInfixOf`)
+            (killed, alive, skipped, total) <- readCounts resF
+            total `shouldSatisfy` (> 0)
+            -- Only M1.hs mutants evaluated (11 mutants), not M2.hs
+            total `shouldBe` 11
+
+    it "fails with an explicit error when no project root marker exists above the scope" $
+        withSystemTempDirectory "mutaskell-proj" $ \dir -> do
+            let sub = dir </> "sub"
+            createDirectoryIfMissing True sub
+            writeFile (sub </> "M1.hs") (sampleModule "M1")
+            let opts = defaultOpts { optFile = sub }
+            (err, out) <- catchOutputStr (try (runProjectRestoring opts) :: IO (Either ExitCode ()))
+            case err of
+                Left (ExitFailure 3) -> return ()
+                other                -> expectationFailure ("expected ExitFailure 3, got " ++ show other)
+            out `shouldSatisfy` ("cabal.project" `isInfixOf`)
+            out `shouldSatisfy` ("*.cabal" `isInfixOf`)
+            out `shouldSatisfy` ("stack.yaml" `isInfixOf`)
+
     describe "discoverSourcesWithStats" $ do
         it "discovers each buildable source file once across overlapping roots" $
             withSystemTempDirectory "mutaskell-disc" $ \root -> do
@@ -255,6 +293,50 @@ spec = describe "runProject (serial)" $ do
                     ]
                 files <- withCurrentDirectory root (discoverSourcesWithStats defaultOpts)
                 fst files `shouldBe` ["other/Orphan.hs", "sub/src/A.hs"]
+
+        it "discovers only files within the scope directory" $
+            withSystemTempDirectory "mutaskell-disc" $ \root -> do
+                writeCabalProject root
+                writeFiles root
+                    [ ("src/A.hs", "module A where")
+                    , ("src/Deep/B.hs", "module Deep.B where")
+                    , ("app/Main.hs", "module Main where")
+                    , ("test/Spec.hs", "module Spec where")
+                    ]
+                files <- withCurrentDirectory root (discoverSourcesWithStats defaultOpts { optFile = "src" })
+                fst files `shouldBe` ["src/A.hs", "src/Deep/B.hs"]
+
+    describe "findProjectRoot" $ do
+        it "finds root containing cabal.project" $
+            withSystemTempDirectory "proj-root" $ \root -> do
+                writeFile (root </> "cabal.project") ""
+                let sub = root </> "a" </> "b"
+                createDirectoryIfMissing True sub
+                res <- findProjectRoot sub
+                res `shouldBe` Just root
+
+        it "finds root containing *.cabal" $
+            withSystemTempDirectory "proj-root" $ \root -> do
+                writeFile (root </> "mypkg.cabal") ""
+                let sub = root </> "src"
+                createDirectoryIfMissing True sub
+                res <- findProjectRoot sub
+                res `shouldBe` Just root
+
+        it "finds root containing stack.yaml" $
+            withSystemTempDirectory "proj-root" $ \root -> do
+                writeFile (root </> "stack.yaml") ""
+                let sub = root </> "src"
+                createDirectoryIfMissing True sub
+                res <- findProjectRoot sub
+                res `shouldBe` Just root
+
+        it "returns Nothing when no marker exists" $
+            withSystemTempDirectory "proj-root" $ \root -> do
+                let sub = root </> "nested"
+                createDirectoryIfMissing True sub
+                res <- findProjectRoot sub
+                res `shouldBe` Nothing
 
     describe "restrictToShard" $
         it "keeps the shard's files in discovery order, ignoring shard order" $ do
