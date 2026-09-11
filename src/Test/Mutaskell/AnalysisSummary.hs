@@ -57,11 +57,14 @@ summaryMsi s
   | otherwise  = 0
   where noerrs = summaryNoErrors s
 
--- | Covered mutant count excluding interpreter errors, when coverage is present.
+-- | Covered mutant count excluding interpreter errors, when coverage is
+-- present.  @0@ covered mutants is a valid coverage result (the module's
+-- mutants fall outside the covered code); only the @-1@ sentinel means
+-- coverage was not provided.
 summaryCoveredNoErrors :: MAnalysisSummary -> Maybe Int
 summaryCoveredNoErrors s
-  | _maCoveredNumMutants s > 0 = Just (_maCoveredNumMutants s - _maErrors s)
-  | otherwise                  = Nothing
+  | _maCoveredNumMutants s >= 0 = Just (max 0 (_maCoveredNumMutants s - _maErrors s))
+  | otherwise                   = Nothing
 
 -- | Covered MSI percentage when coverage is present.
 summaryCoveredMsi :: MAnalysisSummary -> Maybe Int

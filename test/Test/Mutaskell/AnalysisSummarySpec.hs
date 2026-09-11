@@ -63,6 +63,14 @@ spec = do
             let s = MAnalysisSummary (-1) 10 2 8 0 0
             summaryCoveredMsi s `shouldBe` Nothing
 
+        it "returns Just 0 for summaryCoveredMsi when coverage is present but covers zero mutants" $ do
+            let s = MAnalysisSummary 0 10 0 10 0 0
+            summaryCoveredMsi s `shouldBe` Just 0
+
+        it "includes Covered code MSI: 0% when coverage is present but covers zero mutants" $ do
+            let s = MAnalysisSummary 0 10 0 10 0 0
+            show s `shouldSatisfy` ("Covered code MSI: 0%" `isInfixOf`)
+
     describe "Show instance" $ do
         it "produces formatted output containing MSI, Total mutants, and percentages" $ do
             let s = MAnalysisSummary (-1) 10 2 8 0 0
@@ -100,4 +108,16 @@ spec = do
                 opts = defaultOpts { optMinCoveredMsi = Just 50 }
             res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
             res `shouldBe` Right ()
+
+        it "fails --min-covered-msi when coverage is present but covers zero mutants" $ do
+            let s = MAnalysisSummary 0 10 0 10 0 0
+                opts = defaultOpts { optMinCoveredMsi = Just 70 }
+            res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
+            res `shouldBe` Left (ExitFailure 5)
+
+        it "rejects --min-covered-msi with an error when coverage data is absent (-1)" $ do
+            let s = MAnalysisSummary (-1) 10 0 10 0 0
+                opts = defaultOpts { optMinCoveredMsi = Just 70 }
+            res <- try (applyExitPolicy opts s) :: IO (Either ExitCode ())
+            res `shouldBe` Left (ExitFailure 2)
 

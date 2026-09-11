@@ -9,9 +9,10 @@ import App.Output
     , groupConsec
     , prepareMutantDiffs
     , unifiedDiff
-    , writeAgenticJsonLoggerWithDiffs
+    ,     writeAgenticJsonLoggerWithDiffs
     , writeGitlabLogger
     , writeHtmlLoggerWithDiffs
+    , writeJsonLogger
     )
 import App.Opts (Opts(..), defaultOpts)
 import App.Filter (parseDiffChangedLines)
@@ -104,6 +105,23 @@ spec = do
         it "groups ordered positions without changing their order" $ do
             groupConsec [1, 2, 3, 6, 7, 10] `shouldBe`
                 [[1, 2, 3], [6, 7], [10]]
+
+    describe "writeJsonLogger" $ do
+        it "emits covered_code_msi 0.0 when coverage is present but covers zero mutants" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let analysis = MAnalysisSummary 0 10 0 10 0 0
+                    opts = defaultOpts { optLoggerJson = Just (dir </> "summary.json") }
+                writeJsonLogger opts analysis
+                json <- readFile (dir </> "summary.json")
+                json `shouldSatisfy` ("\"covered_code_msi\": 0.0" `isInfixOf`)
+
+        it "emits covered_code_msi null when coverage is absent" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let analysis = MAnalysisSummary (-1) 10 0 10 0 0
+                    opts = defaultOpts { optLoggerJson = Just (dir </> "summary.json") }
+                writeJsonLogger opts analysis
+                json <- readFile (dir </> "summary.json")
+                json `shouldSatisfy` ("\"covered_code_msi\": null" `isInfixOf`)
 
     describe "prepared report diffs" $ do
         it "feeds the same prepared diff to agentic JSON and HTML reports" $

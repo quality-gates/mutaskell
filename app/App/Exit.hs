@@ -5,10 +5,11 @@ module App.Exit
   ) where
 
 import Control.Monad (when)
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (isJust)
 import System.Exit (ExitCode(..), exitWith)
+import System.IO (hPutStrLn, stderr)
 
-import App.Opts (Opts(..))
+import App.Opts (Opts(..), missingCoverageForMinCoveredMsi)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..), summaryCoveredMsi, summaryMsi)
 
 -- | True when --run-mutant-id is set (single-mutant mode skips aggregate output).
@@ -19,7 +20,6 @@ isSingleMutantMode = isJust . optRunMutantId
 applyExitPolicy :: Opts -> MAnalysisSummary -> IO ()
 applyExitPolicy opts msum = do
   let msi = summaryMsi msum
-      coveredMsi = fromMaybe msi (summaryCoveredMsi msum)
 
   if optIgnoreMsiNoMutations opts && _maNumMutants msum == 0 then return ()
   else do
@@ -30,10 +30,15 @@ applyExitPolicy opts msum = do
       _ -> return ()
 
     case optMinCoveredMsi opts of
-      Just threshold | coveredMsi < threshold -> do
-        putStrLn $ "Covered-MSI " ++ show coveredMsi ++ "% is below threshold " ++ show threshold ++ "%"
-        exitWith (ExitFailure 5)
-      _ -> return ()
+      Nothing -> return ()
+      Just threshold -> case summaryCoveredMsi msum of
+        Nothing -> do
+          hPutStrLn stderr $ "Covered-MSI unavailable; " ++ missingCoverageForMinCoveredMsi
+          exitWith (ExitFailure 2)
+        Just coveredMsi | coveredMsi < threshold -> do
+          putStrLn $ "Covered-MSI " ++ show coveredMsi ++ "% is below threshold " ++ show threshold ++ "%"
+          exitWith (ExitFailure 5)
+        _ -> return ()
 
   when (optFailOnEscape opts && _maAlive msum > 0) $ do
     putStrLn $ show (_maAlive msum) ++ " mutant(s) survived; exiting with failure"
