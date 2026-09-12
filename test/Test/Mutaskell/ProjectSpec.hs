@@ -14,7 +14,7 @@ module Test.Mutaskell.ProjectSpec where
 
 import Control.Exception (finally, try)
 import Control.Monad (forM_)
-import Data.List (isInfixOf, sort)
+import Data.List (isInfixOf, sort, stripPrefix)
 import System.Directory
     ( createDirectoryIfMissing
     , doesFileExist
@@ -59,6 +59,75 @@ sampleModule name = unlines
     , ""
     , "h :: Int -> Bool"
     , "h x = x > 0"
+    ]
+
+-- | 'sampleModule' with a suppress-all annotation on every mutation site.
+fullyAnnotatedModule :: String -> String
+fullyAnnotatedModule name = unlines
+    [ "module " ++ name ++ " where"
+    , ""
+    , "f :: Int -> Int"
+    , "-- mucheck: disable-next-line"
+    , "f x = x + 1"
+    , ""
+    , "g :: Int -> Int"
+    , "-- mucheck: disable-next-line"
+    , "g x = x * 2"
+    , ""
+    , "h :: Int -> Bool"
+    , "-- mucheck: disable-next-line"
+    , "h x = x > 0"
+    ]
+
+-- | 'sampleModule' with a mutator-specific annotation on every mutation site.
+literalAnnotatedModule :: String -> String
+literalAnnotatedModule name = unlines
+    [ "module " ++ name ++ " where"
+    , ""
+    , "f :: Int -> Int"
+    , "-- mucheck: disable-next-line literal-values"
+    , "f x = x + 1"
+    , ""
+    , "g :: Int -> Int"
+    , "-- mucheck: disable-next-line literal-values"
+    , "g x = x * 2"
+    , ""
+    , "h :: Int -> Bool"
+    , "-- mucheck: disable-next-line literal-values"
+    , "h x = x > 0"
+    ]
+
+-- | 'sampleModule' with a wildcard annotation on every mutation site.
+wildcardAnnotatedModule :: String -> String
+wildcardAnnotatedModule name = unlines
+    [ "module " ++ name ++ " where"
+    , ""
+    , "f :: Int -> Int"
+    , "-- mucheck: disable-next-line *"
+    , "f x = x + 1"
+    , ""
+    , "g :: Int -> Int"
+    , "-- mucheck: disable-next-line *"
+    , "g x = x * 2"
+    , ""
+    , "h :: Int -> Bool"
+    , "-- mucheck: disable-next-line *"
+    , "h x = x > 0"
+    ]
+
+-- | 'sampleModule' with an ignore-line marker on every mutation site.
+ignoredLineModule :: String -> String
+ignoredLineModule name = unlines
+    [ "module " ++ name ++ " where"
+    , ""
+    , "f :: Int -> Int"
+    , "f x = x + 1  -- IGNORE"
+    , ""
+    , "g :: Int -> Int"
+    , "g x = x * 2  -- IGNORE"
+    , ""
+    , "h :: Int -> Bool"
+    , "h x = x > 0  -- IGNORE"
     ]
 
 -- | Write @n@ independent source files into @root@.
@@ -348,6 +417,71 @@ spec = describe "runProject (serial)" $ do
             (_, _, _, total) <- readCounts resF
             total `shouldBe` 4
 
+    it "suppresses mutants on lines preceded by disable-next-line in dry-run" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (fullyAnnotatedModule "M1")
+            let opts = defaultOpts { optFile = root, optDryRun = True }
+            (_, out) <- catchOutputStr (runProjectDryRunRestoring opts)
+            dryRunTotal out `shouldBe` 0
+
+    it "suppresses only the named mutator for disable-next-line literal-values in dry-run" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (sampleModule "M1")
+            let opts = defaultOpts { optFile = root, optDryRun = True }
+            (_, baselineOut) <- catchOutputStr (runProjectDryRunRestoring opts)
+            writeFile (root </> "M1.hs") (literalAnnotatedModule "M1")
+            (_, annotatedOut) <- catchOutputStr (runProjectDryRunRestoring opts)
+            let baseline = dryRunTotal baselineOut
+                annotated = dryRunTotal annotatedOut
+            baseline `shouldSatisfy` (> 0)
+            annotated `shouldSatisfy` (> 0)
+            annotated `shouldSatisfy` (< baseline)
+
+    it "suppresses every mutator for disable-next-line * in dry-run" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (wildcardAnnotatedModule "M1")
+            let opts = defaultOpts { optFile = root, optDryRun = True }
+            (_, out) <- catchOutputStr (runProjectDryRunRestoring opts)
+            dryRunTotal out `shouldBe` 0
+
+    it "suppresses mutants on lines matching ignore_source_lines in dry-run" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (ignoredLineModule "M1")
+            let opts = defaultOpts
+                    { optFile = root
+                    , optDryRun = True
+                    , optIgnoreLines = ["IGNORE"]
+                    }
+            (_, out) <- catchOutputStr (runProjectDryRunRestoring opts)
+            dryRunTotal out `shouldBe` 0
+
+    it "does not evaluate mutants suppressed by disable-next-line" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (fullyAnnotatedModule "M1")
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF) { optTestCmd = Just "true" }
+            runProjectRestoring opts
+            (killed, alive, skipped, total) <- readCounts resF
+            (killed, alive, skipped, total) `shouldBe` (0, 0, 0, 0)
+
+    it "does not evaluate mutants on lines matching ignore_source_lines" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            writeFile (root </> "cabal.project") "packages: .\n"
+            writeFile (root </> "M1.hs") (ignoredLineModule "M1")
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF)
+                    { optTestCmd = Just "true"
+                    , optIgnoreLines = ["IGNORE"]
+                    }
+            runProjectRestoring opts
+            (killed, alive, skipped, total) <- readCounts resF
+            (killed, alive, skipped, total) `shouldBe` (0, 0, 0, 0)
+
     it "fails with an explicit error when no project root marker exists above the scope" $
         withSystemTempDirectory "mutaskell-proj" $ \dir -> do
             let sub = dir </> "sub"
@@ -496,3 +630,14 @@ spec = describe "runProject (serial)" $ do
     -- against them must not outlive this helper.
     strictRead p = readFile p >>= \s -> length s `seq` return s
     containsAll needles hay = all (`isInfixOf` hay) needles
+    dryRunTotal out =
+        case [n | l <- lines out, Just n <- [readTotal l]] of
+            (n:_) -> n
+            _     -> error ("no dry-run total in: " ++ out)
+      where
+        readTotal l =
+            case stripPrefix "Total generated mutants (sampled per file): " l of
+                Just rest -> case reads rest of
+                    [(n, "")] -> Just (n :: Int)
+                    _         -> Nothing
+                Nothing -> Nothing

@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.40]
+  * Fixed: project mode now applies inline `-- mucheck: disable-next-line` annotations (including mutator-specific names and `*` wildcards) and `ignore_source_lines`, matching single-file mode, during both evaluation (`runProject`) and dry runs (`--dry-run`) (#82).
+
 ## [0.8.39]
   * Fixed: project mode now honors `--git-diff-base`, filtering discovered source files to those changed relative to the base ref during both evaluation (`runProject`) and dry runs (`--dry-run`) (#81).
   * Fixed: project mode honors `--git-diff-lines`, restricting evaluated mutants within changed files to modified lines relative to `--git-diff-base` (#81).
