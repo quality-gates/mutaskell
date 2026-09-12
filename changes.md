@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.39]
+  * Fixed: project mode now honors `--git-diff-base`, filtering discovered source files to those changed relative to the base ref during both evaluation (`runProject`) and dry runs (`--dry-run`) (#81).
+  * Fixed: project mode honors `--git-diff-lines`, restricting evaluated mutants within changed files to modified lines relative to `--git-diff-base` (#81).
+  * Fixed: project runs on a clean working tree relative to the base ref discover 0 files and exit cleanly with 0 mutants (#81).
+
 ## [0.8.38]
   * Fixed: specifying a non-existent `--config FILE` now reports an error to stderr and exits with code 2 instead of silently ignoring the missing file (#80).
 

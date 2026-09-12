@@ -664,8 +664,8 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--timeout-coefficient N`: Set per-mutant timeout to N × measured baseline test-suite runtime.
 *   `--logger-github FILE`: Write GitHub Actions `::warning` annotations for escaped mutants to FILE.
 *   `--logger-gitlab FILE`: Write a GitLab Code Quality JSON artifact for escaped mutants to FILE.
-*   `--git-diff-base REF`: Skip mutation if the source file is not in `git diff --name-only REF`.
-*   `--git-diff-lines`: Restrict mutants to lines changed relative to `--git-diff-base` (requires `--git-diff-base`).
+*   `--git-diff-base REF`: Skip mutation if the source file is not in `git diff --name-only REF`. In project mode, scopes discovered source files to changes relative to REF.
+*   `--git-diff-lines`: Restrict mutants to lines changed relative to `--git-diff-base` (requires `--git-diff-base`). In project mode, restricts evaluated mutants in changed files to modified lines.
 *   `--keep-mutants DIR`: Write mutant files to DIR and keep them after evaluation (default: system temp, deleted after each evaluation).
 *   `--logger-agentic-json FILE`: Write per-mutant JSON with stable IDs, descriptions, context, and MSI summary for LLM consumption.
 *   `--logger-html FILE`: Write a standalone HTML mutation report to FILE with per-mutant diffs, source context, and a colour-coded summary.

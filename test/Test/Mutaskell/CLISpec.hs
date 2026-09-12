@@ -1,9 +1,10 @@
 module Test.Mutaskell.CLISpec where
 
+import System.Directory (withCurrentDirectory)
 import System.Exit (ExitCode (..))
 import System.IO (writeFile)
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process (readProcessWithExitCode)
+import System.Process (callProcess, readProcessWithExitCode)
 import Test.Hspec
 
 import App.Opts
@@ -345,6 +346,49 @@ spec = do
                         ["Examples/AssertCheckTest.hs", "--dry-run"] ""
                     ec `shouldBe` ExitSuccess
                     out `shouldContain` "Total"
+
+    describe "project mode git diff options" $ do
+        it "dry-run scopes to git-diff-base files in project mode" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-proj-cli" $ \dir -> do
+                    withCurrentDirectory dir $ do
+                        callProcess "git" ["init", "-q"]
+                        callProcess "git" ["config", "user.email", "test@example.com"]
+                        callProcess "git" ["config", "user.name", "test"]
+                        writeFile "cabal.project" "packages: .\n"
+                        writeFile "A.hs" "module A where\na = 1\n"
+                        writeFile "B.hs" "module B where\nb = 2\n"
+                        callProcess "git" ["add", "."]
+                        callProcess "git" ["commit", "-qm", "base"]
+                        writeFile "A.hs" "module A where\na = 10\n"
+                        (ec, out, _) <- readProcessWithExitCode exe
+                            [".", "--dry-run", "--git-diff-base", "HEAD"] ""
+                        ec `shouldBe` ExitSuccess
+                        out `shouldContain` "Discovered 1 source file(s)."
+                        out `shouldContain` "A.hs"
+                        out `shouldNotContain` "B.hs"
+
+        it "dry-run on clean working tree discovers 0 files" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-proj-cli" $ \dir -> do
+                    withCurrentDirectory dir $ do
+                        callProcess "git" ["init", "-q"]
+                        callProcess "git" ["config", "user.email", "test@example.com"]
+                        callProcess "git" ["config", "user.name", "test"]
+                        writeFile "cabal.project" "packages: .\n"
+                        writeFile "A.hs" "module A where\na = 1\n"
+                        callProcess "git" ["add", "."]
+                        callProcess "git" ["commit", "-qm", "base"]
+                        (ec, out, _) <- readProcessWithExitCode exe
+                            [".", "--dry-run", "--git-diff-base", "HEAD"] ""
+                        ec `shouldBe` ExitSuccess
+                        out `shouldContain` "Discovered 0 source file(s)."
+                        out `shouldContain` "Total generated mutants (sampled per file): 0"
+
 
 
 

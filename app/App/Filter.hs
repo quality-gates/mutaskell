@@ -180,7 +180,7 @@ applyDiffLines :: FilePath -> Maybe String -> Bool -> [Mutant] -> IO [Mutant]
 applyDiffLines _ Nothing _ ms = return ms
 applyDiffLines _ _ False ms = return ms
 applyDiffLines file ref flag ms =
-  fmap uncacheMutantIds (applyDiffLinesCached file ref flag (cacheMutantIds ms))
+  fmap uncacheMutantIds (applyDiffLinesCached file ref flag [(m, "") | m <- ms])
 
 -- | 'applyDiffLines' on mutants that already have identities.
 applyDiffLinesCached :: FilePath -> Maybe String -> Bool -> [(Mutant, String)] -> IO [(Mutant, String)]
