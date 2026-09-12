@@ -155,6 +155,14 @@ applyBlacklistCached (Just path) ms = do
     Right contents ->
       return $ filterCachedIds (`Set.notMember` indexIds (lines contents)) ms
 
+-- | Two paths name the same file when they are equal, or when one is a
+-- suffix of the other at a '/' boundary (e.g. "Foo.hs" vs "src/Foo.hs").
+-- A bare string suffix must not match: "MyFoo.hs" ends with "Foo.hs"
+-- without a component boundary.
+matchesDiffPath :: FilePath -> FilePath -> Bool
+matchesDiffPath a b =
+    a == b || ('/' : a) `isSuffixOf` b || ('/' : b) `isSuffixOf` a
+
 -- | Return True if --git-diff-base is not set, or if the file appears in the diff.
 checkGitDiff :: FilePath -> Maybe String -> IO Bool
 checkGitDiff _ Nothing = return True
@@ -164,7 +172,7 @@ checkGitDiff file (Just ref) = do
     Left _       -> return True
     Right output ->
       let changed = lines output
-      in  return $ any (\c -> file == c || isSuffixOf c file || isSuffixOf file c) changed
+      in  return $ any (matchesDiffPath file) changed
 
 -- | If --git-diff-lines is active (requires --git-diff-base), filter mutants
 -- to those whose start line falls within lines changed relative to the base ref.
