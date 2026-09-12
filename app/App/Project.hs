@@ -74,7 +74,14 @@ import System.IO (hPutStrLn, readFile', stderr)
 import System.Process (callProcess, createProcess, proc, waitForProcess)
 
 import App.Exit (applyExitPolicy)
-import App.Filter (applyDiffLines, applyDisableEnable, checkGitDiff)
+import App.Filter
+    ( applyAnnotations
+    , applyDiffLines
+    , applyDisableEnable
+    , applyIgnoreLines
+    , checkGitDiff
+    , parseAnnotations
+    )
 import App.Opts (Opts (..), missingCoverageForMinCoveredMsi)
 import App.Orchestrator
     ( Outcome (..)
@@ -229,6 +236,18 @@ shouldStop deadline budgetRef = do
             Nothing -> return False
             Just dl -> (>= dl) <$> getCurrentTime
 
+-- | Deterministic filters shared by evaluation and dry-run so project mode
+-- matches single-file suppression: @--disable@/@--enable@, inline
+-- @-- mucheck: disable-next-line@ annotations, git-diff line filters, and
+-- @ignore_source_lines@.
+applyProjectFilters :: Opts -> FilePath -> String -> [Mutant] -> IO [Mutant]
+applyProjectFilters opts file origSrc ms = do
+    let anns = parseAnnotations origSrc
+        afterEnable = applyDisableEnable (optDisable opts) (optEnable opts) ms
+        afterAnns   = applyAnnotations anns afterEnable
+    afterDiff <- applyDiffLines file (optGitDiffBase opts) (optGitDiffLines opts) afterAnns
+    return $ applyIgnoreLines origSrc (optIgnoreLines opts) afterDiff
+
 -- | Process one source file: parse, generate (bounded), sample, evaluate.
 -- Returns the file's strict summary; any failure is logged and the file
 -- skipped, so the run survives bad files (AC 4).  The full per-mutant results
@@ -264,8 +283,7 @@ processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file = d
             muncov <- resolveUncovered coverage (getModuleName ast)
             (genComplete, sampled) <- genWithinBudget genBudgetSecs $ do
                 ms <- genSampledMutantsGated cfg muncov ast
-                let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
-                applyDiffLines file (optGitDiffBase opts) (optGitDiffLines opts) ms'
+                applyProjectFilters opts file origSrc ms
             if null sampled
                 then do
                     -- Record done only if generation genuinely finished (zero
@@ -327,6 +345,7 @@ countFile opts coverage acc file = do
 
 dryCount :: Opts -> CoverageSnapshot -> FilePath -> IO (Maybe Int)
 dryCount opts coverage file = do
+    origSrc <- readFile' file
     eAst <- getASTFromFile file
     case eAst of
         Left _    -> return Nothing
@@ -340,9 +359,8 @@ dryCount opts coverage file = do
             -- skip (e.g. very large modules — see notes in genWithinBudget).
             timeout (genSetupCeilingSecs * 1000000) $ do
                 ms <- genSampledMutantsGated cfg muncov ast
-                let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
-                ms'' <- applyDiffLines file (optGitDiffBase opts) (optGitDiffLines opts) ms'
-                evaluate (length ms'')
+                ms' <- applyProjectFilters opts file origSrc ms
+                evaluate (length ms')
 
 -- | Soft per-file generation budget (seconds).  Generation is bounded so no
 -- single file dominates the run: the operator-level sampling caps the candidate

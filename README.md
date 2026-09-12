@@ -733,6 +733,10 @@ In project mode mutaskell:
     `--build-cmd` / `--test-cmd`;
 *   **discovers** source files from the `hs-source-dirs` declared in the
     project's `.cabal` files, plus each package directory;
+*   **honors the same suppressions as single-file mode** — inline
+    `-- mucheck: disable-next-line` annotations (including mutator names and
+    `*` wildcards) and `ignore_source_lines` filter generated mutants per file,
+    as do `--disable` / `--enable`;
 *   runs the **baseline** build + test exactly once, then mutates each file in
     turn, driving the real toolchain (same classification as `--exec` below);
 *   **survives bad files** — a file it cannot parse or whose generation blows up
