@@ -26,6 +26,7 @@ import System.Directory
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>), takeDirectory)
 import System.IO.Temp (emptySystemTempFile, withSystemTempDirectory)
+import System.Process (callProcess)
 import Test.Hspec
 
 import qualified App.Orchestrator as Orchestrator
@@ -36,9 +37,11 @@ import App.Project
     ( DiscoveryStats (..)
     , discoverSourcesWithStats
     , distribute
+    , filterDiff
     , findProjectRoot
     , restrictToShard
     , runProject
+    , runProjectDryRun
     )
 import Test.Mutaskell.Tix (tixReadCount)
 import Test.Mutaskell.Utils.Print (catchOutputStr)
@@ -110,6 +113,12 @@ runProjectRestoring :: Opts -> IO ()
 runProjectRestoring opts = do
     old <- getCurrentDirectory
     runProject opts `finally` setCurrentDirectory old
+
+-- | Run project dry-run and restore the process working directory afterwards.
+runProjectDryRunRestoring :: Opts -> IO ()
+runProjectDryRunRestoring opts = do
+    old <- getCurrentDirectory
+    runProjectDryRun opts `finally` setCurrentDirectory old
 
 -- | Read the @killed alive skipped total@ line written for the parent.
 readCounts :: FilePath -> IO (Int, Int, Int, Int)
@@ -249,6 +258,96 @@ spec = describe "runProject (serial)" $ do
             -- Only M1.hs mutants evaluated (11 mutants), not M2.hs
             total `shouldBe` 11
 
+    it "mutates only files changed relative to --git-diff-base" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 2
+            withCurrentDirectory root $ do
+                callProcess "git" ["init", "-q"]
+                callProcess "git" ["config", "user.email", "test@example.com"]
+                callProcess "git" ["config", "user.name", "test"]
+                callProcess "git" ["add", "."]
+                callProcess "git" ["commit", "-qm", "base"]
+                writeFile "M1.hs" (sampleModule "M1" ++ "\n-- modified\n")
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF)
+                    { optGitDiffBase = Just "HEAD"
+                    }
+            runProjectRestoring opts
+            (_, _, _, total) <- readCounts resF
+            total `shouldBe` 11
+
+    it "only counts mutants for files modified relative to --git-diff-base in dry-run" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 2
+            withCurrentDirectory root $ do
+                callProcess "git" ["init", "-q"]
+                callProcess "git" ["config", "user.email", "test@example.com"]
+                callProcess "git" ["config", "user.name", "test"]
+                callProcess "git" ["add", "."]
+                callProcess "git" ["commit", "-qm", "base"]
+                writeFile "M1.hs" (sampleModule "M1" ++ "\n-- modified\n")
+            let opts = defaultOpts
+                    { optFile = root
+                    , optDryRun = True
+                    , optGitDiffBase = Just "HEAD"
+                    }
+            (_, out) <- catchOutputStr (runProjectDryRunRestoring opts)
+            out `shouldSatisfy` ("Discovered 1 source file(s)." `isInfixOf`)
+            out `shouldSatisfy` ("Total generated mutants (sampled per file): 11" `isInfixOf`)
+
+    it "discovers 0 files and exits cleanly on clean working tree relative to --git-diff-base" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 2
+            withCurrentDirectory root $ do
+                callProcess "git" ["init", "-q"]
+                callProcess "git" ["config", "user.email", "test@example.com"]
+                callProcess "git" ["config", "user.name", "test"]
+                callProcess "git" ["add", "."]
+                callProcess "git" ["commit", "-qm", "base"]
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF)
+                    { optGitDiffBase = Just "HEAD"
+                    }
+            (ec, _) <- catchOutputStr (try (runProjectRestoring opts) :: IO (Either ExitCode ()))
+            case ec of
+                Left ExitSuccess -> return ()
+                Right ()         -> return ()
+                Left other       -> expectationFailure ("expected ExitSuccess, got " ++ show other)
+            (killed, alive, skipped, total) <- readCounts resF
+            (killed, alive, skipped, total) `shouldBe` (0, 0, 0, 0)
+
+    it "restricts mutants within changed files to modified lines when --git-diff-lines is set" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 2
+            withCurrentDirectory root $ do
+                callProcess "git" ["init", "-q"]
+                callProcess "git" ["config", "user.email", "test@example.com"]
+                callProcess "git" ["config", "user.name", "test"]
+                callProcess "git" ["add", "."]
+                callProcess "git" ["commit", "-qm", "base"]
+                -- Modify only line 4 of M1.hs (f x = x + 10 instead of x + 1)
+                writeFile "M1.hs" $ unlines
+                    [ "module M1 where"
+                    , ""
+                    , "f :: Int -> Int"
+                    , "f x = x + 10"
+                    , ""
+                    , "g :: Int -> Int"
+                    , "g x = x * 2"
+                    , ""
+                    , "h :: Int -> Bool"
+                    , "h x = x > 0"
+                    ]
+            let resF = root </> "result.txt"
+                opts = (projectOpts root resF)
+                    { optGitDiffBase  = Just "HEAD"
+                    , optGitDiffLines = True
+                    , optTestCmd      = Just "true"
+                    }
+            runProjectRestoring opts
+            (_, _, _, total) <- readCounts resF
+            total `shouldBe` 4
+
     it "fails with an explicit error when no project root marker exists above the scope" $
         withSystemTempDirectory "mutaskell-proj" $ \dir -> do
             let sub = dir </> "sub"
@@ -372,6 +471,26 @@ spec = describe "runProject (serial)" $ do
             distribute 3 ([] :: [Int]) `shouldBe` [[], [], []]
         it "yields no buckets for a non-positive worker count" $
             distribute 0 [1 :: Int .. 5] `shouldBe` []
+
+    describe "filterDiff" $ do
+        it "returns all files when optGitDiffBase is Nothing" $ do
+            files <- filterDiff defaultOpts ["A.hs", "B.hs"]
+            files `shouldBe` ["A.hs", "B.hs"]
+
+        it "returns only modified files when optGitDiffBase is set" $
+            withSystemTempDirectory "mutaskell-proj" $ \root -> do
+                withCurrentDirectory root $ do
+                    callProcess "git" ["init", "-q"]
+                    callProcess "git" ["config", "user.email", "test@example.com"]
+                    callProcess "git" ["config", "user.name", "test"]
+                    writeFile "A.hs" "module A where\n"
+                    writeFile "B.hs" "module B where\n"
+                    callProcess "git" ["add", "."]
+                    callProcess "git" ["commit", "-qm", "base"]
+                    writeFile "A.hs" "module A where\n-- change\n"
+                    let opts = defaultOpts { optGitDiffBase = Just "HEAD" }
+                    kept <- filterDiff opts ["A.hs", "B.hs"]
+                    kept `shouldBe` ["A.hs"]
   where
     -- Strict read: project mode rewrites run-state files, so a lazy handle
     -- against them must not outlive this helper.

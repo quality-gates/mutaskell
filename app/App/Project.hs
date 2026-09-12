@@ -32,6 +32,7 @@ module App.Project
     , discoverSources
     , discoverSourcesWithStats
     , distribute
+    , filterDiff
     , findProjectRoot
     , isProjectRoot
     , progressFile
@@ -73,7 +74,7 @@ import System.IO (hPutStrLn, readFile', stderr)
 import System.Process (callProcess, createProcess, proc, waitForProcess)
 
 import App.Exit (applyExitPolicy)
-import App.Filter (applyDisableEnable)
+import App.Filter (applyDiffLines, applyDisableEnable, checkGitDiff)
 import App.Opts (Opts (..), missingCoverageForMinCoveredMsi)
 import App.Orchestrator
     ( Outcome (..)
@@ -136,7 +137,8 @@ runSerial opts = do
     putStrLn ""
 
     allFiles <- discoverSources opts { optFile = relScope }
-    files <- restrictToShard opts allFiles
+    diffFiles <- filterDiff opts allFiles
+    files <- restrictToShard opts diffFiles
     when (null files) $ do
         hPutStrLn stderr "No Haskell source files discovered. Nothing to do."
         maybe (return ()) (`writeFile` "0 0 0 0") (optResultOut opts)
@@ -262,7 +264,8 @@ processFile' opts buildCmd testCmd mtimeout deadline coverage budgetRef file = d
             muncov <- resolveUncovered coverage (getModuleName ast)
             (genComplete, sampled) <- genWithinBudget genBudgetSecs $ do
                 ms <- genSampledMutantsGated cfg muncov ast
-                return (applyDisableEnable (optDisable opts) (optEnable opts) ms)
+                let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
+                applyDiffLines file (optGitDiffBase opts) (optGitDiffLines opts) ms'
             if null sampled
                 then do
                     -- Record done only if generation genuinely finished (zero
@@ -295,7 +298,8 @@ runProjectDryRun opts = do
     root <- maybe (noProjectRootFound scope) return =<< findProjectRoot scope
     setCurrentDirectory root
     let relScope = normalise (makeRelative root scope)
-    (files, stats) <- discoverSourcesWithStats opts { optFile = relScope }
+    (allFiles, stats) <- discoverSourcesWithStats opts { optFile = relScope }
+    files <- filterDiff opts allFiles
     putStrLn $ "Project dry-run on " ++ scope
     putStrLn $ "  root:  " ++ root
     putStrLn $ "Discovered " ++ show (length files) ++ " source file(s)."
@@ -337,7 +341,8 @@ dryCount opts coverage file = do
             timeout (genSetupCeilingSecs * 1000000) $ do
                 ms <- genSampledMutantsGated cfg muncov ast
                 let ms' = applyDisableEnable (optDisable opts) (optEnable opts) ms
-                evaluate (length ms')
+                ms'' <- applyDiffLines file (optGitDiffBase opts) (optGitDiffLines opts) ms'
+                evaluate (length ms'')
 
 -- | Soft per-file generation budget (seconds).  Generation is bounded so no
 -- single file dominates the run: the operator-level sampling caps the candidate
@@ -410,23 +415,26 @@ runParallel opts = do
     createDirectoryIfMissing True stateDir
     let relScope = normalise (makeRelative root scope)
     allFiles <- discoverSources opts { optFile = relScope }
+    diffFiles <- filterDiff opts allFiles
     done <- readProgress
     let n       = optJobs opts
-        pending = dropCompleted done allFiles
+        pending = dropCompleted done diffFiles
         shards  = filter (not . null) (distribute n pending)
     if null shards
-        then putStrLn $ if null allFiles
-            then "No Haskell source files discovered. Nothing to do."
-            else "All " ++ show (length allFiles)
-                ++ " discovered file(s) already done (per "
-                ++ progressFile ++ "). Nothing to do."
+        then do
+            putStrLn $ if null diffFiles
+                then "No Haskell source files discovered. Nothing to do."
+                else "All " ++ show (length diffFiles)
+                    ++ " discovered file(s) already done (per "
+                    ++ progressFile ++ "). Nothing to do."
+            maybe (return ()) (`writeFile` "0 0 0 0") (optResultOut opts)
         else do
             self <- getExecutablePath
             tmp  <- getTemporaryDirectory
             putStrLn $ "Project mode (parallel: " ++ show (length shards)
                 ++ " job(s)) on " ++ scope
             putStrLn $ "  root:  " ++ root
-            putStrLn $ "Discovered " ++ show (length allFiles)
+            putStrLn $ "Discovered " ++ show (length diffFiles)
                 ++ " source file(s); sharding across workers.\n"
             let perJobMax = fmap (\m -> max 1 (m `div` length shards)) (optMaxMutants opts)
             jobs <- forM (zip [1 :: Int ..] shards) $ \(i, shard) -> do
@@ -557,6 +565,13 @@ removeIfExists p = do
     isFile <- doesFileExist p
     when isDir  (removeDirectoryRecursive p)
     when isFile (removeFile p)
+
+-- | If @--git-diff-base@ is set, filter discovered files to those changed
+-- relative to the base ref.
+filterDiff :: Opts -> [FilePath] -> IO [FilePath]
+filterDiff opts files = case optGitDiffBase opts of
+    Nothing  -> return files
+    Just _   -> filterM (\f -> checkGitDiff f (optGitDiffBase opts)) files
 
 -- | Restrict the discovered files to this worker's shard (@--only-files@).
 -- The shard list is indexed into a set, and the discovered files keep their
