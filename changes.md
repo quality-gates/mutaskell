@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.36]
+  * Fixed: a missing source file argument is now a CLI error — `Error: file not found: PATH` on stderr with exit code 2 — on plain runs, `--dry-run` and `--exec`, instead of an uncaught `IOException` with a GHC call stack and exit code 1 (#78).
+  * Fixed: `getASTFromFile` catches the `IOException` from opening the source and returns a clean `Left` ("file not found: …"), so project mode and orchestrator report or skip the file instead of dying (#78).
+
 ## [0.8.35]
   * Fixed: `--git-diff-base` no longer treats an unchanged file as changed when a similarly named file appears in the diff (e.g. `Foo.hs` selected because `MyFoo.hs` changed, or `Main.hs` because `NotMain.hs` changed). Diff paths now match on path components with a `/` boundary, while still selecting a file when a changed path is a path-component suffix of it (`Foo.hs` vs `src/Foo.hs`) (#77).
 
