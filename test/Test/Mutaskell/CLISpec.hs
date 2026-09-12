@@ -1,12 +1,16 @@
 module Test.Mutaskell.CLISpec where
 
+import System.Exit (ExitCode (..))
+import System.Process (readProcessWithExitCode)
 import Test.Hspec
+
 import App.Opts
     ( Opts(..)
     , defaultOpts
     , parseOptsFrom
     , parseYamlConfigStr
     )
+import Test.Mutaskell.WorkerSpec (findMucheckBin)
 
 main :: IO ()
 main = hspec spec
@@ -218,4 +222,29 @@ spec = do
             case parseYamlConfigStr "unknown_key: foo" of
                 Left _  -> return ()
                 Right _ -> expectationFailure "Expected Left for unknown key"
+
+    -- A missing source file must be a CLI argument error (exit 2, one-line
+    -- message), not an uncaught IOException with a GHC call stack (issue #78).
+    describe "missing source file" $ do
+        it "plain run exits 2 with a readable error, not an uncaught IOException" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, errOut) <-
+                        readProcessWithExitCode exe ["/no/such/MutaskellFile.hs"] ""
+                    ec `shouldBe` ExitFailure 2
+                    (out ++ errOut) `shouldContain` "file not found"
+                    (out ++ errOut) `shouldNotContain` "Uncaught exception"
+
+        it "--dry-run exits 2 with a readable error, not an uncaught IOException" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        ["--dry-run", "/no/such/MutaskellFile.hs"] ""
+                    ec `shouldBe` ExitFailure 2
+                    (out ++ errOut) `shouldContain` "file not found"
+                    (out ++ errOut) `shouldNotContain` "Uncaught exception"
 

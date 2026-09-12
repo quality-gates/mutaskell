@@ -934,6 +934,14 @@ h b = b && (not b)
                     Right _  -> expectationFailure
                                     "expected Left (CPP parse skipped) but got Right"
 
+        it "returns a clean Left for a path that does not exist" $ do
+            let missing = "/no/such/MutaskellFile.hs"
+            result <- getASTFromFile missing
+            case result of
+                Left msg -> msg `shouldSatisfy` ("file not found" `isInfixOf`)
+                Right _  -> expectationFailure
+                                "expected Left (file not found) but got Right"
+
     describe "discoverCabalMacros" $
         it "scans the build tree once for repeated CPP parses in one project" $
             withSystemTempDirectory "mutaskell-test" $ \tmpDir -> do

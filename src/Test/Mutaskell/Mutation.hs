@@ -497,27 +497,35 @@ When @cabal_macros.h@ is not available and the source contains @MIN_VERSION_*@
 guards, we return a clean @Left@ error rather than invoking the preprocessor:
 without the macro definitions GHC's CPP driver panics and writes a multi-line
 GHC internal error to stderr before the exception even reaches our handler.
+
+A path that cannot be opened (e.g. the file does not exist) is also a clean
+@Left@ ("file not found: …") so library callers — project mode, dry-run,
+orchestrator — can report or skip the file instead of dying on an uncaught
+'IOException'.
 -}
 getASTFromFile :: FilePath -> IO (Either String Module_)
 getASTFromFile path = do
-    src <- readFile path
-    if usesCpp src
-        then do
-            libdir <- getLibdir
-            macros <- discoverCabalMacros
-            if null macros && needsCabalMacros src
-                then return $ Left
-                        "CPP file uses MIN_VERSION_* macros but cabal_macros.h \
-                        \was not found under dist-newstyle/. \
-                        \Build the project first (cabal build all) so that \
-                        \the macros file is generated, then re-run."
-                else do
-                    let opts = defaultCppOptions { cppFile = macros }
-                    result <- parseModuleWithCpp libdir opts path
-                    return $ case result of
-                        Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                        Right (L _ m) -> Right m
-        else getASTFromStr src
+    eSrc <- try (readFile path) :: IO (Either IOException String)
+    case eSrc of
+        Left _  -> return $ Left ("file not found: " ++ path)
+        Right src ->
+            if usesCpp src
+                then do
+                    libdir <- getLibdir
+                    macros <- discoverCabalMacros
+                    if null macros && needsCabalMacros src
+                        then return $ Left
+                                "CPP file uses MIN_VERSION_* macros but cabal_macros.h \
+                                \was not found under dist-newstyle/. \
+                                \Build the project first (cabal build all) so that \
+                                \the macros file is generated, then re-run."
+                        else do
+                            let opts = defaultCppOptions { cppFile = macros }
+                            result <- parseModuleWithCpp libdir opts path
+                            return $ case result of
+                                Left msgs     -> Left (showSDocUnsafe (ppr msgs))
+                                Right (L _ m) -> Right m
+                else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language
 -- pragma (the canonical, unambiguous marker).
