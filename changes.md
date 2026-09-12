@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.34]
+  * Fixed: `literal-values` mutator safely filters `pred` and `succ` on `Char` boundary literals (`minBound` and `maxBound`), preventing runtime exceptions on `HsChar` and `HsCharPrim` boundary values (#76).
+
 ## [0.8.33]
   * Fixed: inline `-- mucheck: disable-next-line` annotations now honor the same trailing-wildcard mutator patterns as `--disable` / `--enable`, including `other:*` and `*` (#69).
 

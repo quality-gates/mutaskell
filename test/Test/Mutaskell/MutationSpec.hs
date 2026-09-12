@@ -42,6 +42,34 @@ myFn x = if x == 1 then True else False
             ops `shouldSatisfy` (not . null)
             ops `shouldSatisfy` all (("==>" `isInfixOf`) . show)
 
+        it "handles Char minBound literal without crashing" $ do
+            let text = "module M where\nf = '\\0'\n"
+            mutants <- H.renderedMutants selectLitOps text
+            mutants `shouldSatisfy` (not . null)
+            mutants `shouldSatisfy` all (\m -> "'\\SOH'" `isInfixOf` m || "'\\1'" `isInfixOf` m)
+
+        it "handles Char maxBound literal without crashing" $ do
+            let text = "module M where\nf = '\\1114111'\n"
+            mutants <- H.renderedMutants selectLitOps text
+            mutants `shouldSatisfy` (not . null)
+            mutants `shouldSatisfy` all ("'\\1114110'" `isInfixOf`)
+
+        it "handles non-boundary Char literal with predecessor and successor" $ do
+            let text = "module M where\nf = 'b'\n"
+            mutants <- H.renderedMutants selectLitOps text
+            mutants `shouldSatisfy` any ("'a'" `isInfixOf`)
+            mutants `shouldSatisfy` any ("'c'" `isInfixOf`)
+
+        it "handles HsCharPrim minBound and maxBound literals without crashing" $ do
+            let textMin = "{-# LANGUAGE MagicHash #-}\nmodule M where\nf = '\\0'#\n"
+            mutantsMin <- H.renderedMutants selectLitOps textMin
+            mutantsMin `shouldSatisfy` (not . null)
+            mutantsMin `shouldSatisfy` all (\m -> "'\\SOH'#" `isInfixOf` m || "'\\1'#" `isInfixOf` m)
+            let textMax = "{-# LANGUAGE MagicHash #-}\nmodule M where\nf = '\\1114111'#\n"
+            mutantsMax <- H.renderedMutants selectLitOps textMax
+            mutantsMax `shouldSatisfy` (not . null)
+            mutantsMax `shouldSatisfy` all ("'\\1114110'#" `isInfixOf`)
+
     describe "selectBLitOps" $ do
         it "returns boolean literal muops for a module with boolean literals" $ do
             let text =
