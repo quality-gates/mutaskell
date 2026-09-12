@@ -744,6 +744,9 @@ selectLitOps m = selectValOps isLitExpr toLitVariants m
     isLitExpr (L _ (HsOverLit _ _)) = True
     isLitExpr _                     = False
 
+    charNeighbours :: Char -> [Char]
+    charNeighbours c = [pred c | c > minBound] ++ [succ c | c < maxBound]
+
     toLitVariants :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     -- Monomorphic integer prims
     toLitVariants (L _ (HsLit _ (HsIntPrim _ n))) =
@@ -752,9 +755,9 @@ selectLitOps m = selectValOps isLitExpr toLitVariants m
         [mkL (HsLit noExtField (HsWordPrim NoSourceText v)) | v <- nub [n+1, n-1, 0, 1], v /= n]
     -- Monomorphic char
     toLitVariants (L _ (HsLit _ (HsChar _ c))) =
-        [mkL (HsLit noExtField (HsChar NoSourceText v)) | v <- [pred c, succ c]]
+        [mkL (HsLit noExtField (HsChar NoSourceText v)) | v <- charNeighbours c]
     toLitVariants (L _ (HsLit _ (HsCharPrim _ c))) =
-        [mkL (HsLit noExtField (HsCharPrim NoSourceText v)) | v <- [pred c, succ c]]
+        [mkL (HsLit noExtField (HsCharPrim NoSourceText v)) | v <- charNeighbours c]
     -- Monomorphic string
     toLitVariants (L _ (HsLit _ (HsString _ _))) =
         [mkL (HsLit noExtField (HsString NoSourceText (mkFastString "")))]
