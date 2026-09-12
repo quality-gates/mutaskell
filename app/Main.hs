@@ -66,11 +66,6 @@ findTixFile = do
       (f:_) -> Just f
       []    -> Nothing
 
--- | Scan args for a --config value without a full parse.
-extractConfigArg :: [String] -> Maybe FilePath
-extractConfigArg ("--config" : v : _) = Just v
-extractConfigArg (_ : rest)            = extractConfigArg rest
-extractConfigArg []                    = Nothing
 
 main :: IO ()
 main = do

@@ -1,12 +1,15 @@
 module Test.Mutaskell.CLISpec where
 
 import System.Exit (ExitCode (..))
+import System.IO (writeFile)
+import System.IO.Temp (withSystemTempDirectory)
 import System.Process (readProcessWithExitCode)
 import Test.Hspec
 
 import App.Opts
     ( Opts(..)
     , defaultOpts
+    , extractConfigArg
     , parseOptsFrom
     , parseYamlConfigStr
     )
@@ -247,4 +250,55 @@ spec = do
                     ec `shouldBe` ExitFailure 2
                     (out ++ errOut) `shouldContain` "file not found"
                     (out ++ errOut) `shouldNotContain` "Uncaught exception"
+
+    describe "extractConfigArg" $ do
+        it "extracts config file with space syntax" $ do
+            extractConfigArg ["--config", "myconfig.yaml"] `shouldBe` Just "myconfig.yaml"
+
+        it "extracts config file with equals syntax" $ do
+            extractConfigArg ["--config=myconfig.yaml"] `shouldBe` Just "myconfig.yaml"
+
+        it "extracts config file with equals syntax among other arguments" $ do
+            extractConfigArg ["--dry-run", "--config=myconfig.yaml", "File.hs"] `shouldBe` Just "myconfig.yaml"
+
+        it "extracts config file with space syntax among other arguments" $ do
+            extractConfigArg ["--dry-run", "--config", "myconfig.yaml", "File.hs"] `shouldBe` Just "myconfig.yaml"
+
+        it "returns Nothing when no --config flag is given" $ do
+            extractConfigArg ["--dry-run", "File.hs"] `shouldBe` Nothing
+
+        it "returns Nothing for empty args" $ do
+            extractConfigArg [] `shouldBe` Nothing
+
+        it "returns Nothing when --config has no following argument" $ do
+            extractConfigArg ["--config"] `shouldBe` Nothing
+
+        it "extracts empty string when --config=" $ do
+            extractConfigArg ["--config="] `shouldBe` Just ""
+
+    describe "--config=FILE syntax" $ do
+        it "enforces configuration quality gates when passed as --config=FILE" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-test" $ \tmpDir -> do
+                    let cfgFile = tmpDir ++ "/quality-gate.yaml"
+                    writeFile cfgFile "min_covered_msi: 50\n"
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        ["--config=" ++ cfgFile, "Examples/AssertCheckTest.hs", "--dry-run"] ""
+                    ec `shouldBe` ExitFailure 2
+                    (out ++ errOut) `shouldContain` "--min-covered-msi requires coverage data"
+
+        it "reports config parse error when passed as --config=FILE" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-test" $ \tmpDir -> do
+                    let cfgFile = tmpDir ++ "/invalid.yaml"
+                    writeFile cfgFile "unknown_key: true\n"
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        ["--config=" ++ cfgFile, "Examples/AssertCheckTest.hs", "--dry-run"] ""
+                    ec `shouldBe` ExitFailure 2
+                    (out ++ errOut) `shouldContain` "Unknown config key"
+
 

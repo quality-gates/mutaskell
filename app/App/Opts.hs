@@ -13,12 +13,13 @@ module App.Opts
   , loadConfig
   , parseYamlConfigStr
   , splitOn
+  , extractConfigArg
   ) where
 
 import Data.ByteString.Char8 (pack)
 import System.Directory (doesFileExist)
 import Data.Char (isSpace)
-import Data.List (intercalate)
+import Data.List (intercalate, stripPrefix)
 import Data.Maybe (fromMaybe, isJust)
 import Options.Applicative
 import Options.Applicative.Help.Pretty (Doc, vsep, pretty)
@@ -224,6 +225,14 @@ parseYamlConfigStr :: String -> Either String (Opts -> Opts)
 parseYamlConfigStr s = case Yaml.decodeEither' (pack s) of
     Left err  -> Left (Yaml.prettyPrintParseException err)
     Right cfg -> Right (applyYamlConfigRecord cfg)
+
+-- | Scan args for a --config value without a full parse.
+extractConfigArg :: [String] -> Maybe FilePath
+extractConfigArg [] = Nothing
+extractConfigArg ("--config" : v : _) = Just v
+extractConfigArg (arg : rest)
+  | Just v <- stripPrefix "--config=" arg = Just v
+  | otherwise                            = extractConfigArg rest
 
 -- | Split a string on a delimiter character, trimming whitespace from each token.
 splitOn :: Char -> String -> [String]
