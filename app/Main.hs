@@ -74,7 +74,7 @@ main = do
   let configPath = extractConfigArg args
   eConfigFn <- loadConfig configPath
   case eConfigFn of
-    Left err -> do putStrLn $ "Config error: " ++ err; exitWith (ExitFailure 2)
+    Left err -> do hPutStrLn stderr $ "Config error: " ++ err; exitWith (ExitFailure 2)
     Right configFn -> do
       let baseOpts = configFn defaultOpts
       opts <- execParser (optsParserInfo baseOpts)

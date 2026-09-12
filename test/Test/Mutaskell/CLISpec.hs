@@ -10,6 +10,7 @@ import App.Opts
     ( Opts(..)
     , defaultOpts
     , extractConfigArg
+    , loadConfig
     , parseOptsFrom
     , parseYamlConfigStr
     )
@@ -300,5 +301,50 @@ spec = do
                         ["--config=" ++ cfgFile, "Examples/AssertCheckTest.hs", "--dry-run"] ""
                     ec `shouldBe` ExitFailure 2
                     (out ++ errOut) `shouldContain` "Unknown config key"
+
+    describe "loadConfig" $ do
+        it "returns Left when explicit config file does not exist" $ do
+            res <- loadConfig (Just "/nonexistent/config.yaml")
+            case res of
+                Left err -> err `shouldContain` "Config file not found: /nonexistent/config.yaml"
+                Right _  -> expectationFailure "Expected Left, got Right"
+
+        it "returns Right id when default config does not exist" $ do
+            res <- loadConfig Nothing
+            case res of
+                Left err -> expectationFailure $ "Expected Right id, got Left: " ++ err
+                Right _  -> return ()
+
+    describe "missing config file" $ do
+        it "fails with exit 2 and prints error to stderr with space syntax" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, _out, errOut) <- readProcessWithExitCode exe
+                        ["--config", "/nonexistent/config.yaml", "Examples/AssertCheckTest.hs", "--dry-run"] ""
+                    ec `shouldBe` ExitFailure 2
+                    errOut `shouldContain` "Config file not found: /nonexistent/config.yaml"
+
+        it "fails with exit 2 and prints error to stderr with equals syntax" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, _out, errOut) <- readProcessWithExitCode exe
+                        ["--config=/nonexistent/config.yaml", "Examples/AssertCheckTest.hs", "--dry-run"] ""
+                    ec `shouldBe` ExitFailure 2
+                    errOut `shouldContain` "Config file not found: /nonexistent/config.yaml"
+
+        it "succeeds with defaults when no --config is passed and default config does not exist" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, _errOut) <- readProcessWithExitCode exe
+                        ["Examples/AssertCheckTest.hs", "--dry-run"] ""
+                    ec `shouldBe` ExitSuccess
+                    out `shouldContain` "Total"
+
 
 

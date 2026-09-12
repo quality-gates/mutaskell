@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.38]
+  * Fixed: specifying a non-existent `--config FILE` now reports an error to stderr and exits with code 2 instead of silently ignoring the missing file (#80).
+
 ## [0.8.37]
   * Fixed: `--config=FILE` syntax is now recognized by pre-parse argument scanner `extractConfigArg`, ensuring configuration files and quality gates are loaded when using `--config=FILE` (#79).
 
