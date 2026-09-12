@@ -4,7 +4,7 @@ module Test.Mutaskell.FilterSpec where
 import Control.Exception (bracket)
 import Data.List (isInfixOf)
 import GHC.IO.Handle (hDuplicate, hDuplicateTo)
-import System.Directory (withCurrentDirectory)
+import System.Directory (createDirectoryIfMissing, withCurrentDirectory)
 import System.IO (IOMode (..), hClose, hFlush, stderr, withFile)
 import System.IO.Temp (emptySystemTempFile, withSystemTempDirectory)
 import System.Process (callProcess)
@@ -19,6 +19,7 @@ import App.Filter
     , applyIgnoreLines
     , applyRunMutantId
     , cacheMutantIds
+    , checkGitDiff
     , operatorSamplingEligible
     , parseAnnotations
     )
@@ -202,6 +203,49 @@ spec = do
         it "returns every mutant when the git command fails" $ do
             (got, _) <- captureStderr $ applyDiffLines "X.hs" (Just "not-a-ref") True allMs
             got `shouldBe` allMs
+
+    describe "checkGitDiff" $ do
+        -- A repo where MyFoo.hs, NotMain.hs and src/Baz.hs changed; the
+        -- similarly named Foo.hs, Main.hs and Baz.hs did not.
+        let withDiffRepo :: ([FilePath] -> IO a) -> IO a
+            withDiffRepo k = withSystemTempDirectory "mutaskell-gitdiff" $ \dir ->
+                withCurrentDirectory dir $ do
+                    callProcess "git" ["init", "-q"]
+                    callProcess "git" ["config", "user.email", "bench@example.com"]
+                    callProcess "git" ["config", "user.name", "bench"]
+                    writeFile "Foo.hs" "module Foo where\nf = 1\n"
+                    writeFile "MyFoo.hs" "module MyFoo where\ng = 1\n"
+                    writeFile "Main.hs" "module Main where\nh = 1\n"
+                    writeFile "NotMain.hs" "module NotMain where\ni = 1\n"
+                    writeFile "Baz.hs" "module Baz where\nj = 1\n"
+                    createDirectoryIfMissing True "src"
+                    writeFile "src/Baz.hs" "module Baz where\nj = 1\n"
+                    callProcess "git" ["add", "."]
+                    callProcess "git" ["commit", "-qm", "base"]
+                    appendFile "MyFoo.hs" "k = 2\n"
+                    appendFile "NotMain.hs" "l = 2\n"
+                    appendFile "src/Baz.hs" "m = 2\n"
+                    k ["Foo.hs", "MyFoo.hs", "Main.hs", "NotMain.hs", "Baz.hs", "src/Baz.hs"]
+
+        it "selects a file that appears verbatim in the diff" $
+            withDiffRepo $ \files -> checkGitDiff (files !! 1) (Just "HEAD") `shouldReturn` True
+
+        it "does not select an unchanged file whose name is a bare string suffix of a changed path" $
+            withDiffRepo $ \(foo : _) -> checkGitDiff foo (Just "HEAD") `shouldReturn` False
+
+        it "does not select an unchanged file whose name string-ends with a changed path's name" $
+            withDiffRepo $ \files -> checkGitDiff (files !! 2) (Just "HEAD") `shouldReturn` False
+
+        it "selects a file whose bare name is a path-component suffix of a changed path" $
+            withDiffRepo $ \files -> checkGitDiff (files !! 4) (Just "HEAD") `shouldReturn` True
+
+        it "selects a file named by its full path when it appears verbatim in the diff" $
+            withDiffRepo $ \files -> checkGitDiff (files !! 5) (Just "HEAD") `shouldReturn` True
+
+        it "selects every file when no base ref is given" $
+            withDiffRepo $ \files ->
+                mapM (`checkGitDiff` Nothing) files
+                    `shouldReturn` [True, True, True, True, True, True]
 
     describe "applyIgnoreLines" $ do
         let src = unlines ["module M where", "f = 1 -- skip", "g = 2"]

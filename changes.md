@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.35]
+  * Fixed: `--git-diff-base` no longer treats an unchanged file as changed when a similarly named file appears in the diff (e.g. `Foo.hs` selected because `MyFoo.hs` changed, or `Main.hs` because `NotMain.hs` changed). Diff paths now match on path components with a `/` boundary, while still selecting a file when a changed path is a path-component suffix of it (`Foo.hs` vs `src/Foo.hs`) (#77).
+
 ## [0.8.34]
   * Fixed: `literal-values` mutator safely filters `pred` and `succ` on `Char` boundary literals (`minBound` and `maxBound`), preventing runtime exceptions on `HsChar` and `HsCharPrim` boundary values (#76).
 
