@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.37]
+  * Fixed: `--config=FILE` syntax is now recognized by pre-parse argument scanner `extractConfigArg`, ensuring configuration files and quality gates are loaded when using `--config=FILE` (#79).
+
 ## [0.8.36]
   * Fixed: a missing source file argument is now a CLI error — `Error: file not found: PATH` on stderr with exit code 2 — on plain runs, `--dry-run` and `--exec`, instead of an uncaught `IOException` with a GHC call stack and exit code 1 (#78).
   * Fixed: `getASTFromFile` catches the `IOException` from opening the source and returns a clean `Left` ("file not found: …"), so project mode and orchestrator report or skip the file instead of dying (#78).
