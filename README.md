@@ -673,6 +673,7 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`. If none is found the run proceeds without coverage.
 *   `--tix FILE`: If FILE does not exist or does not parse, the run exits with code 2 and an error naming FILE.
 *   `--config FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root.
+*   Missing source file: a file argument that does not exist (plain run, `--dry-run`, or `--exec`) exits with code 2 and `Error: file not found: PATH`, instead of an uncaught exception.
 *   `--exec`: Orchestrator mode — drive the project's real build/test commands instead of the `hint` interpreter (see below).
 *   `--build-cmd CMD`: Build command for project/`--exec` mode (default: auto-detected, e.g. `cabal build all`).
 *   `--test-cmd CMD`: Test command for project/`--exec` mode (default: auto-detected, e.g. `cabal test all`).

@@ -40,7 +40,7 @@ import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
 import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
-import System.Directory (doesDirectoryExist, listDirectory)
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (ExitCode(..), exitSuccess, exitWith)
 import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
@@ -89,12 +89,19 @@ main = do
 
 -- | Dispatch on the target: a directory enters project mode (walk the whole
 -- repo, drive its real build/test); a file uses the per-file path below.
+-- A file target that does not exist is a CLI argument error (exit 2) with a
+-- one-line message, not an uncaught IOException (issue #78).
 runOpts :: Opts -> IO ()
 runOpts opts = do
   isDir <- doesDirectoryExist (optFile opts)
   if isDir
     then if optDryRun opts then runProjectDryRun opts else runProject opts
-    else runOptsFile opts
+    else do
+      exists <- doesFileExist (optFile opts)
+      unless exists $ do
+        hPutStrLn stderr ("Error: file not found: " ++ optFile opts)
+        exitWith (ExitFailure 2)
+      runOptsFile opts
 
 -- | Trace one candidate-generation invocation to stderr when MUCHECK_TRACE is
 -- set.  The number of these lines per run is the generation count the
