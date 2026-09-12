@@ -203,22 +203,32 @@ applyYamlConfigRecord cfg opts = opts
 
 -- | Load config and return either an error string or an 'Opts' transformer.
 -- Applied to 'defaultOpts' before CLI parsing so CLI flags override config.
--- Returns @Right id@ if the file does not exist.
+-- When 'mPath' is 'Nothing', checks the default @.mucheck.yaml@ and returns
+-- @Right id@ if it does not exist.
+-- When 'mPath' is 'Just path', returns an error if the specified file does not exist.
 --
 -- Note: 'Yaml.decodeFileEither' catches 'IOException' internally and wraps it
 -- as a 'ParseException', so a plain @try@ cannot distinguish missing-file from
 -- a genuine parse error.  We therefore check existence first.
 loadConfig :: Maybe FilePath -> IO (Either String (Opts -> Opts))
-loadConfig mPath = do
-    let path = fromMaybe ".mucheck.yaml" mPath
+loadConfig Nothing = do
+    let path = ".mucheck.yaml"
     exists <- doesFileExist path
     if not exists
         then return (Right id)
-        else do
-            result <- Yaml.decodeFileEither path
-            case result of
-                Left err  -> return (Left (Yaml.prettyPrintParseException err))
-                Right cfg -> return (Right (applyYamlConfigRecord cfg))
+        else decodeConfigFile path
+loadConfig (Just path) = do
+    exists <- doesFileExist path
+    if not exists
+        then return (Left ("Config file not found: " ++ path))
+        else decodeConfigFile path
+
+decodeConfigFile :: FilePath -> IO (Either String (Opts -> Opts))
+decodeConfigFile path = do
+    result <- Yaml.decodeFileEither path
+    case result of
+        Left err  -> return (Left (Yaml.prettyPrintParseException err))
+        Right cfg -> return (Right (applyYamlConfigRecord cfg))
 
 -- | Parse a YAML config string (for testing) and return an 'Opts' transformer.
 parseYamlConfigStr :: String -> Either String (Opts -> Opts)
