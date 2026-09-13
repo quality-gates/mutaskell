@@ -74,6 +74,13 @@ suppression; names may end in `*` for a prefix match, so `other:*` matches all
 
 ## Maintainers
 
+Run `bash scripts/dogfood.sh` to mutation-test the production Haskell in `src/`
+and `app/` against the real Cabal test suite. The script works in a private
+copy and writes build logs, mutation results, and completion evidence beneath
+`.mutaskell/`. CI runs the same script. See
+[Coding standards](CODING_STANDARDS.md#production-mutation-gate) for the required
+score, metric choice, and rules for accepting a run.
+
 Full guide below. Site docs: https://quality-gates.github.io/mutaskell  
 Started as a fork of [MuCheck](https://github.com/vrthra/mucheck); rewritten on
 the GHC parser with CLI, coverage-guided mutation, and CI integrations.

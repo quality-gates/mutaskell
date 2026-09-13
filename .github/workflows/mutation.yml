@@ -8,6 +8,7 @@ on:
 jobs:
   mutation:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -61,3 +62,15 @@ jobs:
 
       - name: Run mutation tests with MSI and covered-MSI quality gates
         run: cabal run mutaskell -- --min-msi 50 --min-covered-msi 50 --ignore-msi-with-no-mutations --tix sample-test.tix Examples/AssertCheckTest.hs
+
+      - name: Gate production Haskell at 80% MSI
+        run: bash scripts/dogfood.sh
+
+      - name: Upload production mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-mutation-evidence
+          path: .mutaskell/dogfood.*/
+          include-hidden-files: true
+          if-no-files-found: warn
