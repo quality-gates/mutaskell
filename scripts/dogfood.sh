@@ -35,7 +35,7 @@ if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
 fi
 
 build='cabal build --write-ghc-environment-files=always all test:spec'
-test='cabal test spec --test-show-details=direct'
+test='cabal test spec --test-show-details=direct --test-option=--fail-fast'
 $build > "$report/build.log" 2>&1
 # Mutating app/Main.hs rebuilds the executable. Keep the evaluator outside that path.
 cp "$(cabal list-bin exe:mutaskell)" "$work/dogfood-runner"
