@@ -77,7 +77,8 @@ suppression; names may end in `*` for a prefix match, so `other:*` matches all
 Run `bash scripts/dogfood.sh` to mutation-test the production Haskell in `src/`
 and `app/` against the real Cabal test suite. The script works in a private
 copy and writes build logs, mutation results, and completion evidence beneath
-`.mutaskell/`. CI runs the same script. See
+`.mutaskell/`. This is a manual audit; automated PR dogfooding is planned as a
+diff-aware workflow. See
 [Coding standards](CODING_STANDARDS.md#production-mutation-gate) for the required
 score, metric choice, and rules for accepting a run.
 

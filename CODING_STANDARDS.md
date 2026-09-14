@@ -9,25 +9,33 @@
 
 ### Production mutation gate
 
-Production Haskell in `src/` and `app/` must pass a mutation score of at least
-80% before merge. Prefer covered-MSI from the real test suite's HPC data;
-use raw MSI when project mode cannot report covered-MSI reliably. The example
+Changes to production Haskell in `src/` and `app/` require a mutation score of
+at least 80% for the changed scope before merge. Prefer covered-MSI from the real
+test suite's HPC data; use raw MSI when project mode cannot report covered-MSI
+reliably. The example
 smoke test proves the tool runs; it does not satisfy this production gate.
 
-1. Run `bash scripts/dogfood.sh` for the candidate revision. It builds a private
+1. Record the candidate revision and mutation scope with the review. Use
+   `bash scripts/dogfood.sh` for a full-project audit. It builds a private
    copy, mutates all production source files with the default mutator set and
    per-file sampling, and runs the real Cabal build and `spec` suite.
 2. Require exit zero, a completed source manifest, and a score of at least 80%.
    Keep the emitted evidence directory with the review. Budget exhaustion,
    skipped source files, a failed baseline, or missing results leave the gate
    unmet, regardless of any partial score.
-3. Strengthen behavioural assertions for survivors, then rerun. Keep the full
-   production scope and test suite. Lower thresholds, diff-only runs, reduced
+3. Strengthen behavioural assertions for survivors, then rerun. Keep the declared
+   production scope and full test suite. A changed-scope score proves only that
+   scope; report full-project scores separately. Lower thresholds, reduced
    samples, ignored empty runs, or broad suppressions cannot satisfy the gate.
    A suppression needs a specific equivalent mutation and a reviewable reason.
-4. Confirm the production gate in the `Mutation Analysis` CI job passes on the
-   revision being merged. A local run stopped by the shared-host limits requires
-   a completed CI run; it is not evidence of passing.
+4. Keep completed mutation evidence with production changes. A run stopped by
+   shared-host limits is incomplete evidence. Changes confined to scripts,
+   documentation, or CI do not require a new production score.
+
+The full-project runner is manual. Automated PR enforcement is deferred to the
+diff-aware dogfooding workflow
+([#91](https://github.com/quality-gates/mutaskell/issues/91)); existing example CI checks do not enforce
+this production standard.
 
 The script uses raw MSI because project summaries currently discard covered-MSI
 metadata. Move to covered-MSI only with fresh coverage from the same revision,
