@@ -42,6 +42,17 @@ $build > "$report/build.log" 2>&1
 cp "$(cabal list-bin exe:mutaskell)" "$work/dogfood-runner"
 printf '{}\n' > "$work/dogfood-config.yaml"
 
+# Reject incomplete generation before paying for a full mutation evaluation.
+for source_dir in src app; do
+  "$work/dogfood-runner" "$source_dir" --config "$work/dogfood-config.yaml" \
+    --dry-run --workers 1 --jobs 1 --timeout "$mutant_timeout" \
+    --time-budget "$project_budget"
+done 2>&1 | tee "$report/generation.log"
+if grep -q '^SKIP ' "$report/generation.log"; then
+  echo 'Production mutant generation is incomplete; fix skipped sources before evaluation.' >&2
+  exit 1
+fi
+
 set +e
 "$work/dogfood-runner" . --config "$work/dogfood-config.yaml" \
   --only-files "$report/sources.txt" --result-out "$report/counts.txt" \
