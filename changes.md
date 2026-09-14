@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.41]
+  * Added: manual production mutation audit for `src/` and `app/` at 80% MSI, with isolated runs, completion checks, retained evidence, and coding standards for production changes. Diff-aware PR automation is deferred.
+
 ## [0.8.40]
   * Fixed: project mode now applies inline `-- mucheck: disable-next-line` annotations (including mutator-specific names and `*` wildcards) and `ignore_source_lines`, matching single-file mode, during both evaluation (`runProject`) and dry runs (`--dry-run`) (#82).
 
