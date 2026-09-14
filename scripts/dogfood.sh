@@ -17,6 +17,7 @@ trap cleanup EXIT
 # Each run gets fresh progress and a private source tree.
 rsync -a --exclude='.git' --exclude='dist-newstyle' --exclude='.stack-work' \
   --exclude='.mutaskell' --exclude='.mutants' \
+  --exclude='.hpc' --exclude='*.tix' \
   --exclude='.ghc.environment.*' --exclude='cabal.project.local' \
   "$repo/" "$work/"
 cd "$work"
