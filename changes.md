@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.42]
+  * Added: CLI regression coverage for boxed and unboxed `Char` boundary literals in the `literal-values` mutator (#92).
+
 ## [0.8.41]
   * Added: manual production mutation audit for `src/` and `app/` at 80% MSI, with isolated runs, completion checks, retained evidence, and coding standards for production changes. Diff-aware PR automation is deferred.
 

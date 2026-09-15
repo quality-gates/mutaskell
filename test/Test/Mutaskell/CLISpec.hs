@@ -253,6 +253,31 @@ spec = do
                     (out ++ errOut) `shouldContain` "file not found"
                     (out ++ errOut) `shouldNotContain` "Uncaught exception"
 
+    describe "Char boundary literals" $ do
+        it "--dry-run handles boxed and unboxed boundary Char literals" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-char-boundaries" $ \dir -> do
+                    let source = dir ++ "/BoundaryChars.hs"
+                        contents = unlines
+                            [ "{-# LANGUAGE MagicHash #-}"
+                            , "module M where"
+                            , "f0 = '\\0'"
+                            , "fNul = '\\NUL'"
+                            , "fHex = '\\x00'"
+                            , "fMax = '\\1114111'"
+                            , "f0Prim = '\\0'#"
+                            , "fMaxPrim = '\\1114111'#"
+                            ]
+                    writeFile source contents
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        ["--dry-run", source] ""
+                    ec `shouldBe` ExitSuccess
+                    out `shouldContain` "literal-values"
+                    out `shouldContain` "Total"
+                    (out ++ errOut) `shouldNotContain` "Uncaught exception"
+
     describe "extractConfigArg" $ do
         it "extracts config file with space syntax" $ do
             extractConfigArg ["--config", "myconfig.yaml"] `shouldBe` Just "myconfig.yaml"
@@ -388,7 +413,6 @@ spec = do
                         ec `shouldBe` ExitSuccess
                         out `shouldContain` "Discovered 0 source file(s)."
                         out `shouldContain` "Total generated mutants (sampled per file): 0"
-
 
 
 
