@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.43]
+  * Changed: CI now runs build, test suite, and smoke test only. The per-PR coverage and mutation analysis steps were removed for runtime; mutation scoring stays available as a manual audit (`bash scripts/dogfood.sh`) and in the `setups/github-actions.yml` template for downstream projects.
+
 ## [0.8.42]
   * Added: CLI regression coverage for boxed and unboxed `Char` boundary literals in the `literal-values` mutator (#92).
 
