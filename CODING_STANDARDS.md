@@ -9,20 +9,19 @@
 
 ### Production mutation gate
 
-Changes to production Haskell in `src/` and `app/` require a mutation score of
-at least 80% for the changed scope before merge. Prefer covered-MSI from the real
-test suite's HPC data; use raw MSI when project mode cannot report covered-MSI
-reliably. The example
-smoke test proves the tool runs; it does not satisfy this production gate.
+The gate: changes to production Haskell in `src/` and `app/` require
+covered-MSI of at least 80% for the changed scope before merge. This is a
+hard merge requirement, not a preference. The example smoke test proves the
+tool runs; it does not satisfy this gate.
 
 1. Record the candidate revision and mutation scope with the review. Use
    `bash scripts/dogfood.sh` for a full-project audit. It builds a private
    copy, mutates all production source files with the default mutator set and
    per-file sampling, and runs the real Cabal build and `spec` suite.
-2. Require exit zero, a completed source manifest, and a score of at least 80%.
-   Keep the emitted evidence directory with the review. Budget exhaustion,
-   skipped source files, a failed baseline, or missing results leave the gate
-   unmet, regardless of any partial score.
+2. Require exit zero, a completed source manifest, and a score of at least
+   80% covered-MSI. Keep the emitted evidence directory with the review.
+   Budget exhaustion, skipped source files, a failed baseline, or missing
+   results leave the gate unmet, regardless of any partial score.
 3. Strengthen behavioural assertions for survivors, then rerun. Keep the declared
    production scope and full test suite. A changed-scope score proves only that
    scope; report full-project scores separately. Lower thresholds, reduced
@@ -35,12 +34,13 @@ smoke test proves the tool runs; it does not satisfy this production gate.
 The full-project runner is manual. Automated PR enforcement is deferred to the
 diff-aware dogfooding workflow
 ([#91](https://github.com/quality-gates/mutaskell/issues/91)); existing example CI checks do not enforce
-this production standard.
+this gate.
 
-The script uses raw MSI because project summaries currently discard covered-MSI
-metadata. Move to covered-MSI only with fresh coverage from the same revision,
-verified module coverage, and failure on missing coverage. Preserve the 80%
-floor and completion checks when changing metrics.
+Until project summaries report covered-MSI, `scripts/dogfood.sh` measures raw
+MSI: a proxy metric that must clear the same 80% floor. Move to covered-MSI
+only with fresh coverage from the same revision, verified module coverage, and
+failure on missing coverage. Preserve the floor and completion checks when
+changing metrics.
 
 ## Comments and docs
 
