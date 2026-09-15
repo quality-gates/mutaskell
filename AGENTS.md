@@ -3,7 +3,9 @@
 Mutation testing for Haskell. Parses Haskell source, applies mutations (literal values, operators, pattern matches, guards, boolean conditions), and runs the test suite via the `hint` interpreter to check whether tests detect the change.
 
 Before changing code, tests, or CI, and before reviewing or merging a change,
-read `CODING_STANDARDS.md`, including its production mutation gate.
+read `CODING_STANDARDS.md`. Its production mutation gate is a hard merge
+requirement: production Haskell in `src/` and `app/` needs covered-MSI of at
+least 80% for the changed scope.
 
 ## Agent skills
 
