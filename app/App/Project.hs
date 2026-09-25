@@ -100,11 +100,14 @@ import Test.Mutaskell.Mutation
     , getModuleName
     , readCabalMacroScans
     )
+import Test.Mutaskell.CoverageIndex
+    ( CoverageIndex
+    , lookupModuleSpans
+    )
 import Test.Mutaskell.Tix
     ( Span
-    , TixIndex
-    , getUnCoveredPatchesFromIndex
-    , parseTixIndex
+    , defaultMixPaths
+    , loadCoverageIndex
     )
 import Test.Mutaskell.TestAdapter (Mutant (..))
 
@@ -613,7 +616,7 @@ writeResult opts msum = case optResultOut opts of
 -- ---------------------------------------------------------------------------
 
 -- | Parsed coverage for one project run.
-type CoverageSnapshot = Maybe TixIndex
+type CoverageSnapshot = Maybe CoverageIndex
 
 -- | Parse the selected @.tix@ once for this project run.  'Nothing' means
 -- coverage gating is disabled or no automatically discovered file exists.
@@ -629,7 +632,7 @@ loadCoverage opts = do
                 exitWith (ExitFailure 2)
             | otherwise -> return Nothing
         Just tix -> do
-            eindex <- parseTixIndex tix
+            eindex <- loadCoverageIndex defaultMixPaths tix
             case eindex of
                 Left err    -> hPutStrLn stderr err >> exitWith (ExitFailure 2)
                 Right index -> return (Just index)
@@ -638,13 +641,11 @@ loadCoverage opts = do
 -- available.  'Nothing' means "do not gate".  The parsed coverage snapshot is
 -- shared by every source file in the run.
 resolveUncovered :: CoverageSnapshot -> String -> IO (Maybe [Span])
-resolveUncovered coverage modName = case coverage of
-    Nothing       -> return Nothing
-    Just index -> do
-        result <- getUnCoveredPatchesFromIndex index modName
-        return $ case result of
-            Left _    -> Nothing
-            Right spans -> spans
+resolveUncovered coverage modName = return $ case coverage of
+    Nothing    -> Nothing
+    Just index -> case lookupModuleSpans index modName of
+        Left _      -> Nothing
+        Right spans -> spans
 
 resolveTix :: Opts -> IO (Maybe FilePath)
 resolveTix opts

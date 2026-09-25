@@ -1,21 +1,31 @@
 module Test.Mutaskell.TixSpec where
 
 import Test.Hspec
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Mutaskell.Config (MuVar(..))
 import Test.Mutaskell.Mutation (removeUncovered)
 import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix
-    ( getUnCoveredPatchesFromIndex
-    , buildTixIndex
+    ( buildTixIndex
+    , defaultMixPaths
+    , fromModuleSpans
+    , fromSpans
+    , getMix
     , getUnCoveredPatches
-    , insideSpan
+    , getUnCoveredPatchesFromIndex
+    , getUnCoveredPatchesWith
     , indexSpans
+    , insideSpan
+    , isCovered
+    , loadCoverageIndex
+    , lookupModuleSpans
     , parseTixIndex
     , removeRedundantSpans
     , spanIndexContains
     , toSpan
+    , uncoveredSpans
     )
 import Trace.Hpc.Tix (TixModule (..))
 
@@ -145,3 +155,27 @@ spec = describe "Test.Mutaskell.Tix" $ do
             ]
       getUnCoveredPatchesFromIndex index "Shared"
         `shouldReturn` Right Nothing
+
+  describe "loadCoverageIndex and parameterized mix paths" $ do
+    it "parameterizes mix file search directories" $
+      withSystemTempDirectory "mutaskell-mix" $ \root -> do
+        let tixPath = root </> "test.tix"
+            customMixDir = root </> "custom-mix"
+        createDirectoryIfMissing True customMixDir
+        writeFile tixPath "Tix [TixModule \"MyModule\" 1 0 []]"
+        res <- loadCoverageIndex [customMixDir] tixPath
+        case res of
+          Left err -> expectationFailure ("unexpected Left tix parse: " ++ err)
+          Right idx -> case lookupModuleSpans idx "MyModule" of
+            Left err -> err `shouldContain` "custom-mix"
+            Right _  -> expectationFailure "expected Left mix lookup error"
+
+    it "queries coverage containment purely in-memory without disk files" $ do
+      let uncov = [toSpan (10, 1, 15, 20)]
+          idx = fromModuleSpans [("PureMod", uncov)]
+          mInside = mkMutant (10, 5, 10, 15)
+          mOutside = mkMutant (20, 1, 20, 10)
+      isCovered idx "PureMod" (_mspan mInside) `shouldBe` False
+      isCovered idx "PureMod" (_mspan mOutside) `shouldBe` True
+      removeUncovered uncov [mInside, mOutside] `shouldBe` [mOutside]
+      uncoveredSpans idx "PureMod" `shouldBe` uncov

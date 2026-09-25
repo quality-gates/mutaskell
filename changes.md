@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.45]
+  * Changed: decouple pure `CoverageIndex` interval containment algorithms from filesystem HPC parsing, parameterize `.mix` search paths (`loadCoverageIndex`, `getMix`), remove global mutable state `tixReadCountRef` from `Tix.hs`, and update `removeUncovered` to query `CoverageIndex` (#107).
+
 ## [0.8.44]
   * Changed: coding standards now state the production mutation gate as a hard requirement: covered-MSI of at least 80% for the changed scope in `src/` and `app/`, with raw MSI as an interim proxy clearing the same floor. `AGENTS.md` states the gate in its pointer to the standards.
 
