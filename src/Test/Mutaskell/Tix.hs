@@ -1,47 +1,101 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Read the HPC Tix and Mix files.
-module Test.Mutaskell.Tix where
+-- | Read HPC Tix and Mix files to build coverage data.
+module Test.Mutaskell.Tix
+    ( -- * Re-exported pure coverage index interface
+      Span
+    , toSpan
+    , spanStartLine
+    , insideSpan
+    , SpanPosition
+    , spanStartPosition
+    , spanEndPosition
+    , SpanIndex (..)
+    , indexSpans
+    , spanIndexContains
+    , removeRedundantSpans
+    , ModuleCoverage (..)
+    , CoverageIndex (..)
+    , moduleNameKeys
+    , emptyCoverageIndex
+    , fromModuleResults
+    , fromModuleSpans
+    , fromSpans
+    , lookupModuleSpans
+    , uncoveredSpans
+    , isCovered
 
-import Control.Exception (catch, evaluate, try, SomeException)
-import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
+      -- * HPC file parsing and adapter
+    , TCovered (..)
+    , isTCovered
+    , mixTix
+    , parseTix
+    , defaultMixPaths
+    , loadCoverageIndex
+    , getMix
+    , tryReadMix
+    , getMixedTix
+    , getMixedTixWith
+    , getUnCoveredPatches
+    , getUnCoveredPatchesWith
+    , getUnCoveredPatchesFromIndex
+    , matchesName
+    , getNamedModule
+
+      -- * Backwards compatibility aliases
+    , TixIndex
+    , parseTixIndex
+    , buildTixIndex
+    ) where
+
+import Control.Exception (SomeException, catch, evaluate, try)
+import Control.Monad (forM)
 import qualified Data.List as List
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import Data.Ord (Down (..))
 import System.Directory (doesFileExist)
-import System.IO.Unsafe (unsafePerformIO)
-import Trace.Hpc.Mix
+import Trace.Hpc.Mix (Mix (..), readMix)
 import Trace.Hpc.Tix
-import Trace.Hpc.Util
+import Trace.Hpc.Util (fromHpcPos)
 
--- | Span info - same as HpcPos
-type Span = HpcPos
+import Test.Mutaskell.CoverageIndex
+    ( CoverageIndex (..)
+    , ModuleCoverage (..)
+    , Span
+    , SpanIndex (..)
+    , SpanPosition
+    , emptyCoverageIndex
+    , fromModuleResults
+    , fromModuleSpans
+    , fromSpans
+    , indexSpans
+    , insideSpan
+    , isCovered
+    , lookupModuleSpans
+    , moduleNameKeys
+    , removeRedundantSpans
+    , spanEndPosition
+    , spanIndexContains
+    , spanStartLine
+    , spanStartPosition
+    , toSpan
+    , uncoveredSpans
+    )
 
--- | Convert a 4-tuple to a span
-toSpan :: (Int, Int, Int, Int) -> Span
-toSpan = toHpcPos
-
--- | Extract the 1-based start line from a span.
-spanStartLine :: Span -> Int
-spanStartLine sp = let (l, _, _, _) = fromHpcPos sp in l
-
--- | Whether a line is covered or not
+-- | Whether a line is covered or not in HPC.
 data TCovered
     = TCovered
     | TNotCovered
     deriving (Eq, Show)
 
--- | Whether a line is covered or not
-isCovered :: TCovered -> Bool
-isCovered TCovered = True
-isCovered _ = False
+-- | Check whether an HPC coverage tag represents covered code.
+isTCovered :: TCovered -> Bool
+isTCovered TCovered = True
+isTCovered _        = False
 
--- | insideSpan small big
-insideSpan :: Span -> Span -> Bool
-insideSpan = insideHpcPos
+-- | Default search directories for HPC @.mix@ files.
+defaultMixPaths :: [FilePath]
+defaultMixPaths = [".hpc"]
 
--- | `mixTix` joins together the location and coverage data.
+-- | Combine module location entries and execution tick counts.
 mixTix :: String -> Mix -> TixModule -> (String, [(Span, TCovered)])
 mixTix s (Mix _fp _int _h _i mixEntry) tix = (s, zipWith toLocC mymixes mytixes)
   where
@@ -51,219 +105,133 @@ mixTix s (Mix _fp _int _h _i mixEntry) tix = (s, zipWith toLocC mymixes mytixes)
     isCov 0 = TNotCovered
     isCov _ = TCovered
 
-{- | reads a tix file. The tix is named for the binary run, and contains a list
-of modules involved.  Returns 'Left' naming the path if the file does not
-exist or cannot be parsed, so an unreadable file is never mistaken for "no
-coverage requested".
--}
+-- | Read a @.tix@ file. Returns 'Left' naming the path if the file does not
+-- exist or cannot be parsed.
 parseTix :: String -> IO (Either String [TixModule])
 parseTix path = do
-    atomicModifyIORef' tixReadCountRef (\n -> (n + 1, ()))
     exists <- doesFileExist path
     if not exists
         then return $ Left $ "Coverage error: tix file not found: " ++ path
         else do
-            -- readTix parses lazily: force the Tix itself so a malformed file
-            -- fails here rather than as an uncaught 'read' error later.
             tix <- try (readTix path >>= traverse evaluate)
             return $ case tix of
-                Right (Just (Tix tms)) -> Right tms
-                Right Nothing -> Left $ unparseable "file could not be read"
+                Right (Just (Tix tms))    -> Right tms
+                Right Nothing             -> Left $ unparseable "file could not be read"
                 Left (e :: SomeException) -> Left $ unparseable (takeWhile (/= '\n') (show e))
   where
     unparseable why =
         "Coverage error: cannot parse tix file " ++ path ++ " (" ++ why ++ ")"
 
--- | Number of Tix-file reads performed by this process.  This is diagnostic
--- instrumentation used to verify that project runs reuse their parsed input.
-tixReadCount :: IO Int
-tixReadCount = readIORef tixReadCountRef
-
--- | Process-local counter backing 'tixReadCount'.
-{-# NOINLINE tixReadCountRef #-}
-tixReadCountRef :: IORef Int
-tixReadCountRef = unsafePerformIO (newIORef 0)
-
--- | Parsed coverage modules indexed by every qualified-name suffix that can
--- match an unqualified source module name.
-newtype TixIndex = TixIndex (Map.Map String [TixModule])
-
--- | Parse a tix file into a reusable project coverage index, or a 'Left'
--- error naming the file if it is missing or unparseable.
-parseTixIndex :: String -> IO (Either String TixIndex)
-parseTixIndex path = fmap buildTixIndex <$> parseTix path
-
--- | Build a reusable project coverage index from parsed tix modules.
-buildTixIndex :: [TixModule] -> TixIndex
-buildTixIndex tms = TixIndex $ Map.fromListWith (++)
-    [ (key, [tm])
-    | tm <- tms
-    , key <- moduleNameKeys (tixModuleName tm)
-    ]
-
--- | Include the full module name and each suffix after a package separator.
-moduleNameKeys :: String -> [String]
-moduleNameKeys name = name : case dropWhile (/= '/') name of
-    []         -> []
-    (_ : rest) -> if null rest then [] else moduleNameKeys rest
-
--- | Look up coverage for a module in an already parsed tix index.
-getUnCoveredPatchesFromIndex :: TixIndex -> String -> IO (Either String (Maybe [Span]))
-getUnCoveredPatchesFromIndex (TixIndex modules) name =
-    case Map.findWithDefault [] name modules of
-        [tm] -> do
-            emix <- getMix tm
-            case emix of
-                Left err  -> return (Left err)
-                Right mix ->
-                    let (_, modSpan) = mixTix (tixModuleName tm) mix tm
-                        uncovSpan    = filter (not . isCovered . snd) modSpan
-                    in return $ Right $ Just $ removeRedundantSpans $ map fst uncovSpan
-        _ -> return (Right Nothing)
-
--- | The line and column of one end of a coverage span.
-type SpanPosition = (Int, Int)
-
--- | An ordered containment index for coverage spans.
-newtype SpanIndex = SpanIndex (Map.Map SpanPosition SpanPosition)
-
--- | Build an ordered index whose prefix maxima answer span-containment queries.
-indexSpans :: [Span] -> SpanIndex
-indexSpans spans = SpanIndex (Map.fromAscList (prefixMaxima endpoints))
-  where
-    endpoints = Map.toAscList $ Map.fromListWith max
-        [ (spanStartPosition sp, spanEndPosition sp) | sp <- spans ]
-
--- | Test whether a candidate span is contained in an indexed span.
-spanIndexContains :: SpanIndex -> Span -> Bool
-spanIndexContains (SpanIndex indexed) candidate =
-    case Map.lookupLE (spanStartPosition candidate) indexed of
-        Nothing          -> False
-        Just (_, maxEnd) -> maxEnd >= spanEndPosition candidate
-
--- | Convert endpoint entries into prefix-maximum entries in one ordered pass.
-prefixMaxima :: [(SpanPosition, SpanPosition)]
-             -> [(SpanPosition, SpanPosition)]
-prefixMaxima [] = []
-prefixMaxima entries@((_, firstEnd) : _) =
-    snd $ List.mapAccumL addMaximum firstEnd entries
-  where
-    addMaximum current (start, end) =
-        let next = max current end
-        in (next, (start, next))
-
--- | Read the corresponding Mix file to a TixModule.
--- Returns 'Left' with a user-readable message if the .mix file cannot be found.
-getMix :: TixModule -> IO (Either String Mix)
-getMix tm = do
+-- | Read the corresponding Mix file for a 'TixModule' using the provided search directories.
+-- Returns 'Left' with a user-readable message if the @.mix@ file cannot be found.
+getMix :: [FilePath] -> TixModule -> IO (Either String Mix)
+getMix mixPaths tm = do
     let name = tixModuleName tm
     -- Try reading with original name
-    res <- tryReadMix [".hpc"] (Right tm)
+    res <- tryReadMix mixPaths (Right tm)
     case res of
         Just m -> return (Right m)
         Nothing -> do
             -- Try stripping package prefix (everything before first slash)
             let strippedName = case break (== '/') name of
                     (_, "") -> name
-                    (_, s) -> drop 1 s
-            res2 <- tryReadMix [".hpc"] (Left strippedName)
+                    (_, s)  -> drop 1 s
+            res2 <- tryReadMix mixPaths (Left strippedName)
             case res2 of
-                Just m -> return (Right m)
+                Just m  -> return (Right m)
                 Nothing -> return $ Left $
                     "Coverage error: cannot find " ++ name
-                    ++ " (or " ++ strippedName ++ ") in .hpc"
+                    ++ " (or " ++ strippedName ++ ") in " ++ dirDesc
                     ++ " — is the test suite built with -fhpc?"
+  where
+    dirDesc = case mixPaths of
+        [d] -> d
+        ds  -> List.intercalate ", " ds
 
--- | Helper to try reading a mix file without crashing
+-- | Try reading a mix file without crashing on exceptions.
 tryReadMix :: [FilePath] -> Either String TixModule -> IO (Maybe Mix)
 tryReadMix fp target = (Just <$> readMix fp target) `catch` (\(_ :: SomeException) -> return Nothing)
 
--- | return the tix and mix information, or a 'Left' error if any .mix file is missing.
+-- | Build a pure 'CoverageIndex' from an HPC @.tix@ file and search directories for @.mix@ files.
+loadCoverageIndex :: [FilePath] -> FilePath -> IO (Either String CoverageIndex)
+loadCoverageIndex mixPaths path = do
+    etms <- parseTix path
+    case etms of
+        Left err  -> return (Left err)
+        Right tms -> do
+            results <- forM tms $ \tm -> do
+                let name = tixModuleName tm
+                emix <- getMix mixPaths tm
+                case emix of
+                    Left err -> return (name, Left err)
+                    Right mix -> do
+                        let (_, modSpan) = mixTix name mix tm
+                            uncovSpan    = filter (not . isTCovered . snd) modSpan
+                        return (name, Right (map fst uncovSpan))
+            return (Right (fromModuleResults results))
+
+-- | Return the tix and mix information using default mix paths, or 'Left' if any @.mix@ file is missing.
 getMixedTix :: String -> IO (Either String [(String, [(Span, TCovered)])])
-getMixedTix file = do
+getMixedTix = getMixedTixWith defaultMixPaths
+
+-- | Return the tix and mix information using the specified mix search paths.
+getMixedTixWith :: [FilePath] -> String -> IO (Either String [(String, [(Span, TCovered)])])
+getMixedTixWith mixPaths file = do
     etms <- parseTix file
     case etms of
-        Left err -> return (Left err)
+        Left err  -> return (Left err)
         Right tms -> do
-            eResults <- mapM getMix tms
+            eResults <- mapM (getMix mixPaths) tms
             case sequence eResults of
-                Left err -> return (Left err)
+                Left err   -> return (Left err)
                 Right mixs -> do
                     let names = map tixModuleName tms
                     return $ Right $ zipWith3 mixTix names mixs tms
 
-{- | getUnCoveredPatches returns the largest parts of the named module that are
-not covered.  Only the requested module's @.mix@ is read, so coverage data for a
-multi-module @.tix@ (e.g. a cabal project whose test-suite modules' @.mix@ files
-live in a different directory) still works — previously a single missing @.mix@
-for /any/ module failed the whole lookup.  Returns 'Left' with a user-readable
-error if the @.tix@ file is missing or unparseable, or if the requested module's
-own @.mix@ cannot be found.  An empty path means no coverage was requested.
--}
+-- | Get uncovered spans for the named module using default mix search paths.
+-- An empty path means no coverage was requested.
 getUnCoveredPatches :: String -> String -> IO (Either String (Maybe [Span]))
-getUnCoveredPatches "" _ = return (Right Nothing)
-getUnCoveredPatches file name = do
-    eindex <- parseTixIndex file
+getUnCoveredPatches = getUnCoveredPatchesWith defaultMixPaths
+
+-- | Get uncovered spans for the named module using specified mix search paths.
+getUnCoveredPatchesWith :: [FilePath] -> String -> String -> IO (Either String (Maybe [Span]))
+getUnCoveredPatchesWith _ "" _ = return (Right Nothing)
+getUnCoveredPatchesWith mixPaths file name = do
+    eindex <- loadCoverageIndex mixPaths file
     case eindex of
         Left err    -> return (Left err)
-        Right index -> getUnCoveredPatchesFromIndex index name
+        Right index -> return (lookupModuleSpans index name)
 
--- | Does a tix module's name match the requested (unqualified) module name?
+-- | Look up coverage for a module in an already parsed coverage index.
+getUnCoveredPatchesFromIndex :: CoverageIndex -> String -> IO (Either String (Maybe [Span]))
+getUnCoveredPatchesFromIndex index name = return (lookupModuleSpans index name)
+
+-- | Check whether a tix module name matches the requested module name.
 matchesName :: String -> TixModule -> Bool
 matchesName name tm =
     let k = tixModuleName tm in name == k || (("/" ++ name) `List.isSuffixOf` k)
 
--- | Get the span and covering information of the given module
+-- | Get the span and covering information of the given module.
 getNamedModule :: String -> [(String, [(Span, TCovered)])] -> [(Span, TCovered)]
 getNamedModule mname val =
     case filter (\(k, _) -> mname == k || (("/" ++ mname) `List.isSuffixOf` k)) val of
         ((_, x) : _) -> x
-        [] -> []
+        []           -> []
 
--- | Remove spans which are contained within others of same kind.
-removeRedundantSpans :: [Span] -> [Span]
-removeRedundantSpans spans =
-    [ sp
-    | (sp, index) <- zip spans [0 :: Int ..]
-    , Set.member index survivors
+-- ---------------------------------------------------------------------------
+-- Backwards compatibility aliases
+-- ---------------------------------------------------------------------------
+
+-- | Reusable coverage index.
+type TixIndex = CoverageIndex
+
+-- | Parse a tix file into a reusable coverage index using default mix search paths.
+parseTixIndex :: String -> IO (Either String CoverageIndex)
+parseTixIndex = loadCoverageIndex defaultMixPaths
+
+-- | Build a reusable coverage index from parsed tix modules without mix files.
+buildTixIndex :: [TixModule] -> CoverageIndex
+buildTixIndex tms = fromModuleResults
+    [ (tixModuleName tm, Left ("Coverage error: cannot resolve mix for " ++ tixModuleName tm ++ " without loadCoverageIndex"))
+    | tm <- tms
     ]
-  where
-    ordered = List.sortOn orderKey (zip spans [0 :: Int ..])
-    survivors = sweep ordered Nothing
-
-    orderKey (sp, index) =
-        (spanStartPosition sp, Down (spanEndPosition sp), index)
-
-    sweep [] _ = Set.empty
-    sweep entries@((firstSpan, _) : _) previousMaximum =
-        let start = spanStartPosition firstSpan
-            (sameStart, rest) = List.span
-                ((== start) . spanStartPosition . fst) entries
-            (groupMaximum, kept) =
-                List.foldl' (mark previousMaximum) (Nothing, Set.empty) sameStart
-            nextMaximum = maxMaybe previousMaximum groupMaximum
-        in Set.union kept (sweep rest nextMaximum)
-
-    mark previousMaximum (groupMaximum, kept) (sp, index) =
-        let end = spanEndPosition sp
-            redundant = maybe False (>= end) previousMaximum
-                || maybe False (> end) groupMaximum
-            nextGroupMaximum = Just $ maybe end (`max` end) groupMaximum
-        in ( nextGroupMaximum
-           , if redundant then kept else Set.insert index kept )
-
-    maxMaybe Nothing y = y
-    maxMaybe x Nothing = x
-    maxMaybe (Just x) (Just y) = Just (max x y)
-
--- | Extract the 1-based line and column of a span's start.
-spanStartPosition :: Span -> SpanPosition
-spanStartPosition sp =
-    let (line, column, _, _) = fromHpcPos sp
-    in (line, column)
-
--- | Extract the 1-based line and column of a span's end.
-spanEndPosition :: Span -> SpanPosition
-spanEndPosition sp =
-    let (_, _, line, column) = fromHpcPos sp
-    in (line, column)

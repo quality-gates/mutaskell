@@ -193,12 +193,15 @@ genMutantsWith config filename tix = do
                     Nothing -> (-1, mutants)
                     Just v  -> (length mutants, removeUncovered v mutants)
 
+-- | Keep only mutants inside covered code using a 'CoverageIndex'.
+filterCovered :: CoverageIndex -> String -> [Mutant] -> [Mutant]
+filterCovered covIndex modName = filter mutantIsCovered
+  where
+    mutantIsCovered Mutant{..} = isCovered covIndex modName _mspan
+
 -- | Remove mutants not covered by any test.
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]
-removeUncovered uspans = filter mutantIsCovered
-  where
-    uncoveredIndex = indexSpans uspans
-    mutantIsCovered Mutant{..} = not $ spanIndexContains uncoveredIndex _mspan
+removeUncovered uspans = filterCovered (fromSpans uspans) ""
 
 -- | Get the module name from a parsed AST.
 getModuleName :: Module_ -> String
