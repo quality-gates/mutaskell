@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.46]
+  * Fixed: report logger and baseline writers create missing parent directories, so `--logger-json`, `--logger-html`, `--logger-gitlab`, `--logger-github`, `--logger-agentic-json`, and `--update-baseline` no longer throw an uncaught `IOException` after a completed run (#109).
+
 ## [0.8.45]
   * Added: exploratory testing reports under `docs/exploratory-testing/` covering CLI journeys, configuration, scoping, loggers, timing calibration, and project discovery (#109, #110, #111, #112).
   * Fixed: CI workflow now includes `--enable-tests` in build and test steps so the solver plan configures the test suite on clean package database runs.
