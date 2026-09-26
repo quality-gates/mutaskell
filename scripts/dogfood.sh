@@ -2,6 +2,15 @@
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
+scope_file=${1:-}
+diff_base=${2:-}
+if [[ $# -gt 2 ]]; then
+  echo "Usage: $0 [source-manifest] [diff-base]" >&2
+  exit 2
+fi
+if [[ -n "$scope_file" && "$scope_file" != /* ]]; then
+  scope_file="$PWD/$scope_file"
+fi
 mkdir -p "$repo/.mutaskell"
 report=$(mktemp -d "$repo/.mutaskell/dogfood.XXXXXX")
 work=$(mktemp -d "${TMPDIR:-/tmp}/mutaskell-dogfood.XXXXXX")
@@ -20,10 +29,28 @@ rsync -a --exclude='.git' --exclude='dist-newstyle' --exclude='.stack-work' \
   --exclude='.hpc' --exclude='*.tix' \
   --exclude='.ghc.environment.*' --exclude='cabal.project.local' \
   "$repo/" "$work/"
+diff_args=()
+if [[ -n "$diff_base" ]]; then
+  gitdir=$(git -C "$repo" rev-parse --absolute-git-dir)
+  printf 'gitdir: %s\n' "$gitdir" > "$work/.git"
+  if ! git -C "$work" rev-parse --verify "${diff_base}^{commit}" >/dev/null 2>&1; then
+    echo "Diff base is not available in the private work tree: $diff_base" >&2
+    exit 2
+  fi
+  diff_args=(--git-diff-base "$diff_base" --git-diff-lines)
+fi
 cd "$work"
-find src app -type f \( -name '*.hs' -o -name '*.lhs' \) | LC_ALL=C sort > "$report/sources.txt"
+if [[ -n "$scope_file" ]]; then
+  if [[ ! -f "$scope_file" ]]; then
+    echo "Source manifest not found: $scope_file" >&2
+    exit 2
+  fi
+  LC_ALL=C sort -u "$scope_file" > "$report/sources.txt"
+else
+  find src app -type f \( -name '*.hs' -o -name '*.lhs' \) | LC_ALL=C sort > "$report/sources.txt"
+fi
 if [[ ! -s "$report/sources.txt" ]]; then
-  echo 'No production Haskell sources found.' >&2
+  echo 'No production Haskell sources selected.' >&2
   exit 1
 fi
 
@@ -35,8 +62,8 @@ if [[ "${GITHUB_ACTIONS:-}" == true ]]; then
   project_budget=18000
 fi
 
-build='cabal build --write-ghc-environment-files=always all test:spec'
-test='cabal test spec --test-show-details=direct --test-option=--fail-fast'
+build='cabal build --write-ghc-environment-files=always --enable-tests all test:spec'
+test='cabal test --enable-tests spec --test-show-details=direct --test-option=--fail-fast'
 $build > "$report/build.log" 2>&1
 # Mutating app/Main.hs rebuilds the executable. Keep the evaluator outside that path.
 cp "$(cabal list-bin exe:mutaskell)" "$work/dogfood-runner"
@@ -44,17 +71,23 @@ printf '{}\n' > "$work/dogfood-config.yaml"
 
 # Reject incomplete generation before paying for a full mutation evaluation.
 for source_dir in src app; do
-  "$work/dogfood-runner" "$source_dir" --config "$work/dogfood-config.yaml" \
-    --dry-run --workers 1 --jobs 1 --timeout "$mutant_timeout" \
-    --time-budget "$project_budget"
+  if grep -q "^$source_dir/" "$report/sources.txt"; then
+    "$work/dogfood-runner" "$source_dir" --config "$work/dogfood-config.yaml" \
+      "${diff_args[@]}" \
+      --dry-run --workers 1 --jobs 1 --timeout "$mutant_timeout" \
+      --time-budget "$project_budget"
+  fi
 done 2>&1 | tee "$report/generation.log"
-if grep -q '^SKIP ' "$report/generation.log"; then
-  echo 'Production mutant generation is incomplete; fix skipped sources before evaluation.' >&2
-  exit 1
-fi
+while IFS= read -r source; do
+  if grep -Fq "SKIP $source" "$report/generation.log"; then
+    echo "Production mutant generation is incomplete for $source." >&2
+    exit 1
+  fi
+done < "$report/sources.txt"
 
 set +e
 "$work/dogfood-runner" . --config "$work/dogfood-config.yaml" \
+  "${diff_args[@]}" \
   --only-files "$report/sources.txt" --result-out "$report/counts.txt" \
   --workers 1 --jobs 1 --timeout "$mutant_timeout" --time-budget "$project_budget" \
   --build-cmd "$build" --test-cmd "$test" --min-msi 80 \

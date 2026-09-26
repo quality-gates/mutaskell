@@ -26,7 +26,7 @@ import System.Directory
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>), takeDirectory)
 import System.IO.Temp (emptySystemTempFile, withSystemTempDirectory)
-import System.Process (callProcess)
+import System.Process (callProcess, readProcessWithExitCode)
 import Test.Hspec
 
 import qualified App.Orchestrator as Orchestrator
@@ -45,6 +45,7 @@ import App.Project
     )
 import Test.Mutaskell.Tix (tixReadCount)
 import Test.Mutaskell.Utils.Print (catchOutputStr)
+import Test.Mutaskell.WorkerSpec (findMucheckBin)
 
 -- | A small module with constructs every mutator family can hit.
 sampleModule :: String -> String
@@ -147,6 +148,13 @@ projectOpts root resultOut = defaultOpts
     , optResultOut = Just resultOut
     }
 
+-- | Test command that checks the separator, argument boundaries, and quoting.
+testArgsCheckCmd :: String
+testArgsCheckCmd =
+    "sh -c 'test \"$#\" -eq 4 && test \"$1\" = -- "
+        ++ "&& test \"$2\" = \"space value\" && test \"$3\" = marker "
+        ++ "&& test \"$4\" = \"O'\\''Brien\"' _"
+
 -- | A cabal file whose package dir (@. @) overlaps the declared library and
 -- executable source dirs — the layout mutaskell's own repo has.
 writeCabalProject :: FilePath -> IO ()
@@ -225,6 +233,82 @@ spec = describe "runProject (serial)" $ do
             alive `shouldSatisfy` (> 0)    -- M2/M3 mutants, and untouched sentinels
             skipped `shouldBe` 0           -- the build command cannot fail
             killed + alive + skipped `shouldBe` total
+
+    it "does not apply the per-mutant timeout to the baseline test command" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 1
+            let opts = (projectOpts root (root </> "result.txt"))
+                    { optBuildCmd = Just "true"
+                    , optTestCmd = Just "sleep 2"
+                    , optMaxMutants = Just 1
+                    , optTimeout = Just 1
+                    , optWorkers = 1
+                    , optJobs = 1
+                    , optTimeBudget = Just 1800
+                    }
+            (result, out) <- catchOutputStr
+                (try (runProjectRestoring opts) :: IO (Either ExitCode ()))
+            result `shouldBe` Right ()
+            out `shouldContain` "Baseline OK."
+
+    it "passes test arguments to the project test command" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 1
+            let opts = (projectOpts root (root </> "result.txt"))
+                    { optTestCmd = Just testArgsCheckCmd
+                    , optTestArgs = ["space value", "marker", "O'Brien"]
+                    , optMaxMutants = Just 1
+                    , optTimeout = Just 30
+                    , optWorkers = 1
+                    , optJobs = 1
+                    , optTimeBudget = Just 1800
+                    }
+            (result, _) <- catchOutputStr
+                (try (runProjectRestoring opts) :: IO (Either ExitCode ()))
+            result `shouldBe` Right ()
+
+    it "passes test arguments through the project worker command" $
+        withSystemTempDirectory "mutaskell-proj" $ \root -> do
+            makeProject root 1
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mutaskell binary not built (run cabal build all)"
+                Just exe -> do
+                    let args =
+                            [ root
+                            , "--build-cmd", "true"
+                            , "--test-cmd", testArgsCheckCmd
+                            , "--test-args", "space value"
+                            , "--test-args", "marker"
+                            , "--test-args", "O'Brien"
+                            , "--max-mutants", "1"
+                            , "--workers", "1"
+                            , "--jobs", "2"
+                            , "--timeout", "30"
+                            , "--time-budget", "1800"
+                            ]
+                    (ec, out, errOut) <- readProcessWithExitCode exe args ""
+                    ec `shouldBe` ExitSuccess
+                    out `shouldContain` "parallel: 1 job(s)"
+                    out `shouldContain` "Baseline OK."
+                    (out ++ errOut) `shouldNotContain` "worker(s) failed"
+
+    it "passes test arguments to the orchestrator test command" $
+        withSystemTempDirectory "mutaskell-orch" $ \root -> do
+            let file = root </> "M1.hs"
+                opts = defaultOpts
+                    { optFile = file
+                    , optBuildCmd = Just "true"
+                    , optTestCmd = Just testArgsCheckCmd
+                    , optTestArgs = ["space value", "marker", "O'Brien"]
+                    , optMaxMutants = Just 1
+                    , optTimeout = Just 30
+                    , optWorkers = 1
+                    }
+            writeFile file (sampleModule "M1")
+            (result, _) <- catchOutputStr $ withCurrentDirectory root
+                (try (Orchestrator.runOrchestrator opts) :: IO (Either ExitCode ()))
+            result `shouldBe` Right ()
 
     it "reads project coverage once across multiple source files" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do

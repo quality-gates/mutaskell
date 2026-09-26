@@ -8,6 +8,7 @@ module App.Opts
   , optsParserInfo
   , parseOpts
   , parseOptsFrom
+  , appendTestArgs
   , validateOpts
   , missingCoverageForMinCoveredMsi
   , loadConfig
@@ -130,6 +131,16 @@ defaultOpts = Opts
   , optOnlyFiles    = Nothing
   , optResultOut    = Nothing
   }
+
+-- | Append test arguments after the shell command's option separator.
+appendTestArgs :: String -> [String] -> String
+appendTestArgs testCommand [] = testCommand
+appendTestArgs testCommand args =
+  testCommand ++ " -- " ++ unwords (map shellQuote args)
+  where
+    shellQuote arg = "'" ++ concatMap quoteChar arg ++ "'"
+    quoteChar '\'' = "'\\''"
+    quoteChar c = [c]
 
 -- Private list of valid config keys; used for unknown-key rejection.
 knownYamlKeys :: [String]

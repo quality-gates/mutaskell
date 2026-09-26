@@ -82,7 +82,7 @@ import App.Filter
     , checkGitDiff
     , parseAnnotations
     )
-import App.Opts (Opts (..), missingCoverageForMinCoveredMsi)
+import App.Opts (Opts (..), appendTestArgs, missingCoverageForMinCoveredMsi)
 import App.Orchestrator
     ( Outcome (..)
     , evaluateFile
@@ -132,8 +132,9 @@ runSerial opts = do
     root <- maybe (noProjectRootFound scope) return =<< findProjectRoot scope
     setCurrentDirectory root
     createDirectoryIfMissing True stateDir
-    (buildCmd, testCmd) <- detectCommands opts
-    let mtimeout = fmap (* 1000000) (optTimeout opts)
+    (buildCmd, detectedTestCmd) <- detectCommands opts
+    let testCmd = appendTestArgs detectedTestCmd (optTestArgs opts)
+        mtimeout = fmap (* 1000000) (optTimeout opts)
         relScope = normalise (makeRelative root scope)
 
     putStrLn $ "Project mode on " ++ scope
@@ -172,8 +173,8 @@ runSerial opts = do
             b0 <- runCmd Nothing buildCmd
             when (b0 /= ExitSuccess) $ baselineBuildFailed buildCmd
             putStrLn "Baseline: running the test suite on unmodified project..."
-            t0 <- runCmd mtimeout testCmd
-            when (t0 /= ExitSuccess) $ baselineTestFailed testCmd (t0 == ExitFailure 124)
+            t0 <- runCmd Nothing testCmd
+            when (t0 /= ExitSuccess) $ baselineTestFailed testCmd
             putStrLn "Baseline OK.\n"
 
             -- Budget state shared across files.
@@ -536,6 +537,7 @@ passThrough opts mMax = concat
     , optArg "--time-budget" (show <$> optTimeBudget opts)
     , optArg "--build-cmd"   (optBuildCmd opts)
     , optArg "--test-cmd"    (optTestCmd opts)
+    , concatMap (\arg -> ["--test-args", arg]) (optTestArgs opts)
     , optArg "--max-mutants" (show <$> mMax)
     , if null (optTix opts) then [] else ["--tix", optTix opts]
     , ["--coverage" | optCoverage opts]
@@ -1028,30 +1030,22 @@ readLogContent = do
     exists <- doesFileExist execLog
     if exists then readFile' execLog else return ""
 
--- | Abort because the baseline test run failed or timed out.  Never returns.
-baselineTestFailed :: String -> Bool -> IO a
-baselineTestFailed cmd timedOut = do
+-- | Abort because the baseline test run failed.  Never returns.
+baselineTestFailed :: String -> IO a
+baselineTestFailed cmd = do
     hPutStrLn stderr $ unlines
         [ ""
-        , if timedOut
-            then "Baseline test suite TIMED OUT."
-            else "Baseline test suite FAILED."
+        , "Baseline test suite FAILED."
         , ""
         , "  Command: " ++ cmd
         ]
     printLogTail
-    hPutStrLn stderr $ unlines $
-        [ "  Hints:" ] ++
-        ( if timedOut
-            then [ "    - The test suite exceeded the configured --timeout."
-                 , "      Remove --timeout to wait indefinitely, or narrow the scope:"
-                 , "        --test-cmd \"cabal test <pkg> --test-show-details=direct\""
-                 ]
-            else [ "    - The suite must be green before mutation testing can start."
-                 , "    - Fix failing tests first, or narrow the scope:"
-                 , "        --test-cmd \"cabal test <pkg> --test-show-details=direct\""
-                 ] ) ++
-        [ ""
+    hPutStrLn stderr $ unlines
+        [ "  Hints:"
+        , "    - The suite must be green before mutation testing can start."
+        , "    - Fix failing tests first, or narrow the scope:"
+        , "        --test-cmd \"cabal test <pkg> --test-show-details=direct\""
+        , ""
         , "  Full output: " ++ execLog
         ]
     exitWith (ExitFailure 3)
