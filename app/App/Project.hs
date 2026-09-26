@@ -369,7 +369,7 @@ dryCount opts coverage file = do
 -- huge module can still be slow.  We render mutants until this budget elapses
 -- and proceed with however many we have (AC 13) rather than skipping the file.
 genBudgetSecs :: Int
-genBudgetSecs = 5
+genBudgetSecs = 15
 
 -- | Generate mutants in two separately-bounded phases and return
 -- @(completed, mutants)@.  @completed@ is 'False' if either phase was cut short,

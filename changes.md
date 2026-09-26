@@ -2,6 +2,7 @@
 
 ## [0.8.49]
   * Fixed: project and `--exec` modes now pass repeatable `--test-args` values to the configured or detected test command, preserving argument boundaries (#112).
+  * Changed: project runs allow more time for bounded mutant generation on larger source files, so completed mutation evidence is less likely to omit those files.
 
 ## [0.8.48]
   * Fixed: `--timeout-coefficient` and `--noop` runs write baseline and pre-flight logs to isolated system temporary directories instead of the current working directory, preventing untracked log files in workspaces and `IOException` failures in read-only directories (#111).
