@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.45]
+  * Added: exploratory testing reports under `docs/exploratory-testing/` covering CLI journeys, configuration, scoping, loggers, timing calibration, and project discovery (#109, #110, #111, #112).
+
 ## [0.8.44]
   * Changed: coding standards now state the production mutation gate as a hard requirement: covered-MSI of at least 80% for the changed scope in `src/` and `app/`, with raw MSI as an interim proxy clearing the same floor. `AGENTS.md` states the gate in its pointer to the standards.
 
