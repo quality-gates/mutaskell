@@ -753,7 +753,7 @@ isInScope relScope p
 -- | Discover Haskell source files for the project, relative to the (already
 -- chdir'd) project root.  Roots are the @hs-source-dirs@ declared in every
 -- @.cabal@ file, plus each package directory (covering library stanzas that omit
--- @hs-source-dirs@).  Excluded: @dist-newstyle@, @.git@, @.stack-work@, and any
+-- @hs-source-dirs@).  Excluded: @dist-newstyle@, hidden directories, and any
 -- @--exclude-dirs@.
 discoverSources :: Opts -> IO [FilePath]
 discoverSources opts = fst <$> discoverSourcesWithStats opts
@@ -817,9 +817,12 @@ discoverSourcesWithStats opts = do
     -- matched as path prefixes, not bare components, to avoid excluding an
     -- unrelated src/Test.
     excluded testDirs p =
-        any (`elem` pathParts p) (["dist-newstyle", ".git", ".stack-work"] ++ optExcludeDirs opts)
+        any (`elem` pathParts p) ("dist-newstyle" : optExcludeDirs opts)
+        || any isHiddenPart (pathParts p)
         || p `elem` map canonicalDir testDirs
         || any (\t -> (canonicalDir t ++ "/") `isPrefixOf` (p ++ "/")) testDirs
+    isHiddenPart part =
+        part /= "." && part /= ".." && "." `isPrefixOf` part
     pathParts = foldr splitSlash [""] . normalise
     splitSlash '/' acc = "" : acc
     splitSlash c (x:xs) = (c : x) : xs

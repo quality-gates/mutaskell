@@ -740,7 +740,8 @@ In project mode mutaskell:
     `cabal test all`; stack → `stack build` / `stack test`); override with
     `--build-cmd` / `--test-cmd`;
 *   **discovers** source files from the `hs-source-dirs` declared in the
-    project's `.cabal` files, plus each package directory;
+    project's `.cabal` files, plus each package directory, while skipping
+    hidden dot-directories such as `.mutants/` and `.mutaskell/`;
 *   **honors the same suppressions as single-file mode** — inline
     `-- mucheck: disable-next-line` annotations (including mutator names and
     `*` wildcards) and `ignore_source_lines` filter generated mutants per file,
