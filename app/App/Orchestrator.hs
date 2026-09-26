@@ -66,7 +66,7 @@ import System.Timeout (timeout)
 
 import App.Exit (applyExitPolicy)
 import App.Filter (applyDisableEnable)
-import App.Opts (Opts (..))
+import App.Opts (Opts (..), appendTestArgs)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
 import Test.Mutaskell.Mutation (genSampledMutants, getASTFromFile)
@@ -99,7 +99,8 @@ runOrchestrator :: Opts -> IO ()
 runOrchestrator opts = do
     let file     = optFile opts
         buildCmd = fromMaybe "cabal build" (optBuildCmd opts)
-        testCmd  = fromMaybe "cabal test"  (optTestCmd opts)
+        testCmd  = appendTestArgs
+            (fromMaybe "cabal test" (optTestCmd opts)) (optTestArgs opts)
         mtimeout = fmap (* 1000000) (optTimeout opts)
 
     createDirectoryIfMissing True stateDir

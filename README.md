@@ -677,7 +677,7 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--keep-mutants DIR`: Write mutant files to DIR and keep them after evaluation (default: system temp, deleted after each evaluation).
 *   `--logger-agentic-json FILE`: Write per-mutant JSON with stable IDs, descriptions, context, and MSI summary for LLM consumption.
 *   `--logger-html FILE`: Write a standalone HTML mutation report to FILE with per-mutant diffs, source context, and a colour-coded summary.
-*   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable).
+*   `--test-args ARG`: Pass ARG to the test runner on every invocation (repeatable). In project and `--exec` modes, arguments are appended after `--` to the detected or specified test command.
 *   `--coverage`: Auto-discover a `.tix` coverage file in the current directory without requiring `--tix FILE`. If none is found the run proceeds without coverage.
 *   `--tix FILE`: If FILE does not exist or does not parse, the run exits with code 2 and an error naming FILE.
 *   `--config FILE` / `--config=FILE`: Load config from FILE instead of auto-loading `.mucheck.yaml` from the project root. If FILE does not exist, mutaskell exits with code 2 and an error.
