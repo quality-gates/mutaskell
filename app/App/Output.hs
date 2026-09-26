@@ -28,6 +28,8 @@ import qualified Data.ByteString.Lazy as BL
 import Data.List (nub, sort)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (takeDirectory)
 
 import App.Opts (Opts(..))
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
@@ -188,12 +190,17 @@ groupConsec (x:xs) = go [x] x xs
       | y == prev + 1  = go (y : cur) y ys
       | otherwise      = reverse cur : go [y] y ys
 
+ensureParentDirectory :: FilePath -> IO ()
+ensureParentDirectory path =
+  createDirectoryIfMissing True (takeDirectory path)
+
 -- | Write surviving mutant IDs to the update-baseline file.
 writeUpdateBaseline :: Opts -> [MutantSummary] -> IO ()
 writeUpdateBaseline opts tsum = case optUpdateBaseline opts of
   Nothing   -> return ()
   Just path -> do
     let aliveIds = [hash (_mutant m) | MSumAlive m _ <- tsum]
+    ensureParentDirectory path
     writeFile path (unlines aliveIds)
 
 -- | Write a compact JSON summary to the logger-json file.
@@ -228,6 +235,7 @@ writeJsonLogger opts msum = case optLoggerJson opts of
           , "  \"covered_code_msi\": " ++ covMsiField
           , "}"
           ]
+    ensureParentDirectory path
     writeFile path json
 
 -- | Write GitHub Actions annotation lines for escaped mutants.
@@ -243,6 +251,7 @@ writeGithubLogger opts file tsum = case optLoggerGithub opts of
             in "::warning file=" ++ file ++ ",line=" ++ show ln ++ ",col=1::" ++ msg
           _ -> ""
         annotations = map line aliveSums
+    ensureParentDirectory path
     writeFile path (unlines annotations)
 
 -- | Write a GitLab Code Quality JSON artifact for escaped mutants.
@@ -263,7 +272,8 @@ writeGitlabLogger opts file tsum = case optLoggerGitlab opts of
                  [ "path" .= file
                  , "lines" .= object [ "begin" .= ln ]
                  ]
-             ]
+              ]
+    ensureParentDirectory path
     BL.writeFile path (BL.snoc (encode (map entry aliveMs)) 10)
 
 -- | Write a per-mutant agentic JSON file for LLM consumption.
@@ -331,6 +341,7 @@ writeAgenticJsonLoggerWithDiffs opts file origSrc diffs msum = case optLoggerAge
           [ "mutants" .= entries
           , "summary" .= summaryJson
           ]
+    ensureParentDirectory path
     BL.writeFile path (BL.snoc (encode json) 10)
 
 -- | Write a standalone HTML mutation report.
@@ -342,7 +353,9 @@ writeHtmlLogger opts file origSrc tsum msum =
 writeHtmlLoggerWithDiffs :: Opts -> FilePath -> String -> [MutantDiff] -> MAnalysisSummary -> IO ()
 writeHtmlLoggerWithDiffs opts file origSrc diffs msum = case optLoggerHtml opts of
   Nothing   -> return ()
-  Just path -> writeFile path (buildHtmlReportWithDiffs file origSrc diffs msum)
+  Just path -> do
+    ensureParentDirectory path
+    writeFile path (buildHtmlReportWithDiffs file origSrc diffs msum)
 
 buildHtmlReport :: FilePath -> String -> [MutantSummary] -> MAnalysisSummary -> String
 buildHtmlReport file origSrc tsum msum =

@@ -858,6 +858,8 @@ The `--logger-json FILE` flag writes a compact JSON summary after each run. The 
 
 `covered_code_msi` is `null` when no `--tix` file is provided. The `--logger-agentic-json` output uses the same 0–1 scale for `msi` in its `summary` object.
 
+`--logger-json`, `--logger-github`, `--logger-gitlab`, `--logger-agentic-json`, `--logger-html`, and `--update-baseline` create missing parent directories before writing. A report path such as `build/reports/summary.json` does not require the folder to exist first.
+
 ### Config file
 
 mutaskell auto-loads `.mucheck.yaml` from the project root if it exists. CLI flags override config values. Supported keys:

@@ -9,10 +9,12 @@ import App.Output
     , groupConsec
     , prepareMutantDiffs
     , unifiedDiff
-    ,     writeAgenticJsonLoggerWithDiffs
+    , writeAgenticJsonLoggerWithDiffs
+    , writeGithubLogger
     , writeGitlabLogger
     , writeHtmlLoggerWithDiffs
     , writeJsonLogger
+    , writeUpdateBaseline
     )
 import App.Opts (Opts(..), defaultOpts)
 import App.Filter (parseDiffChangedLines)
@@ -22,6 +24,7 @@ import Test.Mutaskell.Interpreter (MutantSummary(..))
 import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix (toSpan)
 import Data.List (isInfixOf)
+import System.Directory (doesFileExist)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 
@@ -105,6 +108,34 @@ spec = do
         it "groups ordered positions without changing their order" $ do
             groupConsec [1, 2, 3, 6, 7, 10] `shouldBe`
                 [[1, 2, 3], [6, 7], [10]]
+
+    describe "report output parent directories" $ do
+        it "writes logger and baseline files when nested parent directories are missing" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let missing name file = dir </> name </> "nested" </> file
+                    jsonPath = missing "json" "summary.json"
+                    githubPath = missing "github" "github.txt"
+                    gitlabPath = missing "gitlab" "gitlab.json"
+                    agenticPath = missing "agentic" "agentic.json"
+                    htmlPath = missing "html" "report.html"
+                    baselinePath = missing "baseline" "baseline.txt"
+                    analysis = MAnalysisSummary (-1) 1 0 0 0 0
+                    opts = defaultOpts
+                        { optLoggerJson = Just jsonPath
+                        , optLoggerGithub = Just githubPath
+                        , optLoggerGitlab = Just gitlabPath
+                        , optLoggerAgenticJson = Just agenticPath
+                        , optLoggerHtml = Just htmlPath
+                        , optUpdateBaseline = Just baselinePath
+                        }
+                writeJsonLogger opts analysis
+                writeGithubLogger opts "Fixture.hs" []
+                writeGitlabLogger opts "Fixture.hs" []
+                writeAgenticJsonLoggerWithDiffs opts "Fixture.hs" "" [] analysis
+                writeHtmlLoggerWithDiffs opts "Fixture.hs" "" [] analysis
+                writeUpdateBaseline opts []
+                mapM_ (\path -> doesFileExist path `shouldReturn` True)
+                    [jsonPath, githubPath, gitlabPath, agenticPath, htmlPath, baselinePath]
 
     describe "writeJsonLogger" $ do
         it "emits covered_code_msi 0.0 when coverage is present but covers zero mutants" $
