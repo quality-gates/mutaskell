@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.47]
+  * Fixed: project mode skips hidden dot-directories, so preserved mutants and internal state are not discovered as project sources (#110).
+
 ## [0.8.46]
   * Fixed: report logger and baseline writers create missing parent directories, so `--logger-json`, `--logger-html`, `--logger-gitlab`, `--logger-github`, `--logger-agentic-json`, and `--update-baseline` no longer throw an uncaught `IOException` after a completed run (#109).
 
