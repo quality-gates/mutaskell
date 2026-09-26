@@ -544,6 +544,19 @@ spec = describe "runProject (serial)" $ do
                 files <- withCurrentDirectory root (discoverSourcesWithStats defaultOpts)
                 fst files `shouldBe` ["other/Orphan.hs", "sub/src/A.hs"]
 
+        it "does not discover sources inside hidden directories" $
+            withSystemTempDirectory "mutaskell-disc" $ \root -> do
+                writeCabalProject root
+                writeFiles root
+                    [ ("src/A.hs", "module A where")
+                    , (".mutants/Orphan.hs", "module Orphan where")
+                    , (".mutaskell/State.hs", "module State where")
+                    , (".cache/nested/Deep.hs", "module Deep where")
+                    , ("src/.generated/Generated.hs", "module Generated where")
+                    ]
+                files <- withCurrentDirectory root (discoverSourcesWithStats defaultOpts)
+                fst files `shouldBe` ["src/A.hs"]
+
         it "discovers only files within the scope directory" $
             withSystemTempDirectory "mutaskell-disc" $ \root -> do
                 writeCabalProject root
