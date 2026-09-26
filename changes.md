@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.48]
+  * Fixed: `--timeout-coefficient` and `--noop` runs write baseline and pre-flight logs to isolated system temporary directories instead of the current working directory, preventing untracked log files in workspaces and `IOException` failures in read-only directories (#111).
+  * Fixed: added `.mucheck-baseline-timing.log` to `.gitignore` as a fallback safeguard (#111).
+
 ## [0.8.47]
   * Fixed: project mode skips hidden dot-directories, so preserved mutants and internal state are not discovered as project sources (#110).
 

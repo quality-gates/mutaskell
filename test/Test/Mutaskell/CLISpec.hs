@@ -1,6 +1,6 @@
 module Test.Mutaskell.CLISpec where
 
-import System.Directory (withCurrentDirectory)
+import System.Directory (doesFileExist, removePathForcibly, withCurrentDirectory)
 import System.Exit (ExitCode (..))
 import System.IO (writeFile)
 import System.IO.Temp (withSystemTempDirectory)
@@ -413,6 +413,46 @@ spec = do
                         ec `shouldBe` ExitSuccess
                         out `shouldContain` "Discovered 0 source file(s)."
                         out `shouldContain` "Total generated mutants (sampled per file): 0"
+
+    describe "baseline and noop log file cleanup" $ do
+        it "--timeout-coefficient does not leave .mucheck-baseline-timing.log in working directory" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    let timingLog = ".mucheck-baseline-timing.log"
+                    removePathForcibly timingLog
+                    (ec, _, _) <- readProcessWithExitCode exe
+                        [ "Examples/AssertCheckTest.hs"
+                        , "--timeout-coefficient", "2.0"
+                        , "--max-mutants", "1"
+                        , "--workers", "1"
+                        , "--timeout", "30"
+                        ] ""
+                    timingExists <- doesFileExist timingLog
+                    removePathForcibly timingLog
+                    ec `shouldBe` ExitSuccess
+                    timingExists `shouldBe` False
+
+        it "--noop does not leave .mucheck-noop.log in working directory" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    let noopLog = ".mucheck-noop.log"
+                    removePathForcibly noopLog
+                    (ec, _, _) <- readProcessWithExitCode exe
+                        [ "Examples/AssertCheckTest.hs"
+                        , "--noop"
+                        , "--max-mutants", "1"
+                        , "--workers", "1"
+                        , "--timeout", "30"
+                        ] ""
+                    noopExists <- doesFileExist noopLog
+                    removePathForcibly noopLog
+                    ec `shouldBe` ExitSuccess
+                    noopExists `shouldBe` False
+
 
 
 

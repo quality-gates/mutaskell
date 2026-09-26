@@ -43,7 +43,9 @@ import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Directory (doesDirectoryExist, doesFileExist, listDirectory)
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (ExitCode(..), exitSuccess, exitWith)
+import System.FilePath ((</>))
 import System.IO (BufferMode (..), hFlush, hPutStr, hPutStrLn, hSetBuffering, stderr, stdout)
+import System.IO.Temp (withSystemTempDirectory)
 
 import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
@@ -263,9 +265,9 @@ noopCheck file = do
   tests <- case testRes of
     Left err -> hPutStrLn stderr ("Parse error: " ++ err) >> exitWith (ExitFailure 2)
     Right t -> return t
-  unless (null tests) $ do
+  unless (null tests) $ withSystemTempDirectory "mucheck-noop" $ \tmpDir -> do
     let testStrs = map (genTest (toRun file :: AssertCheckRun)) tests
-        logF     = ".mucheck-noop.log"
+        logF     = tmpDir </> "noop.log"
         runTest :: String -> IO (InterpreterOutput AssertCheckSummary)
         runTest  = evalTest Nothing [] file logF
     results <- mapM runTest testStrs
@@ -287,9 +289,9 @@ resolveTimeout :: Opts -> FilePath -> AssertCheckRun -> [String] -> IO (Maybe In
 resolveTimeout opts file modFile testNames =
   case optTimeoutCoef opts of
     Nothing  -> return $ fmap (* 1000000) (optTimeout opts)
-    Just coef -> do
+    Just coef -> withSystemTempDirectory "mucheck-timing" $ \tmpDir -> do
       let testStrs = map (genTest modFile) testNames
-          logF = ".mucheck-baseline-timing.log"
+          logF = tmpDir </> "baseline-timing.log"
           runOne :: String -> IO (InterpreterOutput AssertCheckSummary)
           runOne = evalTest Nothing [] file logF
       t0 <- getCurrentTime
