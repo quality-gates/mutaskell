@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.50]
+  * Fixed: `other:tuple-swap` mutants now render as valid source, e.g. `(x, y)` becomes `(y, x)`, instead of dropping elements or fusing tokens such as `(   yx,  )` (#119).
+
 ## [0.8.49]
   * Fixed: project and `--exec` modes now pass repeatable `--test-args` values to the configured or detected test command, preserving argument boundaries (#112).
   * Changed: project runs allow more time for bounded mutant generation on larger source files, so completed mutation evidence is less likely to omit those files.
