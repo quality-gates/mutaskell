@@ -409,6 +409,26 @@ other y = y
             normSrcs `shouldSatisfy` all ("other y = y" `isInfixOf`)
             mapM_ H.ast srcs
 
+        it "removes one let binding at a time in do-blocks without fusing let keyword and variable" $ do
+            let text =
+                    [e|
+module Prop where
+
+f = do
+  putStrLn "start"
+  let x = 1
+      y = 2
+  return (x + y)
+|]
+            srcs <- H.renderedMutants selectRemoveLetBindingOps text
+            let normSrcs = map (unwords . words) srcs
+            normSrcs `shouldSatisfy` any ("let y = 2" `isInfixOf`)
+            normSrcs `shouldSatisfy` any ("let x = 1" `isInfixOf`)
+            normSrcs `shouldSatisfy` all (not . ("letx" `isInfixOf`))
+            normSrcs `shouldSatisfy` all (not . ("lety" `isInfixOf`))
+            normSrcs `shouldSatisfy` all ("putStrLn \"start\"" `isInfixOf`)
+            mapM_ H.ast srcs
+
     describe "selectRemoveWhereBindingOps" $ do
         it "removes one where binding at a time, keeping the body" $ do
             let text =

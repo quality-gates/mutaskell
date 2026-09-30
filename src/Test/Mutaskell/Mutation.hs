@@ -1115,15 +1115,15 @@ selectRemoveLetBindingOps m =
     isLetStmt _ = False
 
     convertDo :: LHsExpr GhcPs -> [LHsExpr GhcPs]
-    convertDo (L _ (HsDo x ctx (L ls stmts))) =
-        [ mkL (HsDo x ctx (L ls stmts'))
+    convertDo (L la (HsDo x ctx (L ls stmts))) =
+        [ L la (HsDo x ctx (L ls stmts'))
         | stmts' <- mutateOne convertLetStmt stmts
         ]
     convertDo _ = []
 
     convertLetStmt :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
-    convertLetStmt (L _ (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
-        [ mkL (LetStmt x (HsValBinds xv (ValBinds xvb bs' sigs)))
+    convertLetStmt (L la (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
+        [ L la (LetStmt x (HsValBinds xv (ValBinds xvb bs' sigs)))
         | bs' <- removeOneElem bag
         ]
     convertLetStmt _ = []

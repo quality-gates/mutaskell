@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.50]
+  * Fixed: preserve outer located annotations on `LetStmt` and `HsDo` in `selectRemoveLetBindingOps`, preventing `exactPrint` from fusing the `let` keyword and variable name (e.g. `letx = 1`) into invalid syntax in `do`-blocks (#120).
+
 ## [0.8.49]
   * Fixed: project and `--exec` modes now pass repeatable `--test-args` values to the configured or detected test command, preserving argument boundaries (#112).
   * Changed: project runs allow more time for bounded mutant generation on larger source files, so completed mutation evidence is less likely to omit those files.
