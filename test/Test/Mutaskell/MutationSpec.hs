@@ -673,6 +673,29 @@ myFn x = (x, x)
             ast <- H.ast text
             selectTupleSwapOps ast `shouldSatisfy` (not . null)
 
+        -- Regression: stale entry deltas made exactPrint fuse or drop components.
+        it "preserves both components when printing a swapped pair" $ do
+            let cases =
+                    [("(x, y)", "y, x")
+                    , ("(\"foo\", \"bar\")", "\"bar\", \"foo\"")
+                    , ("(True, False)", "False, True")
+                    , ("(10, 20)", "20, 10")
+                    , ("(f 1, g 2)", "g 2, f 1")
+                    , ("fst (x, y) + 1", "y, x")
+                    ]
+            forM_ cases $ \(original, swappedComponents) -> do
+                Right mutants <- genMutantsForSrc defaultConfig
+                    ("module M where\np = " ++ original ++ "\n")
+                let tupleSwapSources =
+                        [ _mutant mutant
+                        | mutant <- mutants
+                        , _mtype mutant == MutateOther "tuple-swap"
+                        ]
+                    normalizedSources = map (unwords . words) tupleSwapSources
+                tupleSwapSources `shouldSatisfy` (not . null)
+                normalizedSources `shouldSatisfy` any (swappedComponents `isInfixOf`)
+                forM_ tupleSwapSources $ \source -> H.ast source >> pure ()
+
     describe "selectOrderingLitOps" $ do
         it "returns muops for a GT literal" $ do
             let text =

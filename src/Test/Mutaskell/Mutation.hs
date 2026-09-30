@@ -1649,9 +1649,17 @@ selectTupleSwapOps m = selectValOps isPair convert m
     isPair (L _ (ExplicitTuple _ [Present _ _, Present _ _] Boxed)) = True
     isPair _ = False
 
+    -- Entry deltas belong to the tuple slots, not their original components.
+    -- Transfer each delta to the component that moves into that slot so
+    -- exactPrint visits the tokens in source order.
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convert (L _ (ExplicitTuple x [Present xa a, Present xb b] box)) =
-        [mkL (ExplicitTuple x [Present xa b, Present xb a] box)]
+        [ mkL (ExplicitTuple x
+            [ Present xa (transferEntryDP a b)
+            , Present xb (transferEntryDP b a)
+            ] box
+          )
+        ]
     convert _ = []
 
 -- ---------------------------------------------------------------------------

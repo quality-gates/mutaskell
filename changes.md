@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.51]
+  * Fixed: `other:tuple-swap` now transfers entry deltas between tuple components, so `exactPrint` preserves both elements instead of dropping or fusing tokens (#119).
+
 ## [0.8.50]
   * Fixed: preserve outer located annotations on `LetStmt` and `HsDo` in `selectRemoveLetBindingOps`, preventing `exactPrint` from fusing the `let` keyword and variable name (e.g. `letx = 1`) into invalid syntax in `do`-blocks (#120).
 
