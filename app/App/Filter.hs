@@ -18,6 +18,7 @@ module App.Filter
   , indexSourceLines
   , cacheMutantIds
   , operatorSamplingEligible
+  , prepareOperatorFilter
   , applyBaselineCached
   , applyBlacklistCached
   , applyDiffLinesCached
@@ -36,7 +37,8 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (readProcess)
 
 import App.Opts (Opts (..), splitOn)
-import Test.Mutaskell.Config (showMuVar)
+import Test.Mutaskell.Config (MuVar, showMuVar)
+import Test.Mutaskell.MuOp (MuOp, getSpan)
 import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix (spanStartLine)
 import Test.Mutaskell.Utils.Common (hash)
@@ -113,11 +115,14 @@ applyAnnotations anns ms = filter (not . isSuppressed) ms
   where
     idx = indexAnnotations anns
     isSuppressed m =
-      case IntMap.lookup (spanStartLine (_mspan m)) idx of
-        Nothing -> False
-        Just (suppressAll, names) ->
-          suppressAll
-            || any (\pat -> matchesPat pat (showMuVar (_mtype m))) names
+      isSuppressedAt idx (spanStartLine (_mspan m)) (showMuVar (_mtype m))
+
+isSuppressedAt :: IntMap.IntMap (Bool, Set.Set String) -> Int -> String -> Bool
+isSuppressedAt idx line name =
+  case IntMap.lookup line idx of
+    Nothing -> False
+    Just (suppressAll, names) ->
+      suppressAll || any (`matchesPat` name) names
 
 -- | Load a baseline file and filter out mutants whose hash appears in it.
 applyBaseline :: Maybe FilePath -> [Mutant] -> IO [Mutant]
@@ -187,12 +192,19 @@ applyDiffLinesCached :: FilePath -> Maybe String -> Bool -> [(Mutant, String)] -
 applyDiffLinesCached _    Nothing  _     ms = return ms
 applyDiffLinesCached _    _        False ms = return ms
 applyDiffLinesCached file (Just ref) True ms = do
-  result <- try (readProcess "git" ["diff", "--unified=0", ref, "--", file] "") :: IO (Either IOException String)
-  case result of
-    Left _       -> return ms
-    Right output ->
-      let changed = indexChangedLines (parseDiffChangedLines output)
-      in  return $ filter (\(m, _) -> spanStartLine (_mspan m) `IntSet.member` changed) ms
+  changed <- loadChangedLines file (Just ref)
+  return $ case changed of
+    Nothing -> ms
+    Just lines' -> filter (\(m, _) -> spanStartLine (_mspan m) `IntSet.member` lines') ms
+
+loadChangedLines :: FilePath -> Maybe String -> IO (Maybe IntSet.IntSet)
+loadChangedLines _ Nothing = return Nothing
+loadChangedLines file (Just ref) = do
+  result <- try (readProcess "git" ["diff", "--unified=0", ref, "--", file] "")
+      :: IO (Either IOException String)
+  return $ case result of
+    Left _       -> Nothing
+    Right output -> Just (indexChangedLines (parseDiffChangedLines output))
 
 -- | Parse unified diff output (e.g. `git diff --unified=0` or `unifiedDiff` with context)
 -- and return all changed line numbers in the new file.
@@ -253,9 +265,35 @@ applyIgnoreLinesCached _   []       ms = ms
 applyIgnoreLinesCached src patterns ms = filter (not . isIgnored . fst) ms
   where
     table = indexSourceLines src
-    isIgnored m =
-      let ln = IntMap.findWithDefault "" (spanStartLine (_mspan m)) table
-      in  any (`isInfixOf` ln) patterns
+    isIgnored m = isIgnoredAt table patterns (spanStartLine (_mspan m))
+
+isIgnoredAt :: IntMap.IntMap String -> [String] -> Int -> Bool
+isIgnoredAt table patterns line =
+  let sourceLine = IntMap.findWithDefault "" line table
+  in any (`isInfixOf` sourceLine) patterns
+
+-- | Prepare the span and mutator-name filters for operator-level generation.
+-- Git changed lines are read once, before the operator predicate is applied.
+prepareOperatorFilter :: Opts -> FilePath -> String -> IO ((MuVar, MuOp) -> Bool)
+prepareOperatorFilter opts file src = do
+  changedLines <- if optGitDiffLines opts
+      then loadChangedLines file (optGitDiffBase opts)
+      else return Nothing
+  let annotationIndex = indexAnnotations (parseAnnotations src)
+      sourceLines = indexSourceLines src
+      passesNameFilter muVar
+        | not (null (optEnable opts)) =
+            any (`matchesPat` showMuVar muVar) (optEnable opts)
+        | not (null (optDisable opts)) =
+            not (any (`matchesPat` showMuVar muVar) (optDisable opts))
+        | otherwise = True
+      passesOperator (muVar, op) =
+        let (line, _, _, _) = getSpan op
+        in passesNameFilter muVar
+            && not (isSuppressedAt annotationIndex line (showMuVar muVar))
+            && maybe True (IntSet.member line) changedLines
+            && not (isIgnoredAt sourceLines (optIgnoreLines opts) line)
+  return passesOperator
 
 -- | Keep only the mutant matching the given stable ID; return all if Nothing.
 applyRunMutantId :: Maybe String -> [Mutant] -> [Mutant]

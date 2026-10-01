@@ -22,9 +22,13 @@ import App.Filter
     , checkGitDiff
     , operatorSamplingEligible
     , parseAnnotations
+    , prepareOperatorFilter
     )
 import App.Opts (Opts (..), defaultOpts)
-import Test.Mutaskell.Config (MuVar (..))
+import Test.Mutaskell.Config (Config (..), MuVar (..), defaultConfig)
+import Test.Mutaskell.MuOp (MuOp, getSpan)
+import Test.Mutaskell.Mutation (selectFunctionOps, selectLiteralOps)
+import qualified Test.Mutaskell.MutationSpec.Helpers as H
 import Test.Mutaskell.TestAdapter (Mutant (..))
 import Test.Mutaskell.Tix (toSpan)
 import Test.Mutaskell.Utils.Common (hash)
@@ -363,3 +367,87 @@ spec = do
 
         it "is False when the source carries inline suppression" $
             operatorSamplingEligible defaultOpts [(2, [])] `shouldBe` False
+
+    describe "prepareOperatorFilter" $ do
+        it "filters operators by --disable and --enable names" $ do
+            let src = unlines ["module M where", "", "f x = x + 1"]
+            ops <- operatorsFor src
+            disabled <- prepareOperatorFilter
+                (defaultOpts { optDisable = ["literal-values"] }) "M.hs" src
+            enabled <- prepareOperatorFilter
+                (defaultOpts { optEnable = ["functions"] }) "M.hs" src
+            let disabledOps = filter disabled ops
+                enabledOps = filter enabled ops
+            disabledOps `shouldSatisfy` (not . null)
+            map fst disabledOps `shouldSatisfy` all (== MutateFunctions)
+            enabledOps `shouldSatisfy` (not . null)
+            map fst enabledOps `shouldSatisfy` all (== MutateFunctions)
+
+        it "applies mutator-specific annotations to operators by source line" $ do
+            let src = unlines
+                    [ "module M where"
+                    , ""
+                    , "-- mucheck: disable-next-line literal-values"
+                    , "f x = x + 1"
+                    , "g x = x * 2"
+                    ]
+            ops <- operatorsFor src
+            keep <- prepareOperatorFilter defaultOpts "M.hs" src
+            let onLine line = filter ((== line) . operatorLine) . filter keep $ ops
+            filter ((== MutateValues) . fst) (onLine 4) `shouldSatisfy` null
+            filter ((== MutateFunctions) . fst) (onLine 4) `shouldSatisfy` (not . null)
+            onLine 5 `shouldSatisfy` (not . null)
+
+        it "restricts operators to changed lines" $
+            withSystemTempDirectory "mutaskell-operator-diff" $ \dir ->
+                withCurrentDirectory dir $ do
+                    callProcess "git" ["init", "-q"]
+                    callProcess "git" ["config", "user.email", "bench@example.com"]
+                    callProcess "git" ["config", "user.name", "bench"]
+                    let original = unlines
+                            [ "module M where"
+                            , ""
+                            , "f x = x + 1"
+                            , "g x = x * 2"
+                            ]
+                        changed = unlines
+                            [ "module M where"
+                            , ""
+                            , "f x = x + 9"
+                            , "g x = x * 2"
+                            ]
+                    writeFile "M.hs" original
+                    callProcess "git" ["add", "M.hs"]
+                    callProcess "git" ["commit", "-qm", "base"]
+                    writeFile "M.hs" changed
+                    ops <- operatorsFor changed
+                    keep <- prepareOperatorFilter
+                        (defaultOpts { optGitDiffBase = Just "HEAD", optGitDiffLines = True })
+                        "M.hs" changed
+                    let kept = filter keep ops
+                    kept `shouldSatisfy` (not . null)
+                    map operatorLine kept `shouldSatisfy` all (== 3)
+
+        it "ignores operators whose source line matches an ignore pattern" $ do
+            let src = unlines
+                    [ "module M where"
+                    , ""
+                    , "f x = x + 1 -- IGNORE"
+                    , "g x = x * 2"
+                    ]
+            ops <- operatorsFor src
+            keep <- prepareOperatorFilter
+                (defaultOpts { optIgnoreLines = ["IGNORE"] }) "M.hs" src
+            let kept = filter keep ops
+            kept `shouldSatisfy` (not . null)
+            all ((/= 3) . operatorLine) kept `shouldBe` True
+
+operatorsFor :: String -> IO [(MuVar, MuOp)]
+operatorsFor src = do
+    ast <- H.ast src
+    return $
+        [ (MutateValues, op) | op <- selectLiteralOps ast ]
+            ++ [ (MutateFunctions, op) | op <- selectFunctionOps (muOp defaultConfig) ast ]
+
+operatorLine :: (MuVar, MuOp) -> Int
+operatorLine (_, op) = let (line, _, _, _) = getSpan op in line

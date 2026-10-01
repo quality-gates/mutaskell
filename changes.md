@@ -1,7 +1,10 @@
 # Changelog
 
+## [0.8.52]
+  * Fixed: `other:tuple-swap` mutants now render valid source and preserve both tuple components (#119).
+
 ## [0.8.51]
-  * Fixed: `other:tuple-swap` mutants now render as valid source, e.g. `(x, y)` becomes `(y, x)`, instead of dropping elements or fusing tokens such as `(   yx,  )` (#119).
+  * Fixed: project mode now filters mutation operators by changed lines, ignore lines, annotations, and mutator names before sampling and rendering, preventing large diff-scoped files from timing out during preflight (#125).
 
 ## [0.8.50]
   * Fixed: preserve outer located annotations on `LetStmt` and `HsDo` in `selectRemoveLetBindingOps`, preventing `exactPrint` from fusing the `let` keyword and variable name (e.g. `letx = 1`) into invalid syntax in `do`-blocks (#120).
