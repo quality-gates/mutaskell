@@ -11,9 +11,9 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Test.Mutaskell.Config (MuVar (..), defaultConfig, maxNumMutants)
-import Test.Mutaskell.MuOp (mkMpMuOp)
+import Test.Mutaskell.MuOp (getSpan, mkMpMuOp)
 import Test.Mutaskell.Mutation
-import Test.Mutaskell.Tix (toSpan)
+import Test.Mutaskell.Tix (spanStartLine, toSpan)
 import Test.Mutaskell.TestAdapter (toMutant)
 import Test.Mutaskell.Utils.Common (apTh)
 import Test.Mutaskell.TestAdapter (Mutant (..))
@@ -831,6 +831,23 @@ myFn x = if x == 1 then x + 2 else x - 3
             ms <- genSampledMutants defaultConfig ast
             ms `shouldSatisfy` (not . null)
             map _mutant ms `shouldSatisfy` all (not . null)
+
+        it "samples and renders only operators accepted by the predicate" $ do
+            let text = unlines
+                    [ "module Scoped where"
+                    , ""
+                    , "f x = x + 1"
+                    , "g x = x * 2"
+                    , "h x = x > 0"
+                    ]
+                onChangedLine (_, op) =
+                    let (line, _, _, _) = getSpan op
+                    in line == 3
+            ast <- H.ast text
+            ms <- genSampledMutantsFiltered
+                (defaultConfig { maxNumMutants = 100 }) Nothing onChangedLine ast
+            ms `shouldSatisfy` (not . null)
+            map (spanStartLine . _mspan) ms `shouldSatisfy` all (== 3)
 
         it "never exceeds the configured maxNumMutants cap" $ do
             let text =
