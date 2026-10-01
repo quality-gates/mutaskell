@@ -274,14 +274,29 @@ genSampledMutantsGated config muncovered = genSampledMutantsWith config muncover
 -- | 'genSampledMutantsGated' with extra custom selectors.
 genSampledMutantsWith ::
     Config -> Maybe [Span] -> [Module_ -> [(MuVar, MuOp)]] -> Module_ -> IO [Mutant]
-genSampledMutantsWith config muncovered extraSels origAst = do
+genSampledMutantsWith config muncovered extraSels =
+    genSampledMutantsWithFilter config muncovered extraSels (const True)
+
+-- | Generate mutants only from operators accepted by the supplied predicate.
+-- The predicate and optional coverage gate run before sampling and rendering,
+-- so the sample budget is spent on eligible operators only.
+genSampledMutantsFiltered ::
+    Config -> Maybe [Span] -> ((MuVar, MuOp) -> Bool) -> Module_ -> IO [Mutant]
+genSampledMutantsFiltered config muncovered keep =
+    genSampledMutantsWithFilter config muncovered [] keep
+
+-- | Generate mutants with extra selectors and an operator eligibility predicate.
+genSampledMutantsWithFilter ::
+    Config -> Maybe [Span] -> [Module_ -> [(MuVar, MuOp)]]
+    -> ((MuVar, MuOp) -> Bool) -> Module_ -> IO [Mutant]
+genSampledMutantsWithFilter config muncovered extraSels keep origAst = do
     sampledOps <- sampleOps config (gate ops)
     return $ renderedMutantsFrom origStr origAst sampledOps
   where
     (origStr, ops) = prepareSelectorInputs config extraSels origAst
     uncoveredIndex = indexSpans <$> muncovered
-    -- Drop operators whose span is inside an uncovered region.
-    gate os = case uncoveredIndex of
+    -- Drop operators outside coverage and operators rejected by the caller.
+    gate os = filter keep $ case uncoveredIndex of
         Nothing    -> os
         Just index -> filter (covered index) os
     covered index (_, op) =

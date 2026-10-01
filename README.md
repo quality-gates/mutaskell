@@ -707,10 +707,13 @@ mutants a run evaluates. The quota is spent at one of two stages:
     more operators to refill it. The library `mucheck` entry point uses the
     same operator-first sampling when its coverage file holds no data for the
     module.
-*   **Rendered sampling.** Runs with a coverage requirement or any candidate
-    filter first apply and render every candidate, deduplicate the rendered
-    sources, apply the filters in order, and then sample the filtered list.
-    These runs need the full candidate list, so generation costs more.
+*   **Rendered sampling.** Single-file runs with a coverage requirement or any
+    candidate filter first apply and render every candidate, deduplicate the
+    rendered sources, apply the filters in order, and then sample the filtered
+    list. These runs need the full candidate list, so generation costs more.
+
+Project mode applies its span and mutator-name filters to operators before
+sampling and rendering; see below.
 
 Both stages use the same per-mutator fractions and the same cap. The two
 stages draw from different populations (operators versus rendered mutants), so
@@ -742,10 +745,12 @@ In project mode mutaskell:
 *   **discovers** source files from the `hs-source-dirs` declared in the
     project's `.cabal` files, plus each package directory, while skipping
     hidden dot-directories such as `.mutants/` and `.mutaskell/`;
-*   **honors the same suppressions as single-file mode** — inline
+*   **filters operators before sampling** — `--disable` / `--enable`, inline
     `-- mucheck: disable-next-line` annotations (including mutator names and
-    `*` wildcards) and `ignore_source_lines` filter generated mutants per file,
-    as do `--disable` / `--enable`;
+    `*` wildcards), `ignore_source_lines`, and `--git-diff-lines` restrict the
+    operator set before mutants are sampled or rendered. The same filters apply
+    in project dry runs and evaluation, so the sample budget is spent on
+    eligible operators;
 *   runs the **baseline** build + test exactly once, then mutates each file in
     turn, driving the real toolchain (same classification as `--exec` below);
 *   **survives bad files** — a file it cannot parse or whose generation blows up

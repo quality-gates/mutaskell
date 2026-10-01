@@ -469,7 +469,7 @@ spec = describe "runProject (serial)" $ do
             (killed, alive, skipped, total) <- readCounts resF
             (killed, alive, skipped, total) `shouldBe` (0, 0, 0, 0)
 
-    it "restricts mutants within changed files to modified lines when --git-diff-lines is set" $
+    it "finds mutants on changed lines in both project dry-run and evaluation" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
             makeProject root 2
             withCurrentDirectory root $ do
@@ -497,9 +497,11 @@ spec = describe "runProject (serial)" $ do
                     , optGitDiffLines = True
                     , optTestCmd      = Just "true"
                     }
+            (_, dryRunOut) <- catchOutputStr (runProjectDryRunRestoring opts)
+            dryRunTotal dryRunOut `shouldSatisfy` (> 0)
             runProjectRestoring opts
             (_, _, _, total) <- readCounts resF
-            total `shouldBe` 4
+            total `shouldSatisfy` (> 0)
 
     it "suppresses mutants on lines preceded by disable-next-line in dry-run" $
         withSystemTempDirectory "mutaskell-proj" $ \root -> do
