@@ -1658,7 +1658,9 @@ selectSeqStripOps m = selectValOps isSeqApp convert m
 -- Produces a compile error when @a@ and @b@ have different types; those
 -- mutants are reported as killed via interpreter error.
 -- Each element gets a relative entry delta. Absolute source spans in the
--- old order make exactPrint drop or fuse tokens.
+-- old order make exactPrint drop or fuse tokens. For the same reason, the
+-- trailing comma (held in the list-item annotation of the slot) and the
+-- close paren get relative positions.
 selectTupleSwapOps :: Module_ -> [MuOp]
 selectTupleSwapOps m = selectValOps isPair convert m
   where
@@ -1675,9 +1677,6 @@ selectTupleSwapOps m = selectValOps isPair convert m
                ]
     convert _ = []
 
-    -- The list-item annotation holds the trailing comma of the slot. The
-    -- comma and the close paren have absolute positions in the old order,
-    -- so replace them with relative positions.
     withSlot :: [TrailingAnn] -> LHsExpr GhcPs -> LHsExpr GhcPs
     withSlot t (L (EpAnn anc _ cs) e) = L (EpAnn anc (AnnListItem t) cs) e
 
