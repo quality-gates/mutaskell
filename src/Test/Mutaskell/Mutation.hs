@@ -1657,6 +1657,10 @@ selectSeqStripOps m = selectValOps isSeqApp convert m
 -- | Swap the two components of a pair expression: @(a, b)@ → @(b, a)@.
 -- Produces a compile error when @a@ and @b@ have different types; those
 -- mutants are reported as killed via interpreter error.
+-- Each element gets a relative entry delta. Absolute source spans in the
+-- old order make exactPrint drop or fuse tokens. For the same reason, the
+-- trailing comma (held in the list-item annotation of the slot) and the
+-- close paren get relative positions.
 selectTupleSwapOps :: Module_ -> [MuOp]
 selectTupleSwapOps m = selectValOps isPair convert m
   where
@@ -1665,9 +1669,19 @@ selectTupleSwapOps m = selectValOps isPair convert m
     isPair _ = False
 
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
-    convert (L _ (ExplicitTuple x [Present xa a, Present xb b] box)) =
-        [mkL (ExplicitTuple x [Present xa b, Present xb a] box)]
+    convert (L _ (ExplicitTuple (o, _) [Present xa a, Present xb b] box)) =
+        [mkL (ExplicitTuple (o, hug) args box)]
+      where
+        args = [ Present xa (setEntryDP (withSlot [comma] b) (SameLine 0))
+               , Present xb (setEntryDP (withSlot [] a) (SameLine 1))
+               ]
     convert _ = []
+
+    withSlot :: [TrailingAnn] -> LHsExpr GhcPs -> LHsExpr GhcPs
+    withSlot t (L (EpAnn anc _ cs) e) = L (EpAnn anc (AnnListItem t) cs) e
+
+    comma = AddCommaAnn (EpTok hug)
+    hug = EpaDelta generatedSrcSpan (SameLine 0) []
 
 -- ---------------------------------------------------------------------------
 -- Ordering literal mutation

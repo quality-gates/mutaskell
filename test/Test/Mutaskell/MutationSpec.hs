@@ -673,6 +673,30 @@ myFn x = (x, x)
             ast <- H.ast text
             selectTupleSwapOps ast `shouldSatisfy` (not . null)
 
+        -- Regression: old source positions made exactPrint fuse or drop tuple
+        -- components, e.g. (x, y) became (   yx,  ).
+        it "renders the swapped pair as valid source" $ do
+            let cases =
+                    [ ("(x, y)", "(y, x)")
+                    , ("(\"foo\", \"bar\")", "(\"bar\", \"foo\")")
+                    , ("(True, False)", "(False, True)")
+                    , ("(10, 20)", "(20, 10)")
+                    , ("(f 1, g 2)", "(g 2, f 1)")
+                    , ("fst (x, y) + 1", "fst (y, x) + 1")
+                    ]
+            forM_ cases $ \(original, swapped) -> do
+                let source = "module M where\np = " ++ original ++ "\n"
+                    expectedSource = "module M where\np = " ++ swapped ++ "\n"
+                Right mutants <- genMutantsForSrc defaultConfig source
+                let swaps =
+                        [ _mutant mutant
+                        | mutant <- mutants
+                        , _mtype mutant == MutateOther "tuple-swap"
+                        ]
+                swaps `shouldSatisfy` (not . null)
+                swaps `shouldSatisfy` all (== expectedSource)
+                mapM_ H.ast swaps
+
     describe "selectOrderingLitOps" $ do
         it "returns muops for a GT literal" $ do
             let text =
