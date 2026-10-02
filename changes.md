@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.52]
+  * Fixed: `other:tuple-swap` mutants now render valid source and preserve both tuple components (#119).
+
 ## [0.8.51]
   * Fixed: project mode now filters mutation operators by changed lines, ignore lines, annotations, and mutator names before sampling and rendering, preventing large diff-scoped files from timing out during preflight (#125).
 
