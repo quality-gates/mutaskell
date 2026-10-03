@@ -178,6 +178,11 @@ runOptsFile opts
         cached4 <- applyDiffLinesCached (optFile opts) (optGitDiffBase opts) (optGitDiffLines opts) cached3
         let cached5   = applyIgnoreLinesCached origSrc (optIgnoreLines opts) cached4
             preFilter = map fst (applyRunMutantIdCached (optRunMutantId opts) cached5)
+        case optRunMutantId opts of
+          Just mutantId | null preFilter -> do
+            hPutStrLn stderr $ "Error: mutant ID '" ++ mutantId ++ "' not found in " ++ file
+            exitWith (ExitFailure 2)
+          _ -> return ()
         finalMutants <- sampler (defaultConfig { maxNumMutants = maxN }) preFilter
         let tests = map (genTest modFile)
         testRes <- getAllTests (getName modFile)
@@ -257,7 +262,7 @@ runOptsFile opts
           writeAgenticJsonLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
           writeHtmlLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
           writeUpdateBaseline opts tsum
-          applyExitPolicy opts msum
+        applyExitPolicy opts msum
 
 noopCheck :: FilePath -> IO ()
 noopCheck file = do
