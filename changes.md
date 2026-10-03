@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.53]
+  * Added: exploratory testing report covering baseline updates, git diff failure handling, path exclusion filtering, and single-mutant quality gates (#128, #129, #130, #131).
+
 ## [0.8.52]
   * Fixed: `other:tuple-swap` mutants now render valid source and preserve both tuple components (#119).
 
