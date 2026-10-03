@@ -658,6 +658,7 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
     discovery scan counts and CPP macro scans the run performed.
 *   `--noop`: Verify tests pass on unmodified source first (exits with 3 on failure).
 *   `--fail-on-escaped`: Exit with code 4 if any mutant survives.
+*   `--run-mutant-id ID`: Evaluate one stable mutant ID. Aggregate output is suppressed, but quality gates still apply; an ID with no matching mutant exits with code 2.
 *   `--min-msi PCT`: Exit with code 5 if overall MSI is below PCT percent.
 *   `--min-covered-msi PCT`: Exit with code 5 if covered-code MSI is below PCT percent. Requires `--tix FILE`, or `--coverage` finding a `.tix`; without one the run exits with code 2 before mutating.
 *   `--ignore-msi-with-no-mutations`: Treat MSI quality gates as passed when no mutable constructs are found.
