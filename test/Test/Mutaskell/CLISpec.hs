@@ -228,6 +228,51 @@ spec = do
                 Left _  -> return ()
                 Right _ -> expectationFailure "Expected Left for unknown key"
 
+    describe "--run-mutant-id" $ do
+        it "applies --fail-on-escaped to an escaping selected mutant" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        [ "Examples/AssertCheckTest.hs"
+                        , "--run-mutant-id", "x3080590130699250735"
+                        , "--workers", "1"
+                        , "--timeout", "30"
+                        , "--fail-on-escaped"
+                        ] ""
+                    ec `shouldBe` ExitFailure 4
+                    (out ++ errOut) `shouldContain` "[ALIVE]"
+
+        it "applies --min-msi to a selected mutant" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, out, errOut) <- readProcessWithExitCode exe
+                        [ "Examples/AssertCheckTest.hs"
+                        , "--run-mutant-id", "x3080590130699250735"
+                        , "--workers", "1"
+                        , "--timeout", "30"
+                        , "--min-msi", "100"
+                        ] ""
+                    ec `shouldBe` ExitFailure 5
+                    (out ++ errOut) `shouldContain` "MSI"
+
+        it "reports an unknown selected mutant as a CLI error" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> do
+                    (ec, _out, errOut) <- readProcessWithExitCode exe
+                        [ "Examples/AssertCheckTest.hs"
+                        , "--run-mutant-id", "typo-mutant-id"
+                        , "--workers", "1"
+                        , "--timeout", "30"
+                        ] ""
+                    ec `shouldBe` ExitFailure 2
+                    errOut `shouldContain` "Error: mutant ID 'typo-mutant-id' not found"
+
     -- A missing source file must be a CLI argument error (exit 2, one-line
     -- message), not an uncaught IOException with a GHC call stack (issue #78).
     describe "missing source file" $ do

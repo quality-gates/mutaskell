@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.54]
+  * Fixed: `--run-mutant-id` now applies configured quality gates and exits with code 2 when the requested ID matches no mutant (#131).
+
 ## [0.8.53]
   * Added: exploratory testing report covering baseline updates, git diff failure handling, path exclusion filtering, and single-mutant quality gates (#128, #129, #130, #131).
 
