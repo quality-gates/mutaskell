@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.55]
+  * Fixed: mutants that replace an expression no longer pull a following comment into the replacement and split its tokens (for example `h (\n    -- notenegate 1)` for a negate-literal or tuple-swap mutant before a comment in a `where`, `let`, `do`, or `case` block) (#127).
+  * Changed: removal mutators now remove a binding, clause, or statement together with the comment lines directly above it.
+
 ## [0.8.54]
   * Fixed: `--run-mutant-id` now applies configured quality gates and exits with code 2 when the requested ID matches no mutant (#131).
 

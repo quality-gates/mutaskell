@@ -40,7 +40,7 @@ import Language.Haskell.Syntax.Extension ()
 import GHC.Utils.Outputable (showSDocUnsafe, ppr)
 import System.Process (readProcess)
 
-import Language.Haskell.GHC.ExactPrint (exactPrint)
+import Language.Haskell.GHC.ExactPrint (exactPrint, makeDeltaAst)
 import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString, parseModuleWithCpp)
 import Language.Haskell.GHC.ExactPrint.Preprocess (CppOptions (..), defaultCppOptions)
 import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
@@ -496,7 +496,20 @@ getASTFromStr src = do
     result <- parseModuleFromString libdir "<mucheck>" src
     return $ case result of
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
-        Right (L _ m)  -> Right m
+        Right (L _ m)  -> Right (toDeltaModule m)
+
+{- | Give each node a relative layout position and attach each comment to the
+node that follows it.
+
+The parser keeps some comments (for example, comments in a @where@ block) in
+a queue on the enclosing node.  'exactPrint' writes all queued comments when
+it enters a node that has a relative position, as replacement nodes do.  In
+the source form, a replacement therefore pulled a following comment into the
+mutant and split its tokens (#127).  Each node keeps its original source span,
+so span matching and coverage gating do not change.
+-}
+toDeltaModule :: Module_ -> Module_
+toDeltaModule = makeDeltaAst
 
 {- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
 the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
@@ -539,7 +552,7 @@ getASTFromFile path = do
                             result <- parseModuleWithCpp libdir opts path
                             return $ case result of
                                 Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                                Right (L _ m) -> Right m
+                                Right (L _ m) -> Right (toDeltaModule m)
                 else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language
@@ -741,6 +754,36 @@ replaceAt i x xs = case splitAt i xs of
     (pre, _ : post) -> pre ++ x : post
     (pre, [])       -> pre
 
+{- | Give each item of a changed list the entry position of the original item
+in the same slot.
+
+In a delta AST, the position of an item is relative to the item before it.
+The first item of a layout block also sets the block column.  If a mutation
+removes or moves the first item, use this function to keep the column.  The
+position goes on the first prior comment of an item, if the item has one, so
+the comment stays in front of the item.
+-}
+keepSlotEntries :: [LocatedAn t a] -> [LocatedAn t a] -> [LocatedAn t a]
+keepSlotEntries (o : os) (n : ns) = keepEntry o n : keepSlotEntries os ns
+keepSlotEntries _ ns = ns
+
+-- | Like 'keepSlotEntries', but change only the first item.  Use it after
+-- removal, where the other items keep their positions.
+keepHeadEntry :: [LocatedAn t a] -> [LocatedAn t a] -> [LocatedAn t a]
+keepHeadEntry (o : _) (n : ns) = keepEntry o n : ns
+keepHeadEntry _ ns = ns
+
+-- | Give @new@ the entry position of @old@.  Do nothing when @old@ has a
+-- source span, because 'exactPrint' then finds the position from the span.
+keepEntry :: LocatedAn t a -> LocatedAn t a -> LocatedAn t a
+keepEntry old new = maybe new (setEntryDP new) (entryDelta old)
+  where
+    entryDelta (L (EpAnn anc _ cs) _) = case priorComments cs of
+        L (EpaDelta _ dp _) _ : _ -> Just dp
+        _ -> case anc of
+            EpaDelta _ dp _ -> Just dp
+            EpaSpan _       -> Nothing
+
 -- ---------------------------------------------------------------------------
 -- Generic selector helper
 
@@ -890,16 +933,10 @@ selectFnMatches m = selectValOps isFunDecl convert m
         -- Re-assign each match's entry delta from the corresponding original
         -- position so that exactPrint places clauses on the correct lines
         -- whether we reorder or remove them.
-        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (fixEntries ms ms')))))
+        [ mkL (ValD xv (FunBind xb fid (MG xmg (L lms (keepSlotEntries ms ms')))))
         | ms' <- adjacentSwaps ms ++ removeOneElem ms
         ]
     convert _ = []
-
-    -- Copy each original match's leading-whitespace delta to the match at the
-    -- same position in the modified list.  This ensures correctness for both
-    -- clause removal (ms' shorter than ms) and reordering.
-    fixEntries :: [Alt_] -> [Alt_] -> [Alt_]
-    fixEntries origMs newMs = zipWith transferEntryDP origMs newMs
 
 -- ---------------------------------------------------------------------------
 -- Function / operator substitution
@@ -1012,7 +1049,7 @@ selectCaseAltRemoveOps m = selectValOps isCase convert m
 
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convert (L _ (HsCase x scrut (MG xmg (L la alts)))) =
-        [ mkL (HsCase x scrut (MG xmg (L la alts')))
+        [ mkL (HsCase x scrut (MG xmg (L la (keepHeadEntry alts alts'))))
         | alts' <- removeOneElem alts
         ]
     convert _ = []
@@ -1038,7 +1075,7 @@ selectCaseDefaultRemoveOps m = caseAltDefault m ++ guardDefault m
 
     convertCaseDefault :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertCaseDefault (L _ (HsCase x scrut (MG xmg (L la alts)))) =
-        [mkL (HsCase x scrut (MG xmg (L la (filter (not . isDefaultAlt) alts))))]
+        [mkL (HsCase x scrut (MG xmg (L la (keepHeadEntry alts (filter (not . isDefaultAlt) alts)))))]
     convertCaseDefault _ = []
 
     -- Guards: remove the @otherwise@ guarded RHS from function matches.
@@ -1061,7 +1098,7 @@ selectCaseDefaultRemoveOps m = caseAltDefault m ++ guardDefault m
 
     convertMatchDefault2 :: Alt_ -> [Alt_]
     convertMatchDefault2 (L _ (Match xm ctx pats (GRHSs xg grhss binds))) =
-        [mkL (Match xm ctx pats (GRHSs xg (filter (not . isDefaultGRHS) grhss) binds))]
+        [mkL (Match xm ctx pats (GRHSs xg (keepHeadEntry grhss (filter (not . isDefaultGRHS) grhss)) binds))]
 
 -- ---------------------------------------------------------------------------
 -- Do-block mutations
@@ -1088,7 +1125,7 @@ selectRemoveStmtOps m = selectValOps isDo convert m
 
     removeOneStmt :: [ExprLStmt GhcPs] -> [[ExprLStmt GhcPs]]
     removeOneStmt stmts =
-        [ pre ++ post
+        [ keepHeadEntry stmts (pre ++ post)
         | (pre, _, post) <- holes stmts
         , isValidDo (pre ++ post)
         ]
@@ -1115,7 +1152,7 @@ selectRemoveLetBindingOps m =
 
     convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
-        [ mkL (HsLet x (HsValBinds xv (ValBinds xvb bs' sigs)) body)
+        [ mkL (HsLet x (HsValBinds xv (ValBinds xvb (keepHeadEntry bag bs') sigs)) body)
         | bs' <- removeOneElem bag
         ]
     convertLet _ = []
@@ -1138,7 +1175,7 @@ selectRemoveLetBindingOps m =
 
     convertLetStmt :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
     convertLetStmt (L la (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
-        [ L la (LetStmt x (HsValBinds xv (ValBinds xvb bs' sigs)))
+        [ L la (LetStmt x (HsValBinds xv (ValBinds xvb (keepHeadEntry bag bs') sigs)))
         | bs' <- removeOneElem bag
         ]
     convertLetStmt _ = []
@@ -1170,7 +1207,7 @@ selectRemoveWhereBindingOps m =
     -- Preserve the outer 'L la' annotation so exactPrint knows where to place
     -- the match after the where-binding is removed.
     convertMatch (L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bag sigs))))) =
-        [ L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bs' sigs))))
+        [ L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb (keepHeadEntry bag bs') sigs))))
         | bs' <- removeOneElem bag
         ]
     convertMatch _ = []
@@ -1182,7 +1219,7 @@ selectRemoveWhereBindingOps m =
 
     convertPat :: Decl_ -> [Decl_]
     convertPat (L _ (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs sigs)))))) =
-        [ mkL (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs' sigs)))))
+        [ mkL (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb (keepHeadEntry bs bs') sigs)))))
         | bs' <- removeOneElem bs
         ]
     convertPat _ = []
@@ -1216,7 +1253,7 @@ selectRemoveSelfAssignOps m =
 
     convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
-        let bs' = filter (not . isSelfAssignBind) bag
+        let bs' = keepHeadEntry bag (filter (not . isSelfAssignBind) bag)
         in [mkL (HsLet x (HsValBinds xv (ValBinds xvb bs' sigs)) body)]
     convertLet _ = []
 
@@ -1233,7 +1270,7 @@ selectRemoveSelfAssignOps m =
 
     convertDo :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertDo (L _ (HsDo x ctx (L ls stmts))) =
-        [mkL (HsDo x ctx (L ls (filter (not . isSelfAssignStmt) stmts)))]
+        [mkL (HsDo x ctx (L ls (keepHeadEntry stmts (filter (not . isSelfAssignStmt) stmts))))]
     convertDo _ = []
 
 -- ---------------------------------------------------------------------------
