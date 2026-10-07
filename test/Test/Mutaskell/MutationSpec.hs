@@ -697,6 +697,34 @@ myFn x = (x, x)
                 swaps `shouldSatisfy` all (== expectedSource)
                 mapM_ H.ast swaps
 
+    -- Regression (#127): a fresh replacement node took the comment that
+    -- follows it in the same layout block, e.g. g = h (\n    -- notenegate 1).
+    describe "fresh replacement before a comment" $ do
+        let source body = unlines
+                [ "module M where"
+                , "f :: Int"
+                , "f = g"
+                , "  where"
+                , "    g = " ++ body
+                , "    -- note"
+                , "    h = id"
+                ]
+            rendered mtype body = do
+                Right mutants <- genMutantsForSrc defaultConfig (source body)
+                pure [_mutant m | m <- mutants, _mtype m == mtype]
+        it "keeps the comment outside a negate-literal mutant" $ do
+            ms <- rendered (MutateOther "negate-literal") "h 1"
+            ms `shouldBe` [source "h (negate 1)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside a tuple-swap mutant" $ do
+            ms <- rendered (MutateOther "tuple-swap") "(h, 1)"
+            ms `shouldBe` [source "(1, h)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside an operator substitution" $ do
+            ms <- rendered MutateFunctions "h (x > 0)"
+            ms `shouldSatisfy` elem (source "h (x < 0)")
+            mapM_ H.ast ms
+
     describe "selectOrderingLitOps" $ do
         it "returns muops for a GT literal" $ do
             let text =

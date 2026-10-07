@@ -40,10 +40,10 @@ import Language.Haskell.Syntax.Extension ()
 import GHC.Utils.Outputable (showSDocUnsafe, ppr)
 import System.Process (readProcess)
 
-import Language.Haskell.GHC.ExactPrint (exactPrint)
+import Language.Haskell.GHC.ExactPrint (exactPrint, makeDeltaAst)
 import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString, parseModuleWithCpp)
 import Language.Haskell.GHC.ExactPrint.Preprocess (CppOptions (..), defaultCppOptions)
-import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
+import Language.Haskell.GHC.ExactPrint.Transform (getEntryDP, setEntryDP, transferEntryDP)
 
 import Test.Mutaskell.Config
 import Test.Mutaskell.MuOp
@@ -486,6 +486,16 @@ putDecl m decls = m { hsmodDecls = decls }
 -- ---------------------------------------------------------------------------
 -- Parsing and serialisation
 
+-- | Give every node and comment a position relative to the node before it.
+-- 'exactPrint' prints all pending comments when it enters a node that has a
+-- relative position.  Replacement nodes have relative positions, so in an AST
+-- with absolute positions a replacement takes each comment that comes later in
+-- the enclosing declaration (#127).  In this form, each comment is attached to
+-- the node that follows it.  The source spans stay the same, so operator sites
+-- and coverage spans continue to match.
+relativeLayout :: Module_ -> Module_
+relativeLayout = makeDeltaAst
+
 -- | Parse a Haskell source string into a 'Module_'.
 -- 'parseModuleFromString' returns @Located (HsModule GhcPs)@ (= 'ParsedSource');
 -- we strip the outer 'Located' wrapper since mutations operate on the bare
@@ -496,7 +506,7 @@ getASTFromStr src = do
     result <- parseModuleFromString libdir "<mucheck>" src
     return $ case result of
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
-        Right (L _ m)  -> Right m
+        Right (L _ m)  -> Right (relativeLayout m)
 
 {- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
 the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
@@ -539,7 +549,7 @@ getASTFromFile path = do
                             result <- parseModuleWithCpp libdir opts path
                             return $ case result of
                                 Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                                Right (L _ m) -> Right m
+                                Right (L _ m) -> Right (relativeLayout m)
                 else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language
@@ -713,6 +723,14 @@ removeOneElem xs  = go xs
   where
     go (y : ys) = map (y :) (go ys) ++ [ys]
     go []       = []
+
+-- | 'removeOneElem' for laid-out items.  Each remaining item gets the entry
+-- delta of the slot that it moves into.  Thus, when the first binding of
+-- @let x = 1@ is removed, the next binding stays on the @let@ line.
+removeOneLaidOut :: [LocatedAn t a] -> [[LocatedAn t a]]
+removeOneLaidOut xs = map (zipWith keepSlot xs) (removeOneElem xs)
+  where
+    keepSlot slot x = setEntryDP x (getEntryDP slot)
 
 -- | Clause-order mutations by swapping each adjacent pair: @n-1@ variants for a
 -- list of length @n@.  This replaces the full @permutations@ ( @n!@ ) set used
@@ -1013,7 +1031,7 @@ selectCaseAltRemoveOps m = selectValOps isCase convert m
     convert :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convert (L _ (HsCase x scrut (MG xmg (L la alts)))) =
         [ mkL (HsCase x scrut (MG xmg (L la alts')))
-        | alts' <- removeOneElem alts
+        | alts' <- removeOneLaidOut alts
         ]
     convert _ = []
 
@@ -1116,7 +1134,7 @@ selectRemoveLetBindingOps m =
     convertLet :: LHsExpr GhcPs -> [LHsExpr GhcPs]
     convertLet (L _ (HsLet x (HsValBinds xv (ValBinds xvb bag sigs)) body)) =
         [ mkL (HsLet x (HsValBinds xv (ValBinds xvb bs' sigs)) body)
-        | bs' <- removeOneElem bag
+        | bs' <- removeOneLaidOut bag
         ]
     convertLet _ = []
 
@@ -1139,7 +1157,7 @@ selectRemoveLetBindingOps m =
     convertLetStmt :: ExprLStmt GhcPs -> [ExprLStmt GhcPs]
     convertLetStmt (L la (LetStmt x (HsValBinds xv (ValBinds xvb bag sigs)))) =
         [ L la (LetStmt x (HsValBinds xv (ValBinds xvb bs' sigs)))
-        | bs' <- removeOneElem bag
+        | bs' <- removeOneLaidOut bag
         ]
     convertLetStmt _ = []
 
@@ -1171,7 +1189,7 @@ selectRemoveWhereBindingOps m =
     -- the match after the where-binding is removed.
     convertMatch (L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bag sigs))))) =
         [ L la (Match xm ctx pats (GRHSs xg grhss (HsValBinds xv (ValBinds xvb bs' sigs))))
-        | bs' <- removeOneElem bag
+        | bs' <- removeOneLaidOut bag
         ]
     convertMatch _ = []
 
@@ -1183,7 +1201,7 @@ selectRemoveWhereBindingOps m =
     convertPat :: Decl_ -> [Decl_]
     convertPat (L _ (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs sigs)))))) =
         [ mkL (ValD xv (PatBind xb pat mult (GRHSs xg grhss (HsValBinds xhv (ValBinds xvb bs' sigs)))))
-        | bs' <- removeOneElem bs
+        | bs' <- removeOneLaidOut bs
         ]
     convertPat _ = []
 
