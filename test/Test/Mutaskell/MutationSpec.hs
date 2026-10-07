@@ -697,6 +697,61 @@ myFn x = (x, x)
                 swaps `shouldSatisfy` all (== expectedSource)
                 mapM_ H.ast swaps
 
+    -- Regression (#127): a fresh replacement node took the comment that
+    -- follows it in the same layout block, e.g. g = h (\n    -- notenegate 1).
+    describe "fresh replacement before a comment" $ do
+        let source body = unlines
+                [ "module M where"
+                , "f :: Int"
+                , "f = g"
+                , "  where"
+                , "    g = " ++ body
+                , "    -- note"
+                , "    h = id"
+                ]
+            rendered mtype body = do
+                Right mutants <- genMutantsForSrc defaultConfig (source body)
+                pure [_mutant m | m <- mutants, _mtype m == mtype]
+        it "keeps the comment outside a negate-literal mutant" $ do
+            ms <- rendered (MutateOther "negate-literal") "h 1"
+            ms `shouldBe` [source "h (negate 1)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside a tuple-swap mutant" $ do
+            ms <- rendered (MutateOther "tuple-swap") "(h, 1)"
+            ms `shouldBe` [source "(1, h)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside an operator substitution" $ do
+            ms <- rendered MutateFunctions "h (x > 0)"
+            ms `shouldSatisfy` elem (source "h (x < 0)")
+            mapM_ H.ast ms
+        it "renders every mutant as parseable source with the comment in place" $ do
+            Right mutants <- genMutantsForSrc defaultConfig (source "h (1, 2)")
+            mutants `shouldSatisfy` (not . null)
+            forM_ mutants $ \m -> do
+                filter ("note" `isInfixOf`) (lines (_mutant m))
+                    `shouldSatisfy` all (== "    -- note")
+                _ <- H.ast (_mutant m)
+                pure ()
+
+        -- The parsed AST uses relative positions (#127).  A removal or a
+        -- reorder must keep the layout column and the comment lines.
+        it "keeps the layout column when a removal drops the first statement" $ do
+            let text = "module M where\nf = do\n  print 1\n  print 2\n"
+            mutants <- H.renderedMutants selectRemoveStmtOps text
+            mutants `shouldSatisfy` elem "module M where\nf = do\n  print 2\n"
+        it "keeps the layout column when a removal drops the first alternative" $ do
+            let text = "module M where\nf x = case x of\n  1 -> 10\n  _ -> 30\n"
+            mutants <- H.renderedMutants selectCaseAltRemoveOps text
+            mutants `shouldSatisfy` elem "module M where\nf x = case x of\n  _ -> 30\n"
+        it "keeps a comment between clauses on its own line" $ do
+            let text = "module M where\nf 0 = 1\n-- c\nf n = 2\n"
+            mutants <- H.renderedMutants selectFnMatches text
+            mutants `shouldSatisfy` (not . null)
+            forM_ mutants $ \src -> do
+                filter ("c" `isInfixOf`) (lines src) `shouldSatisfy` all (== "-- c")
+                _ <- H.ast src
+                pure ()
+
     describe "selectOrderingLitOps" $ do
         it "returns muops for a GT literal" $ do
             let text =
