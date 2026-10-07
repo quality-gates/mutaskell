@@ -504,9 +504,9 @@ getASTFromStr :: String -> IO (Either String Module_)
 getASTFromStr src = do
     libdir <- getLibdir
     result <- parseModuleFromString libdir "<mucheck>" src
-    return $ case result of
+    return $ relativeLayout <$> case result of
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
-        Right (L _ m)  -> Right (relativeLayout m)
+        Right (L _ m)  -> Right m
 
 {- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
 the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
@@ -547,9 +547,9 @@ getASTFromFile path = do
                         else do
                             let opts = defaultCppOptions { cppFile = macros }
                             result <- parseModuleWithCpp libdir opts path
-                            return $ case result of
+                            return $ relativeLayout <$> case result of
                                 Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                                Right (L _ m) -> Right (relativeLayout m)
+                                Right (L _ m) -> Right m
                 else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language
