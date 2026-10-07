@@ -1,7 +1,7 @@
 # Changelog
 
 ## [0.8.55]
-  * Fixed: mutants that replace an expression no longer pull a following comment into the replacement and split its tokens (for example `h (\n    -- notenegate 1)` for a negate-literal or tuple-swap mutant before a comment in a `where`, `let`, `do`, or `case` block) (#127).
+  * Fixed: mutants that insert new syntax, such as `negate-literal`, `tuple-swap`, and operator substitutions, no longer pull a later comment from the same block into the replacement. Comments stay in place and the mutant source stays valid (#127).
   * Changed: removal mutators now remove a binding, clause, or statement together with the comment lines directly above it.
 
 ## [0.8.54]

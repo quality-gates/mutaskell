@@ -486,6 +486,16 @@ putDecl m decls = m { hsmodDecls = decls }
 -- ---------------------------------------------------------------------------
 -- Parsing and serialisation
 
+-- | Give every node and comment a position relative to the node before it.
+-- 'exactPrint' prints all pending comments when it enters a node that has a
+-- relative position.  Replacement nodes have relative positions, so in an AST
+-- with absolute positions a replacement takes each comment that comes later in
+-- the enclosing declaration (#127).  In this form, each comment is attached to
+-- the node that follows it.  The source spans stay the same, so operator sites
+-- and coverage spans continue to match.
+relativeLayout :: Module_ -> Module_
+relativeLayout = makeDeltaAst
+
 -- | Parse a Haskell source string into a 'Module_'.
 -- 'parseModuleFromString' returns @Located (HsModule GhcPs)@ (= 'ParsedSource');
 -- we strip the outer 'Located' wrapper since mutations operate on the bare
@@ -494,22 +504,9 @@ getASTFromStr :: String -> IO (Either String Module_)
 getASTFromStr src = do
     libdir <- getLibdir
     result <- parseModuleFromString libdir "<mucheck>" src
-    return $ case result of
+    return $ relativeLayout <$> case result of
         Left msgs      -> Left (showSDocUnsafe (ppr msgs))
-        Right (L _ m)  -> Right (toDeltaModule m)
-
-{- | Give each node a relative layout position and attach each comment to the
-node that follows it.
-
-The parser keeps some comments (for example, comments in a @where@ block) in
-a queue on the enclosing node.  'exactPrint' writes all queued comments when
-it enters a node that has a relative position, as replacement nodes do.  In
-the source form, a replacement therefore pulled a following comment into the
-mutant and split its tokens (#127).  Each node keeps its original source span,
-so span matching and coverage gating do not change.
--}
-toDeltaModule :: Module_ -> Module_
-toDeltaModule = makeDeltaAst
+        Right (L _ m)  -> Right m
 
 {- | Parse a file into a 'Module_', using CPP-aware parsing when the source uses
 the C preprocessor.  The string parser ('getASTFromStr') does not run CPP, so
@@ -550,9 +547,9 @@ getASTFromFile path = do
                         else do
                             let opts = defaultCppOptions { cppFile = macros }
                             result <- parseModuleWithCpp libdir opts path
-                            return $ case result of
+                            return $ relativeLayout <$> case result of
                                 Left msgs     -> Left (showSDocUnsafe (ppr msgs))
-                                Right (L _ m) -> Right (toDeltaModule m)
+                                Right (L _ m) -> Right m
                 else getASTFromStr src
 
 -- | Does this source use the C preprocessor?  Detected via the @CPP@ language

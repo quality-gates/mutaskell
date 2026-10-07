@@ -697,27 +697,35 @@ myFn x = (x, x)
                 swaps `shouldSatisfy` all (== expectedSource)
                 mapM_ H.ast swaps
 
-    -- Regression (#127): exactPrint wrote a comment that follows a fresh
-    -- replacement node into that node, e.g. g = h (\n    -- notenegate 1).
+    -- Regression (#127): a fresh replacement node took the comment that
+    -- follows it in the same layout block, e.g. g = h (\n    -- notenegate 1).
     describe "fresh replacement before a comment" $ do
-        let sourceWith body = unlines
-                [ "module M where", "f :: Int", "f = g", "  where"
-                , "    g = " ++ body, "    -- note", "    h = id" ]
-            check body mtype expectedLine = do
-                Right mutants <- genMutantsForSrc defaultConfig (sourceWith body)
-                let rendered = [_mutant m | m <- mutants, _mtype m == mtype]
-                rendered `shouldSatisfy` (not . null)
-                forM_ rendered $ \src -> do
-                    drop 4 (lines src) `shouldBe`
-                        [expectedLine, "    -- note", "    h = id"]
-                    _ <- H.ast src
-                    pure ()
-        it "keeps the comment after a negate-literal mutant" $
-            check "h 1" (MutateOther "negate-literal") "    g = h (negate 1)"
-        it "keeps the comment after a tuple-swap mutant" $
-            check "h (1, 2)" (MutateOther "tuple-swap") "    g = h (2, 1)"
+        let source body = unlines
+                [ "module M where"
+                , "f :: Int"
+                , "f = g"
+                , "  where"
+                , "    g = " ++ body
+                , "    -- note"
+                , "    h = id"
+                ]
+            rendered mtype body = do
+                Right mutants <- genMutantsForSrc defaultConfig (source body)
+                pure [_mutant m | m <- mutants, _mtype m == mtype]
+        it "keeps the comment outside a negate-literal mutant" $ do
+            ms <- rendered (MutateOther "negate-literal") "h 1"
+            ms `shouldBe` [source "h (negate 1)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside a tuple-swap mutant" $ do
+            ms <- rendered (MutateOther "tuple-swap") "(h, 1)"
+            ms `shouldBe` [source "(1, h)"]
+            mapM_ H.ast ms
+        it "keeps the comment outside an operator substitution" $ do
+            ms <- rendered MutateFunctions "h (x > 0)"
+            ms `shouldSatisfy` elem (source "h (x < 0)")
+            mapM_ H.ast ms
         it "renders every mutant as parseable source with the comment in place" $ do
-            Right mutants <- genMutantsForSrc defaultConfig (sourceWith "h (1, 2)")
+            Right mutants <- genMutantsForSrc defaultConfig (source "h (1, 2)")
             mutants `shouldSatisfy` (not . null)
             forM_ mutants $ \m -> do
                 filter ("note" `isInfixOf`) (lines (_mutant m))
