@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.56]
+  * Fixed: `--update-baseline FILE` now adds escaped mutant IDs to FILE and keeps the IDs already there. Before, it replaced FILE, so `--baseline FILE --update-baseline FILE` emptied the baseline on a run with no new escaped mutants (#128).
+
 ## [0.8.55]
   * Fixed: mutants that insert new syntax, such as `negate-literal`, `tuple-swap`, and operator substitutions, no longer pull a later comment from the same block into the replacement. Comments stay in place and the mutant source stays valid (#127).
   * Changed: removal mutators now remove a binding, clause, or statement together with the comment lines directly above it.
