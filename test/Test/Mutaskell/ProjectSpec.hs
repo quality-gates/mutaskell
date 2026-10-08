@@ -643,6 +643,34 @@ spec = describe "runProject (serial)" $ do
                 files <- withCurrentDirectory root (discoverSourcesWithStats defaultOpts)
                 fst files `shouldBe` ["src/A.hs"]
 
+        it "excludes nested exclude_dirs paths as path prefixes" $
+            withSystemTempDirectory "mutaskell-disc" $ \root -> do
+                writeCabalProject root
+                writeFiles root
+                    [ ("src/A.hs", "module A where")
+                    , ("src/sub/B.hs", "module B where")
+                    , ("src/subway/C.hs", "module C where")
+                    , ("app/Main.hs", "module Main where")
+                    , ("app/gen/G.hs", "module G where")
+                    ]
+                files <- withCurrentDirectory root
+                    (discoverSourcesWithStats defaultOpts
+                        { optExcludeDirs = ["src/sub", "./app/gen/"] })
+                fst files `shouldBe` ["app/Main.hs", "src/A.hs", "src/subway/C.hs"]
+
+        it "excludes single-name exclude_dirs at any depth, with or without a trailing slash" $
+            withSystemTempDirectory "mutaskell-disc" $ \root -> do
+                writeCabalProject root
+                writeFiles root
+                    [ ("src/A.hs", "module A where")
+                    , ("src/generated/G.hs", "module G where")
+                    , ("vendor/V.hs", "module V where")
+                    ]
+                files <- withCurrentDirectory root
+                    (discoverSourcesWithStats defaultOpts
+                        { optExcludeDirs = ["generated", "vendor/"] })
+                fst files `shouldBe` ["src/A.hs"]
+
         it "discovers only files within the scope directory" $
             withSystemTempDirectory "mutaskell-disc" $ \root -> do
                 writeCabalProject root

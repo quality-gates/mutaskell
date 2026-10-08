@@ -798,12 +798,18 @@ discoverSourcesWithStats opts = do
     -- Directories and files that never get mutated.  testDirs are test or
     -- benchmark source dirs to prune (so test code is not mutated); they are
     -- matched as path prefixes, not bare components, to avoid excluding an
-    -- unrelated src/Test.
+    -- unrelated src/Test.  An exclude_dirs entry that is a single name
+    -- ("generated") matches that component at any depth; one with a slash
+    -- ("src/generated") matches as a path prefix from the project root.
     excluded testDirs p =
-        any (`elem` pathParts p) ("dist-newstyle" : optExcludeDirs opts)
+        any (excludedBy p . canonicalDir) ("dist-newstyle" : optExcludeDirs opts)
         || any isHiddenPart (pathParts p)
         || p `elem` map canonicalDir testDirs
         || any (\t -> (canonicalDir t ++ "/") `isPrefixOf` (p ++ "/")) testDirs
+    excludedBy p d
+        | null d         = False
+        | '/' `elem` d   = (d ++ "/") `isPrefixOf` (normalise p ++ "/")
+        | otherwise      = d `elem` pathParts p
     isHiddenPart part =
         part /= "." && part /= ".." && "." `isPrefixOf` part
     pathParts = foldr splitSlash [""] . normalise
