@@ -23,6 +23,7 @@ import Test.Mutaskell.Config (MuVar(..))
 import Test.Mutaskell.Interpreter (MutantSummary(..))
 import Test.Mutaskell.TestAdapter (Mutant(..))
 import Test.Mutaskell.Tix (toSpan)
+import Test.Mutaskell.Utils.Common (hash)
 import Data.List (isInfixOf)
 import System.Directory (doesFileExist)
 import System.FilePath ((</>))
@@ -136,6 +137,26 @@ spec = do
                 writeUpdateBaseline opts []
                 mapM_ (\path -> doesFileExist path `shouldReturn` True)
                     [jsonPath, githubPath, gitlabPath, agenticPath, htmlPath, baselinePath]
+
+    describe "writeUpdateBaseline" $ do
+        it "adds new escaped mutant IDs after the existing IDs without duplicates" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let baselinePath = dir </> "baseline.txt"
+                    known = Mutant "known" MutateValues (toSpan (1, 1, 1, 1))
+                    fresh = Mutant "fresh" MutateValues (toSpan (2, 1, 2, 1))
+                    opts = defaultOpts { optUpdateBaseline = Just baselinePath }
+                writeFile baselinePath (unlines ["older-id", hash "known"])
+                writeUpdateBaseline opts [MSumAlive known [], MSumAlive fresh []]
+                readFile baselinePath `shouldReturn`
+                    unlines ["older-id", hash "known", hash "fresh"]
+
+        it "keeps the existing IDs when no mutant escapes" $
+            withSystemTempDirectory "mutaskell-output" $ \dir -> do
+                let baselinePath = dir </> "baseline.txt"
+                    opts = defaultOpts { optUpdateBaseline = Just baselinePath }
+                writeFile baselinePath (unlines ["older-id"])
+                writeUpdateBaseline opts []
+                readFile baselinePath `shouldReturn` unlines ["older-id"]
 
     describe "writeJsonLogger" $ do
         it "emits covered_code_msi 0.0 when coverage is present but covers zero mutants" $

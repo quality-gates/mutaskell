@@ -323,6 +323,35 @@ spec = do
                     out `shouldContain` "Total"
                     (out ++ errOut) `shouldNotContain` "Uncaught exception"
 
+    -- Issue #128: a run with --baseline and --update-baseline on the same
+    -- file must keep the known escaped mutants in that file.
+    describe "--update-baseline" $ do
+        it "keeps known baseline IDs when the same file is also the --baseline input" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-update-baseline" $ \dir -> do
+                    let source = dir ++ "/Fixture.hs"
+                        baseline = dir ++ "/baseline.txt"
+                        runWith extra = readProcessWithExitCode exe
+                            ([source, "--workers", "1", "--timeout", "30"] ++ extra) ""
+                    writeFile source $ unlines
+                        [ "module Fixture where"
+                        , "import Test.Mutaskell.TestAdapter.AssertCheck"
+                        , "answer :: Int -> Int"
+                        , "answer a = a"
+                        , "test_answer = assertCheck True"
+                        ]
+                    (ec1, _, _) <- runWith ["--update-baseline", baseline]
+                    ec1 `shouldBe` ExitSuccess
+                    seeded <- filter (not . null) . lines <$> readFile baseline
+                    seeded `shouldNotBe` []
+                    (ec2, _, _) <- runWith
+                        ["--baseline", baseline, "--update-baseline", baseline]
+                    ec2 `shouldBe` ExitSuccess
+                    updated <- filter (not . null) . lines <$> readFile baseline
+                    updated `shouldBe` seeded
+
     describe "extractConfigArg" $ do
         it "extracts config file with space syntax" $ do
             extractConfigArg ["--config", "myconfig.yaml"] `shouldBe` Just "myconfig.yaml"

@@ -28,8 +28,9 @@ import qualified Data.ByteString.Lazy as BL
 import Data.List (nub, sort)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory)
+import System.IO (readFile')
 
 import App.Opts (Opts(..))
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
@@ -194,14 +195,20 @@ ensureParentDirectory :: FilePath -> IO ()
 ensureParentDirectory path =
   createDirectoryIfMissing True (takeDirectory path)
 
--- | Write surviving mutant IDs to the update-baseline file.
+-- | Add surviving mutant IDs to the update-baseline file.
+-- Keep the IDs that the file already contains, because a run with
+-- @--baseline@ on the same file does not evaluate those mutants.
 writeUpdateBaseline :: Opts -> [MutantSummary] -> IO ()
 writeUpdateBaseline opts tsum = case optUpdateBaseline opts of
   Nothing   -> return ()
   Just path -> do
     let aliveIds = [hash (_mutant m) | MSumAlive m _ <- tsum]
     ensureParentDirectory path
-    writeFile path (unlines aliveIds)
+    exists <- doesFileExist path
+    knownIds <- if exists
+      then filter (not . null) . lines <$> readFile' path
+      else return []
+    writeFile path (unlines (nub (knownIds ++ aliveIds)))
 
 -- | Write a compact JSON summary to the logger-json file.
 writeJsonLogger :: Opts -> MAnalysisSummary -> IO ()

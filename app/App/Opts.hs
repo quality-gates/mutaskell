@@ -339,7 +339,7 @@ optsParser base = Opts
     <*> option (Just <$> str)
           ( long "update-baseline" <> metavar "FILE"
           <> value (optUpdateBaseline base)
-          <> help "Write surviving mutant IDs to FILE after the run" )
+          <> help "Add surviving mutant IDs to FILE after the run, keeping IDs already in FILE" )
     <*> option (Just <$> str)
           ( long "blacklist" <> metavar "FILE"
           <> value (optBlacklist base)
