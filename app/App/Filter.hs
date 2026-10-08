@@ -33,8 +33,9 @@ import qualified Data.IntSet as IntSet
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf, stripPrefix)
 import Data.Maybe (isNothing)
 import qualified Data.Set as Set
-import System.IO (hPutStrLn, stderr)
-import System.Process (readProcess)
+import System.Exit (ExitCode (..), exitWith)
+import System.IO (hPutStr, hPutStrLn, stderr)
+import System.Process (readProcessWithExitCode)
 
 import App.Opts (Opts (..), splitOn)
 import Test.Mutaskell.Config (MuVar, showMuVar)
@@ -172,12 +173,26 @@ matchesDiffPath a b =
 checkGitDiff :: FilePath -> Maybe String -> IO Bool
 checkGitDiff _ Nothing = return True
 checkGitDiff file (Just ref) = do
-  result <- try (readProcess "git" ["diff", "--name-only", ref] "") :: IO (Either IOException String)
+  output <- gitDiff ref ["--name-only", ref]
+  return $ any (matchesDiffPath file) (lines output)
+
+-- | Run @git diff@ with the given arguments and return its output.
+-- If git cannot start or exits with a failure, write an error to stderr
+-- and stop with exit code 2. A failed diff must not widen the mutation
+-- scope to all files or lines.
+gitDiff :: String -> [String] -> IO String
+gitDiff ref args = do
+  result <- try (readProcessWithExitCode "git" ("diff" : args) "")
+      :: IO (Either IOException (ExitCode, String, String))
   case result of
-    Left _       -> return True
-    Right output ->
-      let changed = lines output
-      in  return $ any (matchesDiffPath file) changed
+    Right (ExitSuccess, output, _) -> return output
+    Right (ExitFailure _, _, gitErr) -> failWith gitErr
+    Left e -> failWith (show e ++ "\n")
+  where
+    failWith detail = do
+      hPutStrLn stderr $ "Error: git diff failed for base ref '" ++ ref ++ "'"
+      hPutStr stderr detail
+      exitWith (ExitFailure 2)
 
 -- | If --git-diff-lines is active (requires --git-diff-base), filter mutants
 -- to those whose start line falls within lines changed relative to the base ref.
@@ -200,11 +215,8 @@ applyDiffLinesCached file (Just ref) True ms = do
 loadChangedLines :: FilePath -> Maybe String -> IO (Maybe IntSet.IntSet)
 loadChangedLines _ Nothing = return Nothing
 loadChangedLines file (Just ref) = do
-  result <- try (readProcess "git" ["diff", "--unified=0", ref, "--", file] "")
-      :: IO (Either IOException String)
-  return $ case result of
-    Left _       -> Nothing
-    Right output -> Just (indexChangedLines (parseDiffChangedLines output))
+  output <- gitDiff ref ["--unified=0", ref, "--", file]
+  return $ Just (indexChangedLines (parseDiffChangedLines output))
 
 -- | Parse unified diff output (e.g. `git diff --unified=0` or `unifiedDiff` with context)
 -- and return all changed line numbers in the new file.

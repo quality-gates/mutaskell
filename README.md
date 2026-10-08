@@ -673,7 +673,7 @@ mutaskell supports several CLI flags for configuring mutation runs and output:
 *   `--timeout-coefficient N`: Set per-mutant timeout to N × measured baseline test-suite runtime.
 *   `--logger-github FILE`: Write GitHub Actions `::warning` annotations for escaped mutants to FILE.
 *   `--logger-gitlab FILE`: Write a GitLab Code Quality JSON artifact for escaped mutants to FILE.
-*   `--git-diff-base REF`: Skip mutation if the source file is not in `git diff --name-only REF`. In project mode, scopes discovered source files to changes relative to REF.
+*   `--git-diff-base REF`: Skip mutation if the source file is not in `git diff --name-only REF`. In project mode, scopes discovered source files to changes relative to REF. If `git diff` fails, for example because REF does not exist or was not fetched, mutaskell writes `Error: git diff failed for base ref 'REF'` to stderr and exits with code 2.
 *   `--git-diff-lines`: Restrict mutants to lines changed relative to `--git-diff-base` (requires `--git-diff-base`). In project mode, restricts evaluated mutants in changed files to modified lines.
 *   `--baseline FILE`: Skip mutants whose stable ID appears in FILE.
 *   `--update-baseline FILE`: Add the IDs of escaped mutants to FILE. IDs already in FILE stay, so `--baseline FILE --update-baseline FILE` records new escaped mutants and keeps the known ones. Delete FILE to start a new baseline.

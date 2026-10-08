@@ -488,6 +488,46 @@ spec = do
                         out `shouldContain` "Discovered 0 source file(s)."
                         out `shouldContain` "Total generated mutants (sampled per file): 0"
 
+    describe "git diff base failure" $ do
+        let failsOnBadRef args = do
+                bin <- findMucheckBin
+                case bin of
+                    Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                    Just exe -> do
+                        (ec, out, errOut) <- readProcessWithExitCode exe args ""
+                        ec `shouldBe` ExitFailure 2
+                        errOut `shouldContain` "Error: git diff failed for base ref 'non-existent-ref'"
+                        out `shouldNotContain` "Mutation score"
+
+        it "exits 2 in single-file mode when the base ref does not resolve" $
+            failsOnBadRef
+                [ "Examples/AssertCheckTest.hs", "--git-diff-base", "non-existent-ref"
+                , "--max-mutants", "1", "--workers", "1", "--timeout", "30" ]
+
+        it "exits 2 in single-file mode with --git-diff-lines when the base ref does not resolve" $
+            failsOnBadRef
+                [ "Examples/AssertCheckTest.hs", "--git-diff-base", "non-existent-ref"
+                , "--git-diff-lines", "--max-mutants", "1", "--workers", "1", "--timeout", "30" ]
+
+        it "exits 2 in project mode when the base ref does not resolve" $ do
+            bin <- findMucheckBin
+            case bin of
+                Nothing -> pendingWith "mucheck binary not built (run cabal build all)"
+                Just exe -> withSystemTempDirectory "mutaskell-proj-cli" $ \dir ->
+                    withCurrentDirectory dir $ do
+                        callProcess "git" ["init", "-q"]
+                        callProcess "git" ["config", "user.email", "test@example.com"]
+                        callProcess "git" ["config", "user.name", "test"]
+                        writeFile "cabal.project" "packages: .\n"
+                        writeFile "A.hs" "module A where\na = 1\n"
+                        callProcess "git" ["add", "."]
+                        callProcess "git" ["commit", "-qm", "base"]
+                        (ec, out, errOut) <- readProcessWithExitCode exe
+                            [".", "--dry-run", "--git-diff-base", "non-existent-ref"] ""
+                        ec `shouldBe` ExitFailure 2
+                        errOut `shouldContain` "Error: git diff failed for base ref 'non-existent-ref'"
+                        out `shouldNotContain` "Discovered"
+
     describe "baseline and noop log file cleanup" $ do
         it "--timeout-coefficient does not leave .mucheck-baseline-timing.log in working directory" $ do
             bin <- findMucheckBin

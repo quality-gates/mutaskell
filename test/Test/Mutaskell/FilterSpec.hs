@@ -1,10 +1,11 @@
 -- | Filter stages applied to generated mutants before sampling.
 module Test.Mutaskell.FilterSpec where
 
-import Control.Exception (bracket)
+import Control.Exception (bracket, try)
 import Data.List (isInfixOf)
 import GHC.IO.Handle (hDuplicate, hDuplicateTo)
 import System.Directory (createDirectoryIfMissing, withCurrentDirectory)
+import System.Exit (ExitCode (..))
 import System.IO (IOMode (..), hClose, hFlush, stderr, withFile)
 import System.IO.Temp (emptySystemTempFile, withSystemTempDirectory)
 import System.Process (callProcess)
@@ -204,9 +205,11 @@ spec = do
                     got <- applyDiffLines "M.hs" (Just "HEAD") True [onF, onG]
                     got `shouldBe` [onF]
 
-        it "returns every mutant when the git command fails" $ do
-            (got, _) <- captureStderr $ applyDiffLines "X.hs" (Just "not-a-ref") True allMs
-            got `shouldBe` allMs
+        it "exits 2 and names the ref when the git command fails" $ do
+            (got, err) <- captureStderr $
+                try (applyDiffLines "X.hs" (Just "not-a-ref") True allMs)
+            fmap length got `shouldBe` Left (ExitFailure 2)
+            err `shouldContain` "Error: git diff failed for base ref 'not-a-ref'"
 
     describe "checkGitDiff" $ do
         -- A repo where MyFoo.hs, NotMain.hs and src/Baz.hs changed; the
@@ -245,6 +248,13 @@ spec = do
 
         it "selects a file named by its full path when it appears verbatim in the diff" $
             withDiffRepo $ \files -> checkGitDiff (files !! 5) (Just "HEAD") `shouldReturn` True
+
+        it "exits 2 and names the ref when the base ref does not resolve" $
+            withDiffRepo $ \(foo : _) -> do
+                (got, err) <- captureStderr $
+                    try (checkGitDiff foo (Just "not-a-ref"))
+                got `shouldBe` Left (ExitFailure 2)
+                err `shouldContain` "Error: git diff failed for base ref 'not-a-ref'"
 
         it "selects every file when no base ref is given" $
             withDiffRepo $ \files ->
@@ -427,6 +437,14 @@ spec = do
                     let kept = filter keep ops
                     kept `shouldSatisfy` (not . null)
                     map operatorLine kept `shouldSatisfy` all (== 3)
+
+        it "exits 2 when changed lines are requested for a base ref that does not resolve" $ do
+            (got, err) <- captureStderr $ try $
+                prepareOperatorFilter
+                    (defaultOpts { optGitDiffBase = Just "not-a-ref", optGitDiffLines = True })
+                    "M.hs" "module M where\n"
+            either Left (const (Right ())) got `shouldBe` Left (ExitFailure 2)
+            err `shouldContain` "Error: git diff failed for base ref 'not-a-ref'"
 
         it "ignores operators whose source line matches an ignore pattern" $ do
             let src = unlines
