@@ -890,3 +890,5 @@ enable_mutators: [functions]                         # Restrict to these mutator
 ignore_source_lines: [NOTEST, uncovered]             # Skip mutations on lines containing these substrings
 exclude_dirs: [vendor/, generated/]                  # Skip target if path starts with any listed prefix
 ```
+
+In project mode, an `exclude_dirs` entry with more than one path part, such as `src/generated`, excludes that directory and everything below it, relative to the project root. An entry that is one directory name, such as `generated` or `generated/`, excludes every directory with that name at any depth.
