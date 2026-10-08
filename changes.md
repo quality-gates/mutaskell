@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.58]
+  * Fixed: `--git-diff-base REF` now stops with exit code 2 and `Error: git diff failed for base ref 'REF'` when `git diff` fails. Before, a missing, mistyped, or unfetched REF made mutaskell mutate every file and line and exit 0 (#130).
+
 ## [0.8.57]
   * Fixed: in project mode, `exclude_dirs` entries that contain a slash, such as `src/sub` or `vendor/`, now exclude those directories. Before, project mode matched only bare directory names, so nested paths and entries with a trailing slash excluded nothing (#129).
 
