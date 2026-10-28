@@ -15,6 +15,7 @@ tags
 .mucheck-noop.log
 .mucheck-baseline-timing.log
 .mutaskell/
+decision.tsv
 mucheck-summary.json
 mucheck-agentic.json
 mucheck-gitlab.json

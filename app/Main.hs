@@ -35,7 +35,7 @@ import Control.Exception (IOException, try)
 import Control.Monad (unless, when)
 import qualified Data.ByteString.Lazy as BL
 import Data.IORef (modifyIORef', newIORef, readIORef)
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.List (group, isSuffixOf, isPrefixOf, sort, sortBy)
 import Options.Applicative (execParser)
 import Data.Ord (comparing, Down(..))
@@ -50,6 +50,7 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Mutaskell (sampler)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
 import Test.Mutaskell.Config (Config(..), defaultConfig, showMuVar)
+import Test.Mutaskell.FastBatch (tryFastBatch)
 import Test.Mutaskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
 import Test.Mutaskell.Mutation
     ( genMutants, genMutantsFromAST, genSampledMutants, getASTFromFile
@@ -138,6 +139,13 @@ runOptsFile opts
         let modFile  = toRun (optFile opts) :: AssertCheckRun
             anns     = parseAnnotations origSrc
             maxN     = fromMaybe (maxNumMutants defaultConfig) (optMaxMutants opts)
+        when (fastBatchEligible opts anns) $ do
+            tried <- tryFastBatch maxN origSrc
+            case tried of
+                Nothing -> return ()
+                Just (msum, tsum) -> do
+                    reportRun opts file origSrc msum tsum
+                    exitSuccess
         res <-
           if operatorSamplingEligible opts anns
             then
@@ -251,18 +259,38 @@ runOptsFile opts
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
-            reportDiffs = prepareMutantDiffs origSrc tsum
-        unless (optSilent opts) $ printMutantDetailsWithDiffs opts reportDiffs
-        unless (isSingleMutantMode opts) $ do
-          print msum
-          unless (optSilent opts) $ printMutatorBreakdown opts tsum
-          writeJsonLogger opts msum
-          writeGithubLogger opts (optFile opts) tsum
-          writeGitlabLogger opts (optFile opts) tsum
-          writeAgenticJsonLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
-          writeHtmlLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
-          writeUpdateBaseline opts tsum
-        applyExitPolicy opts msum
+        reportRun opts file origSrc msum tsum
+
+-- | Print the run and apply the exit policy.
+-- Shared by the ordinary interpreter and the boolean-literal batch.
+reportRun :: Opts -> FilePath -> String -> MAnalysisSummary -> [MutantSummary] -> IO ()
+reportRun opts file origSrc msum tsum = do
+    let reportDiffs = prepareMutantDiffs origSrc tsum
+    unless (optSilent opts) $ printMutantDetailsWithDiffs opts reportDiffs
+    unless (isSingleMutantMode opts) $ do
+        print msum
+        unless (optSilent opts) $ printMutatorBreakdown opts tsum
+        writeJsonLogger opts msum
+        writeGithubLogger opts file tsum
+        writeGitlabLogger opts file tsum
+        writeAgenticJsonLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
+        writeHtmlLoggerWithDiffs opts (optFile opts) origSrc reportDiffs msum
+        writeUpdateBaseline opts tsum
+    applyExitPolicy opts msum
+
+-- | The batch evaluator is for an ordinary single-file run.
+-- Filters, coverage, timeouts and explicit samples stay on the interpreter.
+fastBatchEligible :: Opts -> [(Int, [String])] -> Bool
+fastBatchEligible opts anns =
+    operatorSamplingEligible opts anns
+        && isNothing (optTimeout opts)
+        && isNothing (optTimeoutCoef opts)
+        && isNothing (optWorkerOutput opts)
+        && isNothing (optKeepMutants opts)
+        && null (optTestArgs opts)
+        && isNothing (optBuildCmd opts)
+        && isNothing (optTestCmd opts)
+        && not (optNoop opts)
 
 noopCheck :: FilePath -> IO ()
 noopCheck file = do

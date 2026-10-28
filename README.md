@@ -248,6 +248,10 @@ Currently `mutaskell` is restricted to running mutation analysis on a single
 module at a time. In order for it to work, the module being tested should
 contain the tests also.
 
+A module whose mutants are only `True`/`False` flips, and whose declarations
+are single equations, is compiled once. The mutant number is an argument of
+that program, so those mutants are not each started in their own interpreter.
+
 mutaskell discovers test functions in two ways:
 
 1. **Naming convention**: Functions whose names start with `prop_`, `test_`, or `spec_` are picked up automatically.
