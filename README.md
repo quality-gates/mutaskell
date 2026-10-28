@@ -249,8 +249,10 @@ module at a time. In order for it to work, the module being tested should
 contain the tests also.
 
 A module whose mutants are only `True`/`False` flips, and whose declarations
-are single equations, is compiled once. The mutant number is an argument of
-that program, so those mutants are not each started in their own interpreter.
+are single equations, is evaluated in one pass. Boolean equations are
+decided on the parsed tree. Anything else in that shape is compiled once,
+with the mutant number as an argument, so those mutants are not each started
+in their own interpreter.
 
 mutaskell discovers test functions in two ways:
 

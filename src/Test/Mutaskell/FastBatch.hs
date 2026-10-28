@@ -1,13 +1,13 @@
-{- | Evaluate a module of boolean-literal mutants in one GHC process.
+{- | Evaluate boolean-literal mutants without a process per mutant.
 
 The ordinary path rebuilds and interprets each mutant on its own. For a
 module whose mutants are only @True@/@False@ flips, each mutant is that same
-module with one token changed. This module builds one program that takes the
-mutant number as an argument, compiles it once, and reads one result line per
-mutant.
+module with one token changed. When every equation is a boolean expression
+this module can evaluate, the flips are decided on the parsed tree. Otherwise
+one program is compiled, with the mutant number as an argument.
 
 The function returns 'Nothing' when the module is not of that shape, or when
-the batch compiler fails. The caller then uses the ordinary interpreter.
+both evaluators fail. The caller then uses the ordinary interpreter.
 -}
 module Test.Mutaskell.FastBatch
     ( tryFastBatch
@@ -16,7 +16,18 @@ module Test.Mutaskell.FastBatch
 import Control.Monad (foldM)
 import Data.Char (isAlphaNum, isSpace)
 import Data.List (isInfixOf, isPrefixOf, sortOn)
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import GHC.Hs
+import GHC.Types.SrcLoc
+    ( GenLocated (..)
+    , SrcSpan (..)
+    , realSrcSpanEnd
+    , realSrcSpanStart
+    , srcLocCol
+    , srcLocLine
+    , unLoc
+    )
 import System.Exit (ExitCode (..))
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process (readProcessWithExitCode)
@@ -35,7 +46,9 @@ import Test.Mutaskell.Mutation
     , buildSelectorMetadata
     , getASTFromStr
     , getAnn
+    , getDecl
     , putDecl
+    , rdrStr
     , splitAnnotationsWith
     )
 import Test.Mutaskell.TestAdapter (toMutant)
@@ -52,8 +65,12 @@ tryFastBatch maxN src = do
         Left _ -> return Nothing
         Right ast -> case prepareBatch maxN src ast of
             Nothing -> return Nothing
-            Just (pairs, program) -> do
-                compiled <- compileAndRun program
+            Just (pairs, sites, tests) -> do
+                compiled <- case evalBoolModule ast sites tests of
+                    Just marks -> return (Just marks)
+                    Nothing -> case renderProgram src sites tests of
+                        Nothing -> return Nothing
+                        Just program -> compileAndRun program
                 return $ do
                     marks <- compiled
                     if length marks /= length pairs
@@ -90,12 +107,12 @@ data Simple = Simple
     , sLine :: Int
     }
 
--- | Build mutant sources and the batch program.
+-- | Build mutant sources for a module whose operators are all boolean flips.
 prepareBatch ::
     Int ->
     String ->
     Module_ ->
-    Maybe ([(String, (Int, Int, Int, Int))], String)
+    Maybe ([(String, (Int, Int, Int, Int))], [Site], [String])
 prepareBatch maxN src ast = do
     let metadata = buildSelectorMetadata ast
         (_, keptDecls) = splitAnnotationsWith metadata ast
@@ -107,8 +124,7 @@ prepareBatch maxN src ast = do
         else do
             pairs <- mapM (\s -> fmap (\m -> (m, siteSpan s)) (patchSource src s)) sites
             tests <- testNames ast
-            program <- renderProgram src sites tests
-            return (pairs, program)
+            return (pairs, sites, tests)
   where
     siteKey s = (siteLine s, siteCol s)
     siteSpan s = (siteLine s, siteCol s, siteLine s, siteEnd s)
@@ -340,6 +356,111 @@ trim :: String -> String
 trim = f . f
   where
     f = reverse . dropWhile isSpace
+
+-- | A value the boolean evaluator knows how to produce.
+data Val
+    = VBool Bool
+    -- | 'True' means the assertion passed.
+    | VAssert Bool
+
+-- | Decide each flip on the parsed tree.
+--
+-- Returns 'Nothing' when a declaration or expression is outside the boolean
+-- subset. The caller compiles the batch program instead.
+evalBoolModule :: Module_ -> [Site] -> [String] -> Maybe [Mark]
+evalBoolModule ast sites tests = do
+    env <- simpleBinds ast
+    if any (`Map.member` env) ["True", "False", "not", "assertCheck"]
+        then Nothing
+        else mapM (one env) sites
+  where
+    one env site = do
+        vals <- mapM (evalName env site) tests
+        let killed = any isKilled vals
+        return (if killed then Killed else Alive)
+    evalName env site name = do
+        rhs <- Map.lookup name env
+        evalExpr env site (Set.singleton name) rhs
+    isKilled (VAssert passed) = not passed
+    isKilled (VBool _) = False
+
+simpleBinds :: Module_ -> Maybe (Map.Map String (LHsExpr GhcPs))
+simpleBinds ast = foldM add Map.empty (getDecl ast)
+  where
+    add env (L _ SigD {}) = Just env
+    add env (L _ AnnD {}) = Just env
+    add env decl = do
+        (name, rhs) <- simpleBinding decl
+        if Map.member name env
+            then Nothing
+            else Just (Map.insert name rhs env)
+
+simpleBinding :: LHsDecl GhcPs -> Maybe (String, LHsExpr GhcPs)
+simpleBinding (L _ (ValD _ (FunBind _ fid (MG _ (L _ [L _ (Match _ _ (L _ []) (GRHSs _ [L _ (GRHS _ [] body)] binds))])))))
+    | emptyBinds binds = Just (rdrStr (unLoc fid), body)
+simpleBinding (L _ (ValD _ (PatBind _ (L _ (VarPat _ (L _ rdr))) _ (GRHSs _ [L _ (GRHS _ [] body)] binds))))
+    | emptyBinds binds = Just (rdrStr rdr, body)
+simpleBinding _ = Nothing
+
+emptyBinds :: HsLocalBinds GhcPs -> Bool
+emptyBinds (EmptyLocalBinds _) = True
+emptyBinds _ = False
+
+evalExpr :: Map.Map String (LHsExpr GhcPs) -> Site -> Set.Set String -> LHsExpr GhcPs -> Maybe Val
+evalExpr env site stack expr = case unLoc expr of
+    HsVar _ (L _ rdr)
+        | name == "True" -> Just (VBool (flipped True))
+        | name == "False" -> Just (VBool (flipped False))
+        | Set.member name stack -> Nothing
+        | Just rhs <- Map.lookup name env ->
+            evalExpr env site (Set.insert name stack) rhs
+        | otherwise -> Nothing
+      where
+        name = rdrStr rdr
+        flipped base = if spansMatch site expr then not base else base
+    HsPar _ inner -> evalExpr env site stack inner
+    HsApp _ fun arg -> applyFun env site stack fun arg
+    OpApp _ left op right -> case strip op of
+        L _ (HsVar _ (L _ rdr))
+            | rdrStr rdr == "&&" -> shortCircuit (&&) False left right
+            | rdrStr rdr == "||" -> shortCircuit (||) True left right
+            | rdrStr rdr == "$" -> applyFun env site stack left right
+        _ -> Nothing
+    _ -> Nothing
+  where
+    shortCircuit op absorb left right = do
+        VBool a <- evalExpr env site stack left
+        if a == absorb
+            then Just (VBool a)
+            else do
+                VBool b <- evalExpr env site stack right
+                Just (VBool (op a b))
+
+applyFun :: Map.Map String (LHsExpr GhcPs) -> Site -> Set.Set String -> LHsExpr GhcPs -> LHsExpr GhcPs -> Maybe Val
+applyFun env site stack fun arg = case strip fun of
+    L _ (HsVar _ (L _ rdr))
+        | rdrStr rdr == "not" -> do
+            VBool b <- evalExpr env site stack arg
+            Just (VBool (not b))
+        | rdrStr rdr == "assertCheck" -> do
+            VBool b <- evalExpr env site stack arg
+            Just (VAssert b)
+    _ -> Nothing
+
+strip :: LHsExpr GhcPs -> LHsExpr GhcPs
+strip (L _ (HsPar _ inner)) = strip inner
+strip other = other
+
+spansMatch :: Site -> LHsExpr GhcPs -> Bool
+spansMatch site expr = case getHasLoc expr of
+    RealSrcSpan rss _ ->
+        let start = realSrcSpanStart rss
+            end = realSrcSpanEnd rss
+        in srcLocLine start == siteLine site
+            && srcLocCol start == siteCol site
+            && srcLocLine end == siteLine site
+            && srcLocCol end == siteEnd site
+    UnhelpfulSpan _ -> False
 
 compileAndRun :: String -> IO (Maybe [Mark])
 compileAndRun program =

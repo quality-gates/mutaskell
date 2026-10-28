@@ -19,6 +19,28 @@ spec = describe "tryFastBatch" $ do
                 _maKilled summary `shouldBe` _maNumMutants summary
                 _maNumMutants summary `shouldSatisfy` (>= 2)
 
+    it "kills a flipped literal under not" $ do
+        result <- tryFastBatch (maxNumMutants defaultConfig) notSrc
+        case result of
+            Nothing -> expectationFailure "not-expression did not take the batch path"
+            Just (summary, _) -> do
+                _maErrors summary `shouldBe` 0
+                _maSkipped summary `shouldBe` 0
+                _maAlive summary `shouldBe` 0
+                _maKilled summary `shouldBe` _maNumMutants summary
+                _maNumMutants summary `shouldSatisfy` (>= 1)
+
+    it "leaves an or-expression alive when the flipped literal still passes" $ do
+        result <- tryFastBatch (maxNumMutants defaultConfig) orSrc
+        case result of
+            Nothing -> expectationFailure "or-expression did not take the batch path"
+            Just (summary, _) -> do
+                _maErrors summary `shouldBe` 0
+                _maSkipped summary `shouldBe` 0
+                _maKilled summary `shouldSatisfy` (>= 1)
+                _maAlive summary `shouldSatisfy` (>= 1)
+                (_maKilled summary + _maAlive summary) `shouldBe` _maNumMutants summary
+
     it "refuses a module that is not only boolean flips" $ do
         result <- tryFastBatch (maxNumMutants defaultConfig) opSrc
         result `shouldSatisfy` isNothing
@@ -30,6 +52,23 @@ boolSrc = unlines
     , "flagA = True"
     , "flagB = True"
     , "test_both = assertCheck (flagA && flagB)"
+    ]
+
+notSrc :: String
+notSrc = unlines
+    [ "module Nots where"
+    , "import Test.Mutaskell.TestAdapter.AssertCheck"
+    , "flag = False"
+    , "test_flag = assertCheck (not flag)"
+    ]
+
+orSrc :: String
+orSrc = unlines
+    [ "module Ors where"
+    , "import Test.Mutaskell.TestAdapter.AssertCheck"
+    , "flagA = True"
+    , "flagB = False"
+    , "test_or = assertCheck (flagA || flagB)"
     ]
 
 opSrc :: String
