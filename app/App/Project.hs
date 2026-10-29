@@ -39,6 +39,8 @@ module App.Project
     , readProgress
     , recordDone
     , restrictToShard
+    , dryCountFileEnv
+    , reportOneDryCount
     , runProject
     , runProjectDryRun
     , firstDiff
@@ -62,9 +64,10 @@ import GHC.Conc (getNumProcessors)
 import Data.Char (toLower)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
-import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, nub)
+import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, maximumBy, nub)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe, isJust, isNothing)
+import Data.Ord (comparing)
 import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime)
 import System.Timeout (timeout)
 import Text.Read (readMaybe)
@@ -74,17 +77,27 @@ import System.Directory
     , doesDirectoryExist
     , doesFileExist
     , getCurrentDirectory
+    , getFileSize
     , getTemporaryDirectory
     , listDirectory
     , removeDirectoryRecursive
     , removeFile
     , setCurrentDirectory
     )
-import System.Environment (getExecutablePath)
+import System.Environment (getArgs, getEnvironment, getExecutablePath)
 import System.Exit (ExitCode (..), exitSuccess, exitWith)
 import System.FilePath (makeRelative, takeDirectory, takeExtension, takeFileName, (</>))
-import System.IO (hPutStrLn, readFile', stderr)
-import System.Process (callProcess, createProcess, proc, waitForProcess)
+import System.IO (Handle, hGetContents, hPutStrLn, readFile', stderr)
+import System.Process
+    ( CreateProcess (..)
+    , ProcessHandle
+    , StdStream (..)
+    , callProcess
+    , createProcess
+    , proc
+    , terminateProcess
+    , waitForProcess
+    )
 
 import App.Exit (applyExitPolicy)
 import App.Filter (checkGitDiff, prepareOperatorFilter)
@@ -337,20 +350,121 @@ data FileLine = FileOut String | FileErr String
 dryRunSlots :: Int
 dryRunSlots = 2
 
+-- | Environment variable set on a process that counts one dry-run file.
+--
+-- The parent sets it. The child counts that file and exits. It is not a CLI flag.
+dryCountFileEnv :: String
+dryCountFileEnv = "MUTASKELL_DRY_COUNT_FILE"
+
+-- | Count one source file and print its dry-run line.
+--
+-- The child process enters here, so a dry run does not start more processes.
+reportOneDryCount :: Opts -> FilePath -> IO ()
+reportOneDryCount opts file = do
+    coverage <- loadCoverage opts
+    countFile opts coverage file >>= emitFileCount
+
 -- | Count every discovered file.
 --
--- The dry run only reads source. Report lines are printed in discovery order.
+-- The mutaskell executable counts files in separate processes. The largest
+-- file runs alone, because that file sits nearest the wall-clock cap and a
+-- second allocator pushes it over the cap. Smaller files overlap two at a
+-- time. The test suite binary keeps the in-process pool: spawning that
+-- binary would re-enter the tests. Report lines are printed in discovery order.
 countFiles :: Opts -> CoverageSnapshot -> [FilePath] -> IO Int
 countFiles opts coverage files = do
+    exe <- getExecutablePath
+    rows <- if takeFileName exe == "mutaskell"
+        then countFilesInProcesses exe files
+        else countFilesInThreads opts coverage files
+    mapM_ emitFileCount rows
+    return (sum (map (\(FileCount n _) -> n) rows))
+
+countFilesInThreads :: Opts -> CoverageSnapshot -> [FilePath] -> IO [FileCount]
+countFilesInThreads opts coverage files = do
     oldCaps <- getNumCapabilities
     procs <- getNumProcessors
     let want = max 1 (min dryRunSlots (max oldCaps procs))
     changed <- setCapabilities want oldCaps
     slots <- getNumCapabilities
-    rows <- mapConcurrentlyN slots (countFile opts coverage) files
+    mapConcurrentlyN slots (countFile opts coverage) files
         `finally` when changed (setNumCapabilities oldCaps)
-    mapM_ emitFileCount rows
-    return (sum (map (\(FileCount n _) -> n) rows))
+
+-- | Above the per-file generation cap. Only a child that never exits hits it.
+childWaitSecs :: Int
+childWaitSecs = 60
+
+countFilesInProcesses :: FilePath -> [FilePath] -> IO [FileCount]
+countFilesInProcesses _ [] = return []
+countFilesInProcesses exe files = do
+    args <- getArgs
+    env0 <- getEnvironment
+    procs <- getNumProcessors
+    largest <- largestFile files
+    let rest = filter (/= largest) files
+        restSlots = max 1 (min 2 procs)
+    one <- spawnDryCount exe args env0 largest
+    others <- mapConcurrentlyN restSlots (spawnDryCount exe args env0) rest
+    let paired = zip rest others
+    return (map (\f -> fromMaybe one (lookup f paired)) files)
+
+-- | The biggest source file. Its render cost tracks its size on this workload.
+largestFile :: [FilePath] -> IO FilePath
+largestFile files = do
+    sized <- mapM (\f -> do n <- getFileSize f; return (n, f)) files
+    return (snd (maximumBy (comparing fst) sized))
+
+spawnDryCount :: FilePath -> [String] -> [(String, String)] -> FilePath -> IO FileCount
+spawnDryCount exe args env0 file = do
+    let childEnv = (dryCountFileEnv, file) : filter ((/= dryCountFileEnv) . fst) env0
+    created <- createProcess (proc exe args)
+        { env = Just childEnv
+        , std_in = NoStream
+        , std_out = CreatePipe
+        , std_err = CreatePipe
+        }
+    case created of
+        (_, Just hout, Just herr, ph) -> do
+            result <- timeout (childWaitSecs * 1000000) (collectProcess hout herr ph)
+            case result of
+                Nothing -> do
+                    terminateProcess ph
+                    _ <- waitForProcess ph
+                    return (FileCount 0 (FileErr ("SKIP " ++ file ++ ": dry-count process exceeded " ++ show childWaitSecs ++ "s")))
+                Just (out, err) -> return (parseChildCount file out err)
+        _ -> return (FileCount 0 (FileErr ("SKIP " ++ file ++ ": could not capture dry-count output")))
+
+collectProcess :: Handle -> Handle -> ProcessHandle -> IO (String, String)
+collectProcess hout herr ph = do
+    outM <- newEmptyMVar
+    errM <- newEmptyMVar
+    _ <- forkFinally (strictHandle hout) (putMVar outM)
+    _ <- forkFinally (strictHandle herr) (putMVar errM)
+    _ <- waitForProcess ph
+    out <- takeMVar outM >>= either throwIO return
+    err <- takeMVar errM >>= either throwIO return
+    return (out, err)
+
+strictHandle :: Handle -> IO String
+strictHandle h = do
+    s <- hGetContents h
+    _ <- evaluate (length s)
+    return s
+
+parseChildCount :: FilePath -> String -> String -> FileCount
+parseChildCount file out err =
+    case counted of
+        Just n -> FileCount n (FileOut ("  " ++ file ++ "  " ++ show n))
+        Nothing -> FileCount 0 (FileErr skipped)
+  where
+    prefix = "  " ++ file ++ "  "
+    counted = case [drop (length prefix) line | line <- lines out, prefix `isPrefixOf` line] of
+        (raw:_) -> readMaybe raw
+        [] -> Nothing
+    skipped = case filter (not . null) (lines err) of
+        (line:_) | "SKIP " `isPrefixOf` line -> line
+        (line:_) -> "SKIP " ++ file ++ ": " ++ line
+        [] -> "SKIP " ++ file
 
 setCapabilities :: Int -> Int -> IO Bool
 setCapabilities want old
