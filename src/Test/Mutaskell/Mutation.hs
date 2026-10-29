@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
 -- | This module handles the mutation of different patterns.
@@ -38,6 +39,7 @@ import GHC.Data.FastString (unpackFS, mkFastString)
 import Language.Haskell.Syntax.Module.Name ()
 import Language.Haskell.Syntax.Extension ()
 import GHC.Utils.Outputable (showSDocUnsafe, ppr)
+import Language.Haskell.TH.Syntax (lift, runIO)
 import System.Process (readProcess)
 
 import Language.Haskell.GHC.ExactPrint (exactPrint, makeDeltaAst)
@@ -56,8 +58,17 @@ import Test.Mutaskell.Utils.Syb
 -- Helpers for constructing synthetic GHC AST nodes
 
 -- | The GHC library directory, obtained at runtime.
+-- | Libdir of the GHC that compiled this library.
+--
+-- Parsing uses that compiler's settings. Looking it up with @ghc
+-- --print-libdir@ on every run costs a process start, and a different @ghc@
+-- on @PATH@ would not match the linked parser.
+compiledLibdir :: FilePath
+compiledLibdir =
+    $(runIO (filter (/= '\n') <$> readProcess "ghc" ["--print-libdir"] "") >>= lift)
+
 getLibdir :: IO FilePath
-getLibdir = filter (/= '\n') <$> readProcess "ghc" ["--print-libdir"] ""
+getLibdir = return compiledLibdir
 
 -- | String name of an 'RdrName'.
 rdrStr :: RdrName -> String
