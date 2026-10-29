@@ -44,8 +44,21 @@ module App.Project
     , firstDiff
     ) where
 
-import Control.Exception (SomeException, evaluate, finally, try)
-import Control.Monad (filterM, foldM, forM, unless, when)
+import Control.Concurrent
+    ( forkFinally
+    , getNumCapabilities
+    , newEmptyMVar
+    , newQSem
+    , putMVar
+    , setNumCapabilities
+    , signalQSem
+    , takeMVar
+    , waitQSem
+    )
+import Control.Exception
+    ( SomeException, bracket_, evaluate, finally, throwIO, try )
+import Control.Monad (filterM, forM, unless, when)
+import GHC.Conc (getNumProcessors)
 import Data.Char (toLower)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
@@ -306,24 +319,74 @@ runProjectDryRun opts = do
     putStrLn $ "Discovery scan: " ++ show (dsRoots stats) ++ " root(s) walked, "
         ++ show (dsDirs stats) ++ " director(ies) listed.\n"
     coverage <- if null files then return Nothing else loadCoverage opts
-    total <- foldM (countFile opts coverage) 0 files
+    total <- countFiles opts coverage files
     macroScans <- readCabalMacroScans
     putStrLn $ "\nCPP macro scans: " ++ show macroScans
     putStrLn $ "Total generated mutants (sampled per file): " ++ show total
 
-countFile :: Opts -> CoverageSnapshot -> Int -> FilePath -> IO Int
-countFile opts coverage acc file = do
+-- | One file's sampled mutant count, plus the line that reports it.
+data FileCount = FileCount Int FileLine
+
+data FileLine = FileOut String | FileErr String
+
+-- | How many dry-run files may run at once.
+--
+-- Each file has a wall-clock generation cap. Four files at once share the
+-- garbage collector, and a large file then crosses that cap and is skipped.
+-- Two files keep the large file inside the cap on this workload.
+dryRunSlots :: Int
+dryRunSlots = 2
+
+-- | Count every discovered file.
+--
+-- The dry run only reads source. Report lines are printed in discovery order.
+countFiles :: Opts -> CoverageSnapshot -> [FilePath] -> IO Int
+countFiles opts coverage files = do
+    oldCaps <- getNumCapabilities
+    procs <- getNumProcessors
+    let want = max 1 (min dryRunSlots (max oldCaps procs))
+    changed <- setCapabilities want oldCaps
+    slots <- getNumCapabilities
+    rows <- mapConcurrentlyN slots (countFile opts coverage) files
+        `finally` when changed (setNumCapabilities oldCaps)
+    mapM_ emitFileCount rows
+    return (sum (map (\(FileCount n _) -> n) rows))
+
+setCapabilities :: Int -> Int -> IO Bool
+setCapabilities want old
+    | want == old = return False
+    | otherwise = do
+        result <- try (setNumCapabilities want) :: IO (Either SomeException ())
+        return $ case result of
+            Right () -> True
+            Left _   -> False
+
+emitFileCount :: FileCount -> IO ()
+emitFileCount (FileCount _ (FileOut line)) = putStrLn line
+emitFileCount (FileCount _ (FileErr line)) = hPutStrLn stderr line
+
+-- | Run actions on @n@ threads at a time. Results come back in input order.
+mapConcurrentlyN :: Int -> (a -> IO b) -> [a] -> IO [b]
+mapConcurrentlyN n f xs = do
+    sem <- newQSem (max 1 n)
+    vars <- mapM (const newEmptyMVar) xs
+    mapM_
+        (\(x, var) -> forkFinally
+            (bracket_ (waitQSem sem) (signalQSem sem) (f x))
+            (putMVar var))
+        (zip xs vars)
+    mapM (\var -> takeMVar var >>= either throwIO return) vars
+
+countFile :: Opts -> CoverageSnapshot -> FilePath -> IO FileCount
+countFile opts coverage file = do
     e <- try (dryCount opts coverage file) :: IO (Either SomeException (Maybe Int))
-    case e of
-        Left ex -> do
-            hPutStrLn stderr $ "SKIP " ++ file ++ ": " ++ firstLine (show ex)
-            return acc
-        Right Nothing -> do
-            hPutStrLn stderr $ "SKIP " ++ file
-            return acc
-        Right (Just n) -> do
-            putStrLn $ "  " ++ file ++ "  " ++ show n
-            return (acc + n)
+    return $ case e of
+        Left ex ->
+            FileCount 0 (FileErr ("SKIP " ++ file ++ ": " ++ firstLine (show ex)))
+        Right Nothing ->
+            FileCount 0 (FileErr ("SKIP " ++ file))
+        Right (Just n) ->
+            FileCount n (FileOut ("  " ++ file ++ "  " ++ show n))
 
 dryCount :: Opts -> CoverageSnapshot -> FilePath -> IO (Maybe Int)
 dryCount opts coverage file = do

@@ -20,3 +20,4 @@ mucheck-agentic.json
 mucheck-gitlab.json
 .mucheck-baseline
 .worktrees
+decision.tsv

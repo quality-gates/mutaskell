@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.59]
+  * Changed: a project dry run counts two source files at a time. The run finishes sooner. Each file is still sampled the same way, and a file that exceeds the generation cap is still skipped.
+
 ## [0.8.58]
   * Fixed: `--git-diff-base REF` now stops with exit code 2 and `Error: git diff failed for base ref 'REF'` when `git diff` fails. Before, a missing, mistyped, or unfetched REF made mutaskell mutate every file and line and exit 0 (#130).
 
