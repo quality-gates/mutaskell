@@ -16,7 +16,12 @@ import App.Filter
     )
 import App.Opts
 import App.Orchestrator (runOrchestrator)
-import App.Project (runProject, runProjectDryRun)
+import App.Project
+    ( dryCountFileEnv
+    , reportOneDryCount
+    , runProject
+    , runProjectDryRun
+    )
 import App.Output
     ( prepareMutantDiffs
     , printMutatorBreakdown
@@ -90,6 +95,14 @@ main = do
 -- one-line message, not an uncaught IOException (issue #78).
 runOpts :: Opts -> IO ()
 runOpts opts = do
+  oneFile <- lookupEnv dryCountFileEnv
+  case oneFile of
+    Just file -> reportOneDryCount opts file >> exitSuccess
+    Nothing -> dispatchOpts opts
+
+-- | Directory targets use project mode. File targets use the per-file path.
+dispatchOpts :: Opts -> IO ()
+dispatchOpts opts = do
   isDir <- doesDirectoryExist (optFile opts)
   if isDir
     then if optDryRun opts then runProjectDryRun opts else runProject opts
