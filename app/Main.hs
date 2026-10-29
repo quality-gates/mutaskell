@@ -18,8 +18,10 @@ import App.Opts
 import App.Orchestrator (runOrchestrator)
 import App.Project (runProject, runProjectDryRun)
 import App.Output
-    ( prepareMutantDiffs
+    ( MutantDiff
+    , prepareMutantDiffs
     , printMutatorBreakdown
+    , zipPreparedDiffs
     , printMutantDetailsWithDiffs
     , writeAgenticJsonLoggerWithDiffs
     , writeGithubLogger
@@ -143,8 +145,8 @@ runOptsFile opts
             tried <- tryFastBatch maxN origSrc
             case tried of
                 Nothing -> return ()
-                Just (msum, tsum) -> do
-                    reportRun opts file origSrc msum tsum
+                Just (msum, tsum, diffs) -> do
+                    reportRun opts file origSrc msum tsum (zipPreparedDiffs tsum diffs)
                     exitSuccess
         res <-
           if operatorSamplingEligible opts anns
@@ -259,13 +261,12 @@ runOptsFile opts
         let msum = case len of
                      -1 -> fsum' { _maCoveredNumMutants = -1 }
                      _  -> fsum' { _maCoveredNumMutants = length mutants }
-        reportRun opts file origSrc msum tsum
+        reportRun opts file origSrc msum tsum (prepareMutantDiffs origSrc tsum)
 
 -- | Print the run and apply the exit policy.
 -- Shared by the ordinary interpreter and the boolean-literal batch.
-reportRun :: Opts -> FilePath -> String -> MAnalysisSummary -> [MutantSummary] -> IO ()
-reportRun opts file origSrc msum tsum = do
-    let reportDiffs = prepareMutantDiffs origSrc tsum
+reportRun :: Opts -> FilePath -> String -> MAnalysisSummary -> [MutantSummary] -> [MutantDiff] -> IO ()
+reportRun opts file origSrc msum tsum reportDiffs = do
     unless (optSilent opts) $ printMutantDetailsWithDiffs opts reportDiffs
     unless (isSingleMutantMode opts) $ do
         print msum

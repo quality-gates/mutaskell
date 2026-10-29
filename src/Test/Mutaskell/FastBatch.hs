@@ -58,14 +58,14 @@ import Test.Mutaskell.Tix (toSpan)
 --
 -- The 'Int' is the maximum number of mutants. A larger set is refused so the
 -- ordinary sampler stays in charge of the cut.
-tryFastBatch :: Int -> String -> IO (Maybe (MAnalysisSummary, [MutantSummary]))
+tryFastBatch :: Int -> String -> IO (Maybe (MAnalysisSummary, [MutantSummary], [String]))
 tryFastBatch maxN src = do
     parsed <- getASTFromStr src
     case parsed of
         Left _ -> return Nothing
         Right ast -> case prepareBatch maxN src ast of
             Nothing -> return Nothing
-            Just (pairs, sites, tests) -> do
+            Just (pairs, sites, tests, diffs) -> do
                 compiled <- case evalBoolModule ast sites tests of
                     Just marks -> return (Just marks)
                     Nothing -> case renderProgram src sites tests of
@@ -73,11 +73,11 @@ tryFastBatch maxN src = do
                         Just program -> compileAndRun program
                 return $ do
                     marks <- compiled
-                    if length marks /= length pairs
+                    if length marks /= length pairs || length diffs /= length pairs
                         then Nothing
                         else
                             let summaries = zipWith toSummary pairs marks
-                            in Just (summaryFromMutantSummaries summaries, summaries)
+                            in Just (summaryFromMutantSummaries summaries, summaries, diffs)
   where
     toSummary (mutantSrc, sp) mark =
         let mutant = toMutant (MutateValues, toSpan sp, mutantSrc)
@@ -112,11 +112,12 @@ prepareBatch ::
     Int ->
     String ->
     Module_ ->
-    Maybe ([(String, (Int, Int, Int, Int))], [Site], [String])
+    Maybe ([(String, (Int, Int, Int, Int))], [Site], [String], [String])
 prepareBatch maxN src ast = do
     let metadata = buildSelectorMetadata ast
         (_, keptDecls) = splitAnnotationsWith metadata ast
         ops = map snd (applicableOpsWith metadata defaultConfig (putDecl ast keptDecls))
+        fileLines = lines src
     -- A binding whose right-hand side is only True or False has no other
     -- mutant. Finding those sites by name avoids a walk per mutator.
     raw <- case bareBoolSites src keptDecls of
@@ -128,10 +129,40 @@ prepareBatch maxN src ast = do
         else do
             pairs <- mapM (\s -> fmap (\m -> (m, siteSpan s)) (patchSource src s)) sites
             tests <- testNames ast
-            return (pairs, sites, tests)
+            let diffs = map (siteDiff fileLines) sites
+            return (pairs, sites, tests, diffs)
   where
     siteKey s = (siteLine s, siteCol s)
     siteSpan s = (siteLine s, siteCol s, siteLine s, siteEnd s)
+
+-- | Unified hunk for one token replace. Context is two lines, matching
+-- 'App.Output.unifiedDiff' for a same-length one-line edit.
+siteDiff :: [String] -> Site -> String
+siteDiff fileLines site =
+    let number = siteLine site
+        oldLine = indexLine fileLines number
+        newLine = case replaceCols oldLine (siteCol site) (siteEnd site) (siteNew site) of
+            Just line -> line
+            Nothing -> oldLine
+        oldCount = length fileLines
+        start = max 1 (number - 2)
+        end = min oldCount (number + 2)
+        count = if start > oldCount then 0 else min end oldCount - start + 1
+        start' = if count == 0 then 0 else start
+        header =
+            "@@ -" ++ show start' ++ "," ++ show count
+                ++ " +" ++ show start' ++ "," ++ show count
+                ++ " @@\n"
+        body = concatMap row [start .. start + count - 1]
+        row i
+            | i == number = '-' : oldLine ++ '\n' : '+' : newLine ++ "\n"
+            | otherwise = ' ' : indexLine fileLines i ++ "\n"
+    in header ++ body
+
+indexLine :: [String] -> Int -> String
+indexLine rows i = case drop (i - 1) rows of
+    (line : _) -> line
+    [] -> ""
 
 -- | Sites for a module whose remaining declarations are @name = True@ or
 -- @name = False@. 'Nothing' means some declaration may carry another mutant,

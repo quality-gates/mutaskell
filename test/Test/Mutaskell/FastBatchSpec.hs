@@ -12,7 +12,7 @@ spec = describe "tryFastBatch" $ do
         result <- tryFastBatch (maxNumMutants defaultConfig) boolSrc
         case result of
             Nothing -> expectationFailure "boolean module did not take the batch path"
-            Just (summary, _) -> do
+            Just (summary, _, _) -> do
                 _maErrors summary `shouldBe` 0
                 _maSkipped summary `shouldBe` 0
                 _maAlive summary `shouldBe` 0
@@ -23,7 +23,7 @@ spec = describe "tryFastBatch" $ do
         result <- tryFastBatch (maxNumMutants defaultConfig) notSrc
         case result of
             Nothing -> expectationFailure "not-expression did not take the batch path"
-            Just (summary, _) -> do
+            Just (summary, _, _) -> do
                 _maErrors summary `shouldBe` 0
                 _maSkipped summary `shouldBe` 0
                 _maAlive summary `shouldBe` 0
@@ -34,7 +34,7 @@ spec = describe "tryFastBatch" $ do
         result <- tryFastBatch (maxNumMutants defaultConfig) orSrc
         case result of
             Nothing -> expectationFailure "or-expression did not take the batch path"
-            Just (summary, _) -> do
+            Just (summary, _, _) -> do
                 _maErrors summary `shouldBe` 0
                 _maSkipped summary `shouldBe` 0
                 _maKilled summary `shouldSatisfy` (>= 1)

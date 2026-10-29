@@ -5,6 +5,7 @@ module App.Output
   ( mutatorDescription
   , MutantDiff
   , prepareMutantDiffs
+  , zipPreparedDiffs
   , writeAgenticJsonLogger
   , writeAgenticJsonLoggerWithDiffs
   , writeHtmlLogger
@@ -90,6 +91,13 @@ prepareMutantDiffs origSrc = map pairDiff
   where
     pairDiff summary =
       MutantDiff summary (unifiedDiff origSrc (_mutant (mutantOfSummary summary)))
+
+-- | Pair each result with a diff the caller already rendered.
+--
+-- Used when the boolean-literal batch knows the one changed line, so the
+-- report does not compare every line of every mutant.
+zipPreparedDiffs :: [MutantSummary] -> [String] -> [MutantDiff]
+zipPreparedDiffs = zipWith MutantDiff
 
 mutantOfSummary :: MutantSummary -> Mutant
 mutantOfSummary (MSumKilled m _)   = m
