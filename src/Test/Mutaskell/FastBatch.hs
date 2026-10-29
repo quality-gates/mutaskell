@@ -39,7 +39,7 @@ import Test.Mutaskell.Interpreter
     , findPkgEnvArgs
     , summaryFromMutantSummaries
     )
-import Test.Mutaskell.MuOp (Module_, MuOp, getSpan)
+import Test.Mutaskell.MuOp (Decl_, Module_, MuOp, getSpan)
 import Test.Mutaskell.Mutation
     ( applicableOpsWith
     , autoDiscoverTestNames
@@ -117,7 +117,11 @@ prepareBatch maxN src ast = do
     let metadata = buildSelectorMetadata ast
         (_, keptDecls) = splitAnnotationsWith metadata ast
         ops = map snd (applicableOpsWith metadata defaultConfig (putDecl ast keptDecls))
-    raw <- mapM (boolSite src) ops
+    -- A binding whose right-hand side is only True or False has no other
+    -- mutant. Finding those sites by name avoids a walk per mutator.
+    raw <- case bareBoolSites src keptDecls of
+        Just found -> Just found
+        Nothing -> mapM (boolSite src) ops
     let sites = zipWith (\s i -> s {siteId = i}) (sortOn siteKey raw) [1 ..]
     if null sites || length sites > maxN
         then Nothing
@@ -128,6 +132,48 @@ prepareBatch maxN src ast = do
   where
     siteKey s = (siteLine s, siteCol s)
     siteSpan s = (siteLine s, siteCol s, siteLine s, siteEnd s)
+
+-- | Sites for a module whose remaining declarations are @name = True@ or
+-- @name = False@. 'Nothing' means some declaration may carry another mutant,
+-- so the caller asks every mutator.
+bareBoolSites :: String -> [Decl_] -> Maybe [Site]
+bareBoolSites src = mapM one
+  where
+    one (L _ (ValD _ (FunBind _ _ (MG _ (L _ [L _ (Match _ _ (L _ []) (GRHSs _ [L _ (GRHS _ [] body)] binds))])))))
+        | emptyBinds binds = boolVarSite src body
+    one (L _ (ValD _ (PatBind _ (L _ (VarPat _ _)) _ (GRHSs _ [L _ (GRHS _ [] body)] binds))))
+        | emptyBinds binds = boolVarSite src body
+    one _ = Nothing
+
+boolVarSite :: String -> LHsExpr GhcPs -> Maybe Site
+boolVarSite src expr = case unLoc expr of
+    HsVar _ (L _ rdr)
+        | token == "True" || token == "False" -> do
+            (l1, c1, l2, c2) <- exprSpan expr
+            sl <- lineSlice src l1 c1 c2
+            if l1 == l2 && sl == token
+                then
+                    Just
+                        Site
+                            { siteLine = l1
+                            , siteCol = c1
+                            , siteEnd = c2
+                            , siteOld = token
+                            , siteNew = if token == "True" then "False" else "True"
+                            , siteId = 0
+                            }
+                else Nothing
+      where
+        token = rdrStr rdr
+    _ -> Nothing
+
+exprSpan :: LHsExpr GhcPs -> Maybe (Int, Int, Int, Int)
+exprSpan expr = case getHasLoc expr of
+    RealSrcSpan rss _ ->
+        let start = realSrcSpanStart rss
+            end = realSrcSpanEnd rss
+        in Just (srcLocLine start, srcLocCol start, srcLocLine end, srcLocCol end)
+    UnhelpfulSpan _ -> Nothing
 
 testNames :: Module_ -> Maybe [String]
 testNames ast =

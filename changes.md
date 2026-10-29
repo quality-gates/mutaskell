@@ -3,6 +3,7 @@
 ## [0.8.59]
   * Changed: a self-contained module whose mutants are only `True`/`False` flips is evaluated without a process per mutant. Boolean equations are decided on the parsed tree; other equations of that shape are compiled once. A hundred such mutants finish well under a second.
   * Changed: parsing uses the GHC libdir from the build, so a run does not start `ghc --print-libdir`.
+  * Changed: bindings whose right-hand side is only `True` or `False` are found without asking every other mutator.
 
 ## [0.8.58]
   * Fixed: `--git-diff-base REF` now stops with exit code 2 and `Error: git diff failed for base ref 'REF'` when `git diff` fails. Before, a missing, mistyped, or unfetched REF made mutaskell mutate every file and line and exit 0 (#130).
