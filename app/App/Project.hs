@@ -64,7 +64,7 @@ import GHC.Conc (getNumProcessors)
 import Data.Char (toLower)
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import qualified Data.IntMap.Strict as IntMap
-import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, maximumBy, nub)
+import Data.List (dropWhileEnd, isInfixOf, isPrefixOf, isSuffixOf, maximumBy, minimumBy, nub)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Ord (comparing)
@@ -366,16 +366,17 @@ reportOneDryCount opts file = do
 
 -- | Count every discovered file.
 --
--- The mutaskell executable counts files in separate processes. The largest
--- file runs alone, because that file sits nearest the wall-clock cap and a
--- second allocator pushes it over the cap. Smaller files overlap two at a
--- time. The test suite binary keeps the in-process pool: spawning that
--- binary would re-enter the tests. Report lines are printed in discovery order.
+-- The mutaskell executable counts the smallest file, then the largest file,
+-- in this process. Those two runs warm the mutator code and keep the file
+-- nearest the wall-clock cap on the path that already finishes. The other
+-- files then overlap two at a time, each in its own process. The test suite
+-- binary keeps the in-process pool: spawning that binary would re-enter the
+-- tests. Report lines are printed in discovery order.
 countFiles :: Opts -> CoverageSnapshot -> [FilePath] -> IO Int
 countFiles opts coverage files = do
     exe <- getExecutablePath
     rows <- if takeFileName exe == "mutaskell"
-        then countFilesInProcesses exe files
+        then countFilesInProcesses opts coverage exe files
         else countFilesInThreads opts coverage files
     mapM_ emitFileCount rows
     return (sum (map (\(FileCount n _) -> n) rows))
@@ -394,25 +395,28 @@ countFilesInThreads opts coverage files = do
 childWaitSecs :: Int
 childWaitSecs = 60
 
-countFilesInProcesses :: FilePath -> [FilePath] -> IO [FileCount]
-countFilesInProcesses _ [] = return []
-countFilesInProcesses exe files = do
-    args <- getArgs
-    env0 <- getEnvironment
-    procs <- getNumProcessors
-    largest <- largestFile files
-    let rest = filter (/= largest) files
-        restSlots = max 1 (min 2 procs)
-    one <- spawnDryCount exe args env0 largest
-    others <- mapConcurrentlyN restSlots (spawnDryCount exe args env0) rest
-    let paired = zip rest others
-    return (map (\f -> fromMaybe one (lookup f paired)) files)
-
--- | The biggest source file. Its render cost tracks its size on this workload.
-largestFile :: [FilePath] -> IO FilePath
-largestFile files = do
+countFilesInProcesses :: Opts -> CoverageSnapshot -> FilePath -> [FilePath] -> IO [FileCount]
+countFilesInProcesses _ _ _ [] = return []
+countFilesInProcesses opts coverage exe files = do
     sized <- mapM (\f -> do n <- getFileSize f; return (n, f)) files
-    return (snd (maximumBy (comparing fst) sized))
+    let largest = snd (maximumBy (comparing fst) sized)
+        smallest = snd (minimumBy (comparing fst) sized)
+    rows <- if smallest == largest
+        then do
+            row <- countFile opts coverage smallest
+            return [(smallest, row)]
+        else do
+            warm <- countFile opts coverage smallest
+            big <- countFile opts coverage largest
+            args <- getArgs
+            env0 <- getEnvironment
+            procs <- getNumProcessors
+            let rest = filter (\f -> f /= smallest && f /= largest) files
+                restSlots = max 1 (min 2 procs)
+            others <- mapConcurrentlyN restSlots (spawnDryCount exe args env0) rest
+            return ((smallest, warm) : (largest, big) : zip rest others)
+    let missing f = FileCount 0 (FileErr ("SKIP " ++ f))
+    return (map (\f -> fromMaybe (missing f) (lookup f rows)) files)
 
 spawnDryCount :: FilePath -> [String] -> [(String, String)] -> FilePath -> IO FileCount
 spawnDryCount exe args env0 file = do
