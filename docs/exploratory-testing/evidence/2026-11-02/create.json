@@ -1,0 +1,9 @@
+{
+  "total": 68,
+  "killed": 63,
+  "alive": 4,
+  "skipped": 1,
+  "errors": 0,
+  "msi": 0.9264705882352942,
+  "covered_code_msi": null
+}

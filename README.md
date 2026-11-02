@@ -74,6 +74,8 @@ suppression; names may end in `*` for a prefix match, so `other:*` matches all
 
 ## Maintainers
 
+The [2026-11-02 exploratory testing report](docs/exploratory-testing/2026-11-02-setup-blocked.md) covers CLI, project and baseline journeys, including setup limitations.
+
 Run `bash scripts/dogfood.sh` to mutation-test the production Haskell in `src/`
 and `app/` against the real Cabal test suite. The script works in a private
 copy and writes build logs, mutation results, and completion evidence beneath

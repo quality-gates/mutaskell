@@ -1,0 +1,1278 @@
+
+===== rsync_version =====
+rsync  version 3.2.7  protocol version 32
+Copyright (C) 1996-2022 by Andrew Tridgell, Wayne Davison, and others.
+Web site: https://rsync.samba.org/
+Capabilities:
+    64-bit files, 64-bit inums, 64-bit timestamps, 64-bit long ints,
+    socketpairs, symlinks, symtimes, hardlinks, hardlink-specials,
+    hardlink-symlinks, IPv6, atimes, batchfiles, inplace, append, ACLs,
+    xattrs, optional secluded-args, iconv, prealloc, stop-at, no crtimes
+Optimizations:
+    SIMD-roll, no asm-roll, openssl-crypto, no asm-MD5
+Checksum list:
+    xxh128 xxh3 xxh64 (xxhash) md5 md4 sha1 none
+Compress list:
+    zstd lz4 zlibx zlib none
+Daemon auth list:
+    sha512 sha256 sha1 md5 md4
+
+rsync comes with ABSOLUTELY NO WARRANTY.  This is free software, and you
+are welcome to redistribute it under certain conditions.  See the GNU
+General Public Licence for details.
+EXIT rsync_version: 0
+
+===== project_args =====
+
+===== jobs=1 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode on /work/.explore/args-1
+  root:  /work/.explore/args-1
+  build: true
+  test:  sh -c 'test "$#" -eq 4 && test "$1" = -- && test "$2" = "space value" && test "$3" = marker && test "$4" = "O'\''Brien"' _ -- 'space value' 'marker' 'O'\''Brien'
+  budget: at most 1 mutant(s) total
+  budget: stop after 1800s
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  literal-values    Alive
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+EXIT jobs=1: 0
+
+===== jobs=2 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode (parallel: 1 job(s)) on /work/.explore/args-2
+  root:  /work/.explore/args-2
+Discovered 1 source file(s); sharding across workers.
+
+Project mode on /tmp/mutaskell-job-1
+  root:  /tmp/mutaskell-job-1
+  build: true
+  test:  sh -c 'test "$#" -eq 4 && test "$1" = -- && test "$2" = "space value" && test "$3" = marker && test "$4" = "O'\''Brien"' _ -- 'space value' 'marker' 'O'\''Brien'
+  budget: at most 1 mutant(s) total
+  budget: stop after 1800s
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  literal-values    Alive
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+
+==== Project mutation summary (parallel) ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants merged into .mutaskell/survivors.txt (when any survived).
+EXIT jobs=2: 0
+
+===== jobs=2 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode (parallel: 1 job(s)) on /work/.explore/args-2
+  root:  /work/.explore/args-2
+Discovered 1 source file(s); sharding across workers.
+
+Project mode on /tmp/mutaskell-job-1
+  root:  /tmp/mutaskell-job-1
+  build: true
+  test:  sh -c 'test "$#" -eq 4 && test "$1" = -- && test "$2" = "space value" && test "$3" = marker && test "$4" = "O'\''Brien"' _ -- 'space value' 'marker' 'O'\''Brien'
+  budget: at most 1 mutant(s) total
+  budget: stop after 1800s
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  functions         Alive
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+
+==== Project mutation summary (parallel) ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants merged into .mutaskell/survivors.txt (when any survived).
+EXIT jobs=2: 0
+EXIT project_args: 0
+
+===== replay_test =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - mutaskell-0.8.58 (test:spec) (ephemeral targets)
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+Running 1 test suites...
+Test suite spec: RUNNING...
+
+Test.Mutaskell.Project
+  runProject (serial)
+    passes test arguments through the project worker command [✔]
+
+Finished in 0.3292 seconds
+1 example, 0 failures
+Test suite spec: PASS
+Test suite logged to:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/test/mutaskell-0.8.58-spec.log
+1 of 1 test suites (1 of 1 test cases) passed.
+EXIT replay_test: 0
+
+===== full_tests =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - mutaskell-0.8.58 (test:spec) (ephemeral targets)
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+Running 1 test suites...
+Test suite spec: RUNNING...
+
+Test.Mutaskell.AnalysisSummary
+  Semigroup and Monoid instances
+    satisfies left identity [✔]
+    satisfies right identity [✔]
+    combines counts correctly [✔]
+    preserves uncovered status (-1) when both are uncovered [✔]
+  summary metrics
+    calculates summaryTotal as the number of evaluated mutants [✔]
+    calculates summaryNoErrors as evaluated mutants minus errors [✔]
+    calculates summaryMsi correctly [✔]
+    calculates summaryMsi against evaluated sampled mutants even when covered mutant count is larger [✔]
+    returns 0 MSI when all mutants resulted in errors [✔]
+    calculates summaryCoveredMsi when coverage is present [✔]
+    returns Nothing for summaryCoveredMsi when coverage is not present (-1) [✔]
+    returns Just 0 for summaryCoveredMsi when coverage is present but covers zero mutants [✔]
+    includes Covered code MSI: 0% when coverage is present but covers zero mutants [✔]
+  Show instance
+    produces formatted output containing MSI, Total mutants, and percentages [✔]
+    includes Covered code MSI when coverage is present [✔]
+    formats a zero-mutant summary with (0%) percentages [✔]
+  applyExitPolicy
+    evaluates --min-msi against evaluated mutant MSI and passes when MSI meets threshold [✔]
+Covered-MSI 50% is below threshold 80%
+    evaluates --min-covered-msi against covered code MSI and exits with failure when below threshold [✔]
+    passes --min-covered-msi when covered code MSI meets threshold [✔]
+Covered-MSI 0% is below threshold 70%
+    fails --min-covered-msi when coverage is present but covers zero mutants [✔]
+Covered-MSI unavailable; --min-covered-msi requires coverage data: pass --tix FILE (or --coverage with a .tix file in the current directory)
+    rejects --min-covered-msi with an error when coverage data is absent (-1) [✔]
+Test.Mutaskell.CLI
+  parseOptsFrom
+    rejects --enable and --disable used together [✔]
+    accepts --enable alone [✔]
+    accepts --disable alone [✔]
+    rejects --disable and --enable in any order [✔]
+    rejects --min-covered-msi without --tix or --coverage, naming both flags [✔]
+    accepts --min-covered-msi with --tix [✔]
+    accepts --min-covered-msi with --coverage [✔]
+    returns Left for unknown flags [✔]
+    returns Left when no file argument is given [✔]
+    --dry-run sets optDryRun [✔]
+    --noop sets optNoop [✔]
+    --fail-on-escaped sets optFailOnEscape [✔]
+    --quiet sets optQuiet [✔]
+    --verbose sets optVerbose [✔]
+    --no-diffs sets optNoDiffs [✔]
+    --workers sets optWorkers [✔]
+    --min-msi sets optMinMsi [✔]
+    --timeout sets optTimeout [✔]
+    --logger-json sets optLoggerJson [✔]
+    --tix sets optTix [✔]
+    --exec sets optExec [✔]
+    --build-cmd sets optBuildCmd [✔]
+    --test-cmd sets optTestCmd [✔]
+    --max-mutants sets optMaxMutants [✔]
+    --time-budget sets optTimeBudget [✔]
+    --jobs sets optJobs [✔]
+    --run-mutant-workload sets optRunMutantWorkload [✔]
+    defaults: optRunMutantWorkload is Nothing [✔]
+    defaults: optJobs is 1, optExec is False, optMaxMutants is Nothing [✔]
+    --jobs with non-integer returns Left [✔]
+    --max-mutants with non-integer returns Left [✔]
+    --min-msi with non-integer returns Left [✔]
+    --timeout with non-integer returns Left [✔]
+    --workers with non-integer returns Left [✔]
+    config file min_msi is applied as default [✔]
+    CLI --min-msi overrides config file value [✔]
+    config file quiet: true is applied [✔]
+    config file workers is applied [✔]
+    config YAML inline list for disable_mutators is parsed [✔]
+    config YAML block list for disable_mutators is parsed [✔]
+    config unknown key is rejected with error [✔]
+  --run-mutant-id
+    applies --fail-on-escaped to an escaping selected mutant [✔]
+    applies --min-msi to a selected mutant [✔]
+    reports an unknown selected mutant as a CLI error [✔]
+  missing source file
+    plain run exits 2 with a readable error, not an uncaught IOException [✔]
+    --dry-run exits 2 with a readable error, not an uncaught IOException [✔]
+  Char boundary literals
+    --dry-run handles boxed and unboxed boundary Char literals [✔]
+  --update-baseline
+    keeps known baseline IDs when the same file is also the --baseline input [✔]
+  extractConfigArg
+    extracts config file with space syntax [✔]
+    extracts config file with equals syntax [✔]
+    extracts config file with equals syntax among other arguments [✔]
+    extracts config file with space syntax among other arguments [✔]
+    returns Nothing when no --config flag is given [✔]
+    returns Nothing for empty args [✔]
+    returns Nothing when --config has no following argument [✔]
+    extracts empty string when --config= [✔]
+  --config=FILE syntax
+    enforces configuration quality gates when passed as --config=FILE [✔]
+    reports config parse error when passed as --config=FILE [✔]
+  loadConfig
+    returns Left when explicit config file does not exist [✔]
+    returns Right id when default config does not exist [✔]
+  missing config file
+    fails with exit 2 and prints error to stderr with space syntax [✔]
+    fails with exit 2 and prints error to stderr with equals syntax [✔]
+    succeeds with defaults when no --config is passed and default config does not exist [✔]
+  project mode git diff options
+    dry-run scopes to git-diff-base files in project mode [✔]
+    dry-run on clean working tree discovers 0 files [✔]
+  git diff base failure
+    exits 2 in single-file mode when the base ref does not resolve [✔]
+    exits 2 in single-file mode with --git-diff-lines when the base ref does not resolve [✔]
+    exits 2 in project mode when the base ref does not resolve [✔]
+  baseline and noop log file cleanup
+    --timeout-coefficient does not leave .mucheck-baseline-timing.log in working directory [✔]
+    --noop does not leave .mucheck-noop.log in working directory [✔]
+Test.Mutaskell.Config
+  showMuVar / parseMuVar
+    round-trips MutatePatternMatch [✔]
+    round-trips MutateValues [✔]
+    round-trips MutateFunctions [✔]
+    round-trips MutateNegateIfElse [✔]
+    round-trips MutateNegateGuards [✔]
+    round-trips MutateOther remove-not (special case) [✔]
+    round-trips MutateOther remove-negation (special case) [✔]
+    round-trips MutateOther general case [✔]
+    round-trips MutateOther empty string [✔]
+    returns Nothing for unrecognised name [✔]
+  matchesMuVarPat
+    exact match works [✔]
+    exact non-match returns False [✔]
+    trailing wildcard matches MutateOther variants [✔]
+    trailing wildcard does not match non-other variants [✔]
+Test.Mutaskell.Filter
+  applyAnnotations
+    returns the same ordered mutants when there are no annotations [✔]
+    suppresses every mutator on the next line when the name list is empty [✔]
+    suppresses only the named mutator on the next line [✔]
+    matches prefix wildcards in inline annotations [✔]
+    treats a wildcard annotation as suppressing every mutator [✔]
+    matches comma-separated exact and wildcard patterns from comments [✔]
+    treats overlapping annotations on the same line as a union, including suppress-all [✔]
+    leaves mutants whose start line is out of range [✔]
+    keeps survivor order [✔]
+    parses inline comments and applies them to the following line [✔]
+  applyBaseline
+    returns the same ordered mutants when no file is given [✔]
+    warns and returns every mutant when the file cannot be read [✔]
+    drops mutants whose hash is listed, including duplicate IDs, and keeps order [✔]
+    returns every mutant when the file is empty [✔]
+  applyBlacklist
+    returns the same ordered mutants when no file is given [✔]
+    warns and returns every mutant when the file cannot be read [✔]
+    drops mutants whose hash is listed, including duplicate IDs, and keeps order [✔]
+  applyDiffLines
+    returns the same ordered mutants when the base ref is unset [✔]
+    returns the same ordered mutants when line filtering is off [✔]
+    keeps mutants whose start line is in the changed-line set [✔]
+    exits 2 and names the ref when the git command fails [✔]
+  checkGitDiff
+    selects a file that appears verbatim in the diff [✔]
+    does not select an unchanged file whose name is a bare string suffix of a changed path [✔]
+    does not select an unchanged file whose name string-ends with a changed path's name [✔]
+    selects a file whose bare name is a path-component suffix of a changed path [✔]
+    selects a file named by its full path when it appears verbatim in the diff [✔]
+    exits 2 and names the ref when the base ref does not resolve [✔]
+    selects every file when no base ref is given [✔]
+  applyIgnoreLines
+    returns the same ordered mutants when the pattern list is empty [✔]
+    drops mutants whose source line contains an ordinary pattern [✔]
+    treats an empty pattern as a match on every line, including out-of-range lines [✔]
+    treats an out-of-range start line as empty text [✔]
+    keeps survivor order [✔]
+  applyRunMutantId
+    returns the same ordered mutants when no ID is given [✔]
+    keeps only the mutant whose hash matches [✔]
+    returns no mutants when the ID is unknown [✔]
+    computes the ID from the current source, not a stale identity [✔]
+  hash
+    differs for distinct sources used in these fixtures [✔]
+  filter chain
+    preserves order through empty stages [✔]
+    applies populated stages in pipeline order and keeps survivors ordered [✔]
+  operatorSamplingEligible
+    is True for a plain run with no filters and no coverage [✔]
+    is False when coverage is requested, with or without a tix file [✔]
+    is False when a mutator pattern filter is configured [✔]
+    is False when an optional filter file is configured, even if it is empty [✔]
+    is False for a selected mutant id [✔]
+    is False for ignore lines and diff lines [✔]
+    is False when the source carries inline suppression [✔]
+  prepareOperatorFilter
+    filters operators by --disable and --enable names [✔]
+    applies mutator-specific annotations to operators by source line [✔]
+    restricts operators to changed lines [✔]
+    exits 2 when changed lines are requested for a base ref that does not resolve [✔]
+    ignores operators whose source line matches an ignore pattern [✔]
+Test.Mutaskell.Integration
+  integration
+    evaluates AssertCheckTest.hs and kills at least one mutant [✔]
+    samples operators before rendering when the tix holds no coverage [✔]
+    keeps the full candidate count on the coverage path [✔]
+Test.Mutaskell.Mutation
+  selectLitOps
+    returns integer literal muops for a module with a numeric literal [✔]
+    handles Char minBound literal without crashing [✔]
+    handles Char maxBound literal without crashing [✔]
+    handles non-boundary Char literal with predecessor and successor [✔]
+    handles HsCharPrim minBound and maxBound literals without crashing [✔]
+  selectBLitOps
+    returns boolean literal muops for a module with boolean literals [✔]
+  selectIfElseBoolNegOps
+    returns if-else muops for a module with an if expression [✔]
+    emits a complete, branch-swapped if expression [✔]
+  selectGuardedBoolNegOps
+    returns guarded-boolean muops for a module with a guarded definition [✔]
+    parenthesises the negated guard expression [✔]
+  selectFlipMaybeOps
+    returns muops for a module with Just/Nothing [✔]
+    parenthesises Just undefined when replacing Nothing in an application [✔]
+    parenthesises Just undefined when replacing Nothing in an operator argument [✔]
+    still flips Just x to Nothing [✔]
+  selectRemoveNotOps
+    returns remove-not muops [✔]
+  selectRemoveNegationOps
+    returns remove-negation muops [✔]
+  selectNegateLiteralOps
+    returns muops for a module with a positive numeric literal [✔]
+    parenthesises negate when replacing a literal in a function application [✔]
+    parenthesises negate when replacing a literal in a constructor application [✔]
+    parenthesises negate when replacing a fractional literal [✔]
+  selectErrorGuardOps
+    replaces handle handler action with action, not the handler [✔]
+    replaces catch action handler with action [✔]
+    replaces try action with return (Right action) [✔]
+  selectFnMatches
+    returns function-match muops for a multi-clause function [✔]
+    removes one clause at a time, keeping the remaining clauses [✔]
+  selectCaseAltRemoveOps
+    removes one alternative at a time, keeping the others [✔]
+  selectRemoveLetBindingOps
+    removes one let binding at a time, keeping the body [✔]
+    removes one let binding at a time in do-blocks without fusing let keyword and variable [✔]
+  selectRemoveWhereBindingOps
+    removes one where binding at a time, keeping the body [✔]
+  selectExplicitListOps
+    returns muops for a non-empty explicit list literal [✔]
+    removes one element at a time, keeping other declarations intact [✔]
+  selectBindToSequenceOps
+    returns muops for a do-block with a named bind [✔]
+    renders _ <- action without dropping <- or fusing into _action [✔]
+    renders multiple binds correctly across functions with _ <- when mutated [✔]
+    renders both binds as _ <- when each is mutated in a single do block [✔]
+  selectPatternConstructorFlipOps
+    returns muops for a function with a Just pattern [✔]
+    returns muops for a function with Left/Right patterns [✔]
+    renders (Just _) when flipping Nothing in a function head [✔]
+    renders (Just _) when flipping Nothing in a multi-clause function [✔]
+    renders (Just _) when flipping Nothing in a case expression [✔]
+    renders (Just _) without duplicate parens when flipping parenthesised (Nothing) [✔]
+    renders (Nothing) when flipping (Just x) in a function head [✔]
+    renders (Right e) when flipping (Left e) in a function head [✔]
+  selectAppendStripOps
+    returns muops for a ++ expression [✔]
+  selectFlipArgsOps
+    returns muops for a known flippable binary function call [✔]
+  selectSeqStripOps
+    returns muops for a seq application [✔]
+  selectTupleSwapOps
+    returns muops for a pair expression [✔]
+    renders the swapped pair as valid source [✔]
+  fresh replacement before a comment
+    keeps the comment outside a negate-literal mutant [✔]
+    keeps the comment outside a tuple-swap mutant [✔]
+    keeps the comment outside an operator substitution [✔]
+    renders every mutant as parseable source with the comment in place [✔]
+    keeps the layout column when a removal drops the first statement [✔]
+    keeps the layout column when a removal drops the first alternative [✔]
+    keeps a comment between clauses on its own line [✔]
+  selectOrderingLitOps
+    returns muops for a GT literal [✔]
+  default neighbour-swap groups
+    preserves backquotes when substituting an infix identifier [✔]
+    swaps idiomatic neighbour functions via the default config [✔]
+  adjacentSwaps
+    produces n-1 adjacent-pair swaps, not the n! permutations [✔]
+    is empty for a singleton (nothing to reorder) [✔]
+  removeOneElem
+    enumerates each single deletion in place, keeping the original order [✔]
+    keeps one variant per position for a two-element list [✔]
+    is empty for an empty or singleton list (nothing to remove) [✔]
+    keeps positional behaviour for repeated values [✔]
+  selector metadata
+    excludes annotated test declarations from generated source [✔]
+    excludes naming-convention test declarations when there are no annotations [✔]
+    applies a multi-name signature to every declared function [✔]
+    keeps the first signature for a repeated function name [✔]
+    rejects an identity operation before sampling but keeps a real change [✔]
+  genSampledMutants
+    returns a non-empty, rendered mutant set for a module with mutables [✔]
+    samples and renders only operators accepted by the predicate [✔]
+    never exceeds the configured maxNumMutants cap [✔]
+    returns nothing for a zero or negative cap [✔]
+    keeps materialization bounded by the cap as the module grows [✔]
+    may underfill the cap when selected operators collapse to duplicates [✔]
+  dedupRenderedSource
+    keeps the first value for each rendered source [✔]
+    retains every distinct source when hash keys collide [✔]
+    drops nothing for distinct hash keys [✔]
+  nubOpSites
+    keeps the first candidate for each mutator and span [✔]
+    matches the equivalent pairwise dedup on a mixed fixture [✔]
+  needsCabalMacros
+    returns True for source containing MIN_VERSION_* [✔]
+    returns False for source with no MIN_VERSION_* guards [✔]
+    returns False for plain source [✔]
+  getASTFromFile
+    returns a clean Left for a CPP file using MIN_VERSION_* when no dist-newstyle exists [✔]
+    returns a clean Left for a path that does not exist [✔]
+  discoverCabalMacros
+    scans the build tree once for repeated CPP parses in one project [✔]
+Test.Mutaskell.MuVarCoverage
+  MuVar coverage
+    pattern-match produces at least one mutant [✔]
+    literal-values produces at least one mutant [✔]
+    functions produces at least one mutant [✔]
+    negate-if-else produces at least one mutant [✔]
+    negate-guards produces at least one mutant [✔]
+    remove-not produces at least one mutant [✔]
+    remove-negation produces at least one mutant [✔]
+    case-alt-remove produces at least one mutant [✔]
+    case-default-remove produces at least one mutant [✔]
+    remove-stmt produces at least one mutant [✔]
+    remove-let-binding produces at least one mutant [✔]
+    remove-where-binding produces at least one mutant [✔]
+    remove-self-assign produces at least one mutant [✔]
+    negate-literal produces at least one mutant [✔]
+    string-literal produces at least one mutant [✔]
+    bool-operand produces at least one mutant [✔]
+    flip-maybe produces at least one mutant [✔]
+    flip-either produces at least one mutant [✔]
+    remove-forkIO produces at least one mutant [✔]
+    bracket-degenerate produces at least one mutant [✔]
+    error-guard produces at least one mutant [✔]
+    replace-mutable-arg produces at least one mutant [✔]
+    zero-return produces at least one mutant [✔]
+    list-literal produces at least one mutant [✔]
+    bind-to-sequence produces at least one mutant [✔]
+    pattern-constructor produces at least one mutant [✔]
+    append-strip produces at least one mutant [✔]
+    flip-args produces at least one mutant [✔]
+    seq-strip produces at least one mutant [✔]
+    tuple-swap produces at least one mutant [✔]
+    ordering-literal produces at least one mutant [✔]
+Test.Mutaskell.Output
+  JSON loggers
+    encodes agentic JSON Unicode and context newlines exactly once [✔]
+    encodes GitLab JSON Unicode in paths and descriptions [✔]
+  groupConsec
+    groups ordered positions without changing their order [✔]
+  report output parent directories
+    writes logger and baseline files when nested parent directories are missing [✔]
+  writeUpdateBaseline
+    adds new escaped mutant IDs after the existing IDs without duplicates [✔]
+    keeps the existing IDs when no mutant escapes [✔]
+  writeJsonLogger
+    emits covered_code_msi 0.0 when coverage is present but covers zero mutants [✔]
+    emits covered_code_msi null when coverage is absent [✔]
+  prepared report diffs
+    feeds the same prepared diff to agentic JSON and HTML reports [✔]
+    keeps the prepared diff path available to pure HTML rendering [✔]
+  unifiedDiff
+    returns empty string when inputs are identical [✔]
+    produces standard hunk headers with + addition range [✔]
+    produces valid hunk headers for added lines [✔]
+    reports an inserted empty line into an empty source [✔]
+    reports a deleted empty line from a one-line source [✔]
+    produces valid hunk headers for removed lines [✔]
+    reports an inserted empty line at the end [✔]
+    reports a deleted empty line at the end [✔]
+    keeps adjacent changes in one contextual hunk [✔]
+    produces multiple hunks for separated changes [✔]
+  parseDiffChangedLines
+    roundtrips with unifiedDiff for modified lines [✔]
+    roundtrips with unifiedDiff for added lines [✔]
+    roundtrips an inserted empty line at the end [✔]
+    roundtrips with unifiedDiff for removed lines [✔]
+    roundtrips with unifiedDiff across multiple hunks [✔]
+    parses git diff --unified=0 style without count [✔]
+    parses git diff --unified=0 style with count [✔]
+    returns empty list for pure deletion in git diff [✔]
+    falls back to header range when diff has no body lines [✔]
+Test.Mutaskell.Project
+  runProject (serial)
+    finds first changed lines and terminates when sources have no line diff [✔]
+Project mode on /tmp/mutaskell-proj-97ff185a6e13fe56
+  root:  /tmp/mutaskell-proj-97ff185a6e13fe56
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    evaluates every pending file and reports kill and escape counts [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+    does not apply the per-mutant timeout to the baseline test command [✔]
+    passes test arguments to the project test command [✔]
+    passes test arguments through the project worker command [✔]
+    passes test arguments to the orchestrator test command [✔]
+Project mode on /tmp/mutaskell-proj-e4e351d3e5fcf01d
+  root:  /tmp/mutaskell-proj-e4e351d3e5fcf01d
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    reads project coverage once across multiple source files [✔]
+Project mode on /tmp/mutaskell-proj-70690f44d4304a73
+  root:  /tmp/mutaskell-proj-70690f44d4304a73
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    clears progress on a completed run [✔]
+Project mode on /tmp/mutaskell-proj-dbc6235db2c589f2
+  root:  /tmp/mutaskell-proj-dbc6235db2c589f2
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+Project mode on /tmp/mutaskell-proj-dbc6235db2c589f2
+  root:  /tmp/mutaskell-proj-dbc6235db2c589f2
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    produces identical mutant counts and gate evaluations on a second run in an unchanged tree [✔]
+Project mode on /tmp/mutaskell-proj-1b747d139303fe93
+  root:  /tmp/mutaskell-proj-1b747d139303fe93
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+  budget: at most 1 mutant(s) total
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+Project mode on /tmp/mutaskell-proj-1b747d139303fe93
+  root:  /tmp/mutaskell-proj-1b747d139303fe93
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 1 already done, 2 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 22 (basis for %)
+	Covered: not provided
+	Sampled: 22
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 22/22
+	Killed: 0/22 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    preserves progress on an interrupted run and skips completed files on resume [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  functions         Alive
+Budget exhausted; stopping with a partial result.
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+    prints nothing to do without emitting a summary when all discovered files are already done [✔]
+Project mode on /tmp/mutaskell-proj-bc95ab71d6ed6c09
+  root:  /tmp/mutaskell-proj-bc95ab71d6ed6c09
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 2 source file(s); 0 already done, 2 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 18%
+Total mutants: 22 (basis for %)
+	Covered: not provided
+	Sampled: 22
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 18/22
+	Killed: 4/22 (18%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+18 mutant(s) survived; exiting with failure
+    reports surviving mutants and fails under --fail-on-escaped [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+    mutates only files under a scope subdirectory while running commands from project root [✔]
+Project mode on /tmp/mutaskell-proj-d857206a3b213934
+  root:  /tmp/mutaskell-proj-d857206a3b213934
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 36%
+Total mutants: 11 (basis for %)
+	Covered: not provided
+	Sampled: 11
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 7/11
+	Killed: 4/11 (36%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    mutates only files changed relative to --git-diff-base [✔]
+    only counts mutants for files modified relative to --git-diff-base in dry-run [✔]
+    discovers 0 files and exits cleanly on clean working tree relative to --git-diff-base [✔]
+FILE M1.hs: 4 mutant(s)
+[1/4] M1.hs  literal-values    Alive
+[2/4] M1.hs  functions         Alive
+[3/4] M1.hs  other:negate-literal  Alive
+[4/4] M1.hs  other:zero-return  Alive
+Project mode on /tmp/mutaskell-proj-e3d813875b97765f
+  root:  /tmp/mutaskell-proj-e3d813875b97765f
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 4 (basis for %)
+	Covered: not provided
+	Sampled: 4
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 4/4
+	Killed: 0/4 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    finds mutants on changed lines in both project dry-run and evaluation [✔]
+    suppresses mutants on lines preceded by disable-next-line in dry-run [✔]
+    suppresses only the named mutator for disable-next-line literal-values in dry-run [✔]
+    suppresses every mutator for disable-next-line * in dry-run [✔]
+    suppresses mutants on lines matching ignore_source_lines in dry-run [✔]
+Project mode on /tmp/mutaskell-proj-2b7b4100320c8728
+  root:  /tmp/mutaskell-proj-2b7b4100320c8728
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 0 (basis for %)
+	Covered: not provided
+	Sampled: 0
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 0/0
+	Killed: 0/0 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    does not evaluate mutants suppressed by disable-next-line [✔]
+Project mode on /tmp/mutaskell-proj-115156d5a66658d6
+  root:  /tmp/mutaskell-proj-115156d5a66658d6
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 0 (basis for %)
+	Covered: not provided
+	Sampled: 0
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 0/0
+	Killed: 0/0 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    does not evaluate mutants on lines matching ignore_source_lines [✔]
+    fails with an explicit error when no project root marker exists above the scope [✔]
+    discoverSourcesWithStats
+      discovers each buildable source file once across overlapping roots [✔]
+      prunes roots contained in another root and walks each directory once [✔]
+      finds sources outside the declared source dirs via the package dir [✔]
+      does not discover sources inside hidden directories [✔]
+      excludes nested exclude_dirs paths as path prefixes [✔]
+      excludes single-name exclude_dirs at any depth, with or without a trailing slash [✔]
+      discovers only files within the scope directory [✔]
+    findProjectRoot
+      finds root containing cabal.project [✔]
+      finds root containing *.cabal [✔]
+      finds root containing stack.yaml [✔]
+      returns Nothing when no marker exists [✔]
+    restrictToShard
+      keeps the shard's files in discovery order, ignoring shard order [✔]
+    distribute
+      keeps every file exactly once, round-robin, in file order [✔]
+      yields n empty buckets for an empty list [✔]
+      yields no buckets for a non-positive worker count [✔]
+    filterDiff
+      returns all files when optGitDiffBase is Nothing [✔]
+      returns only modified files when optGitDiffBase is set [✔]
+Test.Mutaskell.ReusedSession
+  ReusedSession
+    run-scoped package-environment cache
+      returns the environment file of the current directory when present [✔]
+    empty test list
+      starts no session under either policy [✔]
+    survivor
+      runs every test in order under every policy [✔]
+    early kill
+      stops at the first failure under every policy [✔]
+    late kill
+      runs both tests and stops at the second failure [✔]
+      leaves the same test log behind under both prototype policies [✔]
+    invalid mutant
+      is skipped under every policy [✔]
+    extra test arguments
+      are visible to every test under every policy [✔]
+    top-level mutable state in the module under test
+      is re-evaluated per interpreted expression, so every policy agrees [✔]
+    mutable state in an imported module
+      is retained across tests by the reused session [✔]
+    interpreter-owned state across mutants
+      does not leak from one mutant's session into the next [✔]
+    process-external state
+      behaves the same under every policy (never reset) [✔]
+      persists across mutants under both policies [✔]
+    timeout
+      abandons the test and tears the session down under both policies [✔]
+      leaves the process able to run the next mutant after a timeout [✔]
+    uncaught runtime exception (custom adapter)
+      propagates out of the production evaluator and the fresh policy [✔]
+      is classified as an error by the reused session [✔]
+Test.Mutaskell.Tix
+  Test.Mutaskell.Tix
+    removeRedundantSpans
+      returns empty list unchanged [✔]
+      returns a single span unchanged [✔]
+      removes a span that is inside a larger span [✔]
+      keeps both spans when neither contains the other [✔]
+      preserves survivor order and duplicate spans [✔]
+      keeps overlapping and boundary-touching spans [✔]
+      agrees with pairwise containment on mixed span shapes [✔]
+    removeUncovered
+      returns all mutants when uncovered span list is empty [✔]
+      removes a mutant whose span falls inside an uncovered span [✔]
+      keeps a mutant whose span is outside all uncovered spans [✔]
+      removes all mutants when they all fall inside uncovered spans [✔]
+    parsed coverage index
+      answers containment queries with HPC's inclusive boundaries [✔]
+      answers an unmatched module query from a parsed tix snapshot [✔]
+    unreadable tix files
+      reports a missing tix file by path [✔]
+      reports a malformed tix file by path and as a parse failure [✔]
+      treats an empty tix path as no coverage requested [✔]
+      does not gate an ambiguous unqualified module name [✔]
+Test.Mutaskell.Utils.Common
+  replaceFst
+    if given empty list dont do any thing [✔]
+    if given a list with out value dont do any thing [✔]
+    if given a list with value replaceFst [✔]
+  choose
+    if given empty return empty [✔]
+    if given zero return e.empty [✔]
+    if given list return subset with given size [✔]
+  remElt
+    must remove element at given index [✔]
+  sample
+    must sample a given size subset [✔]
+    returns empty list when n is negative [✔]
+    returns empty list when n is negative and list is empty [✔]
+    returns empty list when n is zero [✔]
+    returns the input in order when n equals the input length [✔]
+    returns the input in order when n exceeds the input length [✔]
+    returns empty input unchanged when n exceeds length [✔]
+    samples positions without replacement [✔]
+    keeps equal values that come from distinct positions [✔]
+    is reproducible for the same seed and input [✔]
+    selects each position with similar frequency [✔]
+  sampleF
+    must sample a given fraction subset [✔]
+    returns empty list when fraction is negative [✔]
+    returns empty list when fraction is zero [✔]
+    rounds the quota from the fraction times the length [✔]
+    returns the input in order when the fraction is one [✔]
+    returns the input in order when the fraction exceeds one [✔]
+  coupling
+    must sample a given fraction subset [✔]
+  strip
+    strips leading and trailing whitespace [✔]
+    returns empty string for whitespace-only input [✔]
+  spread
+    distributes the first element across the list [✔]
+Test.Mutaskell.Utils.Print
+  ./.
+    shows percent values correctly [✔]
+    shows (0%) when denominator is zero [✔]
+  showAS
+    joins strings with newlines [✔]
+  showA
+    joins values with newlines [✔]
+Test.Mutaskell.Utils.Syb
+  once
+    applies at the first matching site [✔]
+    applies at exactly one site when multiple match [✔]
+    returns Nothing when no match exists [✔]
+    returns all single-site applications in the list monad [✔]
+Test.Mutaskell.Worker
+  worker workload transport
+    mutantWorkload
+      fills the workload from the base config and the selected mutant [✔]
+    encodeWorkload / decodeWorkload
+      round-trips a workload [✔]
+      round-trips non-ASCII mutant source without corrupting it [✔]
+      round-trips a workload without timeout or keep-dir [✔]
+      rejects malformed JSON with a classified error [✔]
+      rejects an unsupported transport version with a classified error [✔]
+      rejects an unknown mutator name with a classified error [✔]
+      rejects a span that is not four coordinates [✔]
+    decodeWorkloadFile
+      reads an encoded workload back from disk [✔]
+      classifies a missing workload file as an error [✔]
+    evalWorkload
+      classifies a killed mutant [✔]
+      classifies a surviving mutant as alive [✔]
+      classifies a non-compilable mutant as skipped [✔]
+      honours the transported per-mutant timeout [✔]
+      evaluates the transported mutant without reading the target source [✔]
+    runWorkloadMode
+      writes the classified result to the worker output file [✔]
+      preserves non-ASCII mutant source through the file round trip [✔]
+      writes a classified error for a missing workload file [✔]
+      cleans up the mutant file when no keep-dir is set [✔]
+Test suite spec: FAIL
+Test suite logged to:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/test/mutaskell-0.8.58-spec.log
+0 of 1 test suites (0 of 1 test cases) passed.
+Error: [Cabal-7125]
+Tests failed for test:spec from mutaskell-0.8.58.
+
+EXIT full_tests: 1
+
+===== freeze_unchanged =====
+cabal.project.freeze: OK
+EXIT freeze_unchanged: 0

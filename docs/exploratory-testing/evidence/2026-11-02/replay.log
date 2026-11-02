@@ -1,0 +1,132 @@
+
+===== replay_test_1 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - mutaskell-0.8.58 (lib) (configuration changed)
+ - mutaskell-0.8.58 (test:spec) (dependency rebuilt)
+Configuring library for mutaskell-0.8.58...
+Preprocessing library for mutaskell-0.8.58...
+Building library for mutaskell-0.8.58...
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+Running 1 test suites...
+Test suite spec: RUNNING...
+
+Test.Mutaskell.Project
+  runProject (serial)
+    passes test arguments through the project worker command [✘]
+
+Failures:
+
+  test/Test/Mutaskell/ProjectSpec.hs:291:24: 
+  1) Test.Mutaskell.Project, runProject (serial), passes test arguments through the project worker command
+       expected: ExitSuccess
+        but got: ExitFailure 1
+
+  To rerun use: --match "/Test.Mutaskell.Project/runProject (serial)/passes test arguments through the project worker command/" --seed 1367581054
+
+Randomized with seed 1367581054
+
+Finished in 0.0949 seconds
+1 example, 1 failure
+Test suite spec: FAIL
+Test suite logged to:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/test/mutaskell-0.8.58-spec.log
+0 of 1 test suites (0 of 1 test cases) passed.
+Error: [Cabal-7125]
+Tests failed for test:spec from mutaskell-0.8.58.
+
+EXIT replay_test_1: 1
+
+===== replay_test_2 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - mutaskell-0.8.58 (test:spec) (ephemeral targets)
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+Running 1 test suites...
+Test suite spec: RUNNING...
+
+Test.Mutaskell.Project
+  runProject (serial)
+    passes test arguments through the project worker command [✘]
+
+Failures:
+
+  test/Test/Mutaskell/ProjectSpec.hs:291:24: 
+  1) Test.Mutaskell.Project, runProject (serial), passes test arguments through the project worker command
+       expected: ExitSuccess
+        but got: ExitFailure 1
+
+  To rerun use: --match "/Test.Mutaskell.Project/runProject (serial)/passes test arguments through the project worker command/" --seed 906489177
+
+Randomized with seed 906489177
+
+Finished in 0.0568 seconds
+1 example, 1 failure
+Test suite spec: FAIL
+Test suite logged to:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/test/mutaskell-0.8.58-spec.log
+0 of 1 test suites (0 of 1 test cases) passed.
+Error: [Cabal-7125]
+Tests failed for test:spec from mutaskell-0.8.58.
+
+EXIT replay_test_2: 1
+
+===== project_dry =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project dry-run on /work/.explore/project
+  root:  /work/.explore/project
+Discovered 1 source file(s).
+Discovery scan: 1 root(s) walked, 1 director(ies) listed.
+
+  M1.hs  4
+
+CPP macro scans: 0
+Total generated mutants (sampled per file): 4
+EXIT project_dry: 0
+
+===== project_run =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode on /work/.explore/project
+  root:  /work/.explore/project
+  build: true
+  test:  true
+  budget: at most 1 mutant(s) total
+  budget: stop after 1800s
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  other:zero-return  Alive
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+EXIT project_run: 0
+
+===== project_source_unchanged =====
+.explore/project/M1.hs: OK
+EXIT project_source_unchanged: 0
+project progress: absent
+
+===== freeze_unchanged =====
+cabal.project.freeze: OK
+EXIT freeze_unchanged: 0
