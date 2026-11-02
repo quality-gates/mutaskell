@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.60]
+  * Added: a report of the blocked CLI exploratory testing attempt, including the missing toolchain and dependency lock.
+
 ## [0.8.58]
   * Fixed: `--git-diff-base REF` now stops with exit code 2 and `Error: git diff failed for base ref 'REF'` when `git diff` fails. Before, a missing, mistyped, or unfetched REF made mutaskell mutate every file and line and exit 0 (#130).
 
