@@ -1,0 +1,3789 @@
+
+===== versions =====
+The Glorious Glasgow Haskell Compilation System, version 9.12.4
+cabal-install version 3.14.1.1
+compiled using version 3.14.1.1 of the Cabal library 
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        72G   61G   11G  85% /work
+EXIT versions: 0
+
+===== update =====
+Downloading the latest package list from hackage.haskell.org
+Package list of hackage.haskell.org has been updated.
+The index-state is set to 2026-11-02T15:04:01Z.
+EXIT update: 0
+
+===== freeze =====
+Resolving dependencies...
+Wrote freeze file: /work/cabal.project.freeze
+EXIT freeze: 0
+
+===== build =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Resolving dependencies...
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - OneTuple-0.4.3 (lib) (requires download & build)
+ - StateVar-1.2.2 (lib) (requires download & build)
+ - assoc-1.1.1 (lib) (requires download & build)
+ - attoparsec-0.14.4 (lib:attoparsec-internal) (requires download & build)
+ - base-orphans-0.9.4 (lib) (requires download & build)
+ - call-stack-0.4.0 (lib) (requires download & build)
+ - character-ps-0.1 (lib) (requires download & build)
+ - colour-2.3.7 (lib) (requires download & build)
+ - dlist-1.0 (lib) (requires download & build)
+ - ghc-paths-0.1.0.12 (lib:ghc-paths) (requires download & build)
+ - hashable-1.5.1.0 (lib) (requires download & build)
+ - haskell-lexer-1.2.1 (lib) (requires download & build)
+ - hspec-discover-2.11.18 (lib) (requires download & build)
+ - indexed-traversable-0.1.5 (lib) (requires download & build)
+ - integer-logarithms-1.0.5 (lib) (requires download & build)
+ - libyaml-clib-0.2.5 (lib) (requires download & build)
+ - prettyprinter-1.7.2 (lib) (requires download & build)
+ - primitive-0.9.1.0 (lib) (requires download & build)
+ - split-0.2.5.1 (lib) (requires download & build)
+ - splitmix-0.1.3.2 (lib) (requires download & build)
+ - syb-0.7.4 (lib) (requires download & build)
+ - tagged-0.8.11 (lib) (requires download & build)
+ - th-abstraction-0.7.2.0 (lib) (requires download & build)
+ - th-compat-0.1.7 (lib) (requires download & build)
+ - transformers-compat-0.8 (lib) (requires download & build)
+ - unliftio-core-0.2.1.0 (lib) (requires download & build)
+ - vector-stream-0.1.0.1 (lib) (requires download & build)
+ - contravariant-1.5.6 (lib) (requires download & build)
+ - HUnit-1.6.2.0 (lib) (requires download & build)
+ - ansi-terminal-types-1.1.3 (lib) (requires download & build)
+ - unordered-containers-0.2.21 (lib) (requires download & build)
+ - time-compat-1.9.9 (lib) (requires download & build)
+ - these-1.2.1 (lib) (requires download & build)
+ - text-short-0.1.6.1 (lib) (requires download & build)
+ - data-fix-0.3.4 (lib) (requires download & build)
+ - hspec-discover-2.11.18 (exe:hspec-discover) (requires download & build)
+ - scientific-0.3.10.0 (lib) (requires download & build)
+ - integer-conversion-0.1.1 (lib) (requires download & build)
+ - random-1.3.1 (lib) (requires download & build)
+ - ghc-exactprint-1.12.1.0 (lib) (requires download & build)
+ - distributive-0.6.3 (lib) (requires download & build)
+ - network-uri-2.6.4.2 (lib) (requires download & build)
+ - resourcet-1.3.0 (lib) (requires download & build)
+ - vector-0.13.2.0 (lib) (requires download & build)
+ - hspec-expectations-0.8.4 (lib) (requires download & build)
+ - ansi-terminal-1.1.5 (lib) (requires download & build)
+ - strict-0.5.1 (lib) (requires download & build)
+ - attoparsec-0.14.4 (lib) (requires download & build)
+ - text-iso8601-0.2.0.0 (lib) (requires download & build)
+ - uuid-types-1.0.6.1 (lib) (requires download & build)
+ - temporary-1.3 (lib) (requires download & build)
+ - QuickCheck-2.19.0.0 (lib) (requires download & build)
+ - comonad-5.0.10 (lib) (requires download & build)
+ - indexed-traversable-instances-0.1.2.1 (lib) (requires download & build)
+ - bitvec-1.1.6.0 (lib) (requires download & build)
+ - prettyprinter-ansi-terminal-1.1.4 (lib) (requires download & build)
+ - hint-0.9.0.9 (lib) (requires download & build)
+ - quickcheck-io-0.2.0 (lib) (requires download & build)
+ - bifunctors-5.6.3 (lib) (requires download & build)
+ - witherable-0.5 (lib) (requires download & build)
+ - vector-algorithms-0.9.1.0 (lib) (requires download & build)
+ - optparse-applicative-0.19.0.0 (lib) (requires download & build)
+ - mutaskell-0.8.58 (lib) (first run)
+ - hspec-core-2.11.18 (lib) (requires download & build)
+ - semigroupoids-6.0.2 (lib) (requires download & build)
+ - mono-traversable-1.0.21.0 (lib) (requires download & build)
+ - mutaskell-0.8.58 (exe:sample-test) (first run)
+ - hspec-2.11.18 (lib) (requires download & build)
+ - semialign-1.4 (lib) (requires download & build)
+ - conduit-1.3.6.1 (lib) (requires download & build)
+ - aeson-2.3.2.0 (lib) (requires download & build)
+ - libyaml-0.1.4 (lib) (requires download & build)
+ - yaml-0.11.11.2 (lib) (requires download & build)
+ - mutaskell-0.8.58 (test:spec) (first run)
+ - mutaskell-0.8.58 (exe:mutaskell) (first run)
+Downloading  libyaml-clib-0.2.5
+Downloaded   libyaml-clib-0.2.5
+Downloading  base-orphans-0.9.4
+Downloaded   base-orphans-0.9.4
+Downloading  call-stack-0.4.0
+Downloaded   call-stack-0.4.0
+Downloading  character-ps-0.1
+Downloaded   character-ps-0.1
+Downloading  colour-2.3.7
+Downloaded   colour-2.3.7
+Downloading  dlist-1.0
+Downloaded   dlist-1.0
+Downloading  haskell-lexer-1.2.1
+Downloaded   haskell-lexer-1.2.1
+Downloading  split-0.2.5.1
+Downloaded   split-0.2.5.1
+Downloading  splitmix-0.1.3.2
+Downloaded   splitmix-0.1.3.2
+Downloading  syb-0.7.4
+Downloaded   syb-0.7.4
+Downloading  tagged-0.8.11
+Downloaded   tagged-0.8.11
+Downloading  th-compat-0.1.7
+Downloaded   th-compat-0.1.7
+Downloading  distributive-0.6.3
+Downloaded   distributive-0.6.3
+Downloading  primitive-0.9.1.0
+Downloaded   primitive-0.9.1.0
+Downloading  random-1.3.1
+Downloaded   random-1.3.1
+Downloading  transformers-compat-0.8
+Downloaded   transformers-compat-0.8
+Downloading  unliftio-core-0.2.1.0
+Downloaded   unliftio-core-0.2.1.0
+Downloading  vector-stream-0.1.0.1
+Downloaded   vector-stream-0.1.0.1
+Downloading  vector-0.13.2.0
+Downloaded   vector-0.13.2.0
+Downloading  bitvec-1.1.6.0
+Downloaded   bitvec-1.1.6.0
+Downloading  vector-algorithms-0.9.1.0
+Downloaded   vector-algorithms-0.9.1.0
+Downloading  assoc-1.1.1
+Downloaded   assoc-1.1.1
+Downloading  th-abstraction-0.7.2.0
+Downloaded   th-abstraction-0.7.2.0
+Downloading  indexed-traversable-0.1.5
+Downloaded   indexed-traversable-0.1.5
+Downloading  comonad-5.0.10
+Downloaded   comonad-5.0.10
+Downloading  bifunctors-5.6.3
+Downloaded   bifunctors-5.6.3
+Downloading  integer-logarithms-1.0.5
+Downloaded   integer-logarithms-1.0.5
+Downloading  hspec-discover-2.11.18
+Downloaded   hspec-discover-2.11.18
+Downloading  resourcet-1.3.0
+Downloaded   resourcet-1.3.0
+Downloading  temporary-1.3
+Downloaded   temporary-1.3
+Downloading  ghc-exactprint-1.12.1.0
+Downloaded   ghc-exactprint-1.12.1.0
+Downloading  attoparsec-0.14.4
+Downloaded   attoparsec-0.14.4
+Downloading  hashable-1.5.1.0
+Downloaded   hashable-1.5.1.0
+Downloading  data-fix-0.3.4
+Downloaded   data-fix-0.3.4
+Downloading  these-1.2.1
+Downloaded   these-1.2.1
+Downloading  time-compat-1.9.9
+Downloaded   time-compat-1.9.9
+Downloading  unordered-containers-0.2.21
+Downloaded   unordered-containers-0.2.21
+Downloading  integer-conversion-0.1.1
+Downloaded   integer-conversion-0.1.1
+Downloading  mono-traversable-1.0.21.0
+Downloaded   mono-traversable-1.0.21.0
+Downloading  conduit-1.3.6.1
+Downloaded   conduit-1.3.6.1
+Downloading  libyaml-0.1.4
+Downloaded   libyaml-0.1.4
+Downloading  network-uri-2.6.4.2
+Downloaded   network-uri-2.6.4.2
+Downloading  prettyprinter-1.7.2
+Downloaded   prettyprinter-1.7.2
+Downloading  scientific-0.3.10.0
+Downloaded   scientific-0.3.10.0
+Downloading  strict-0.5.1
+Downloaded   strict-0.5.1
+Downloading  text-iso8601-0.2.0.0
+Downloaded   text-iso8601-0.2.0.0
+Downloading  text-short-0.1.6.1
+Downloaded   text-short-0.1.6.1
+Downloading  uuid-types-1.0.6.1
+Downloaded   uuid-types-1.0.6.1
+Downloading  ansi-terminal-types-1.1.3
+Downloaded   ansi-terminal-types-1.1.3
+Downloading  ansi-terminal-1.1.5
+Downloaded   ansi-terminal-1.1.5
+Downloading  prettyprinter-ansi-terminal-1.1.4
+Downloaded   prettyprinter-ansi-terminal-1.1.4
+Downloading  optparse-applicative-0.19.0.0
+Downloaded   optparse-applicative-0.19.0.0
+Downloading  StateVar-1.2.2
+Downloaded   StateVar-1.2.2
+Downloading  contravariant-1.5.6
+Starting     StateVar-1.2.2 (lib)
+Downloaded   contravariant-1.5.6
+Downloading  semigroupoids-6.0.2
+Downloaded   semigroupoids-6.0.2
+Downloading  QuickCheck-2.19.0.0
+Building     StateVar-1.2.2 (lib)
+Downloaded   QuickCheck-2.19.0.0
+Downloading  OneTuple-0.4.3
+Downloaded   OneTuple-0.4.3
+Downloading  indexed-traversable-instances-0.1.2.1
+Starting     OneTuple-0.4.3 (lib)
+Downloaded   indexed-traversable-instances-0.1.2.1
+Downloading  semialign-1.4
+Installing   StateVar-1.2.2 (lib)
+Downloaded   semialign-1.4
+Downloading  witherable-0.5
+Completed    StateVar-1.2.2 (lib)
+Starting     assoc-1.1.1 (lib)
+Downloaded   witherable-0.5
+Downloading  aeson-2.3.2.0
+Building     OneTuple-0.4.3 (lib)
+Downloaded   aeson-2.3.2.0
+Downloading  yaml-0.11.11.2
+Downloaded   yaml-0.11.11.2
+Downloading  HUnit-1.6.2.0
+Installing   OneTuple-0.4.3 (lib)
+Building     assoc-1.1.1 (lib)
+Downloaded   HUnit-1.6.2.0
+Downloading  hspec-expectations-0.8.4
+Downloaded   hspec-expectations-0.8.4
+Downloading  quickcheck-io-0.2.0
+Completed    OneTuple-0.4.3 (lib)
+Starting     attoparsec-0.14.4 (lib:attoparsec-internal)
+Installing   assoc-1.1.1 (lib)
+Downloaded   quickcheck-io-0.2.0
+Downloading  hspec-core-2.11.18
+Completed    assoc-1.1.1 (lib)
+Downloaded   hspec-core-2.11.18
+Downloading  hspec-2.11.18
+Starting     base-orphans-0.9.4 (lib)
+Downloaded   hspec-2.11.18
+Downloading  ghc-paths-0.1.0.12
+Building     attoparsec-0.14.4 (lib:attoparsec-internal)
+Downloaded   ghc-paths-0.1.0.12
+Downloading  hint-0.9.0.9
+Building     base-orphans-0.9.4 (lib)
+Downloaded   hint-0.9.0.9
+Installing   base-orphans-0.9.4 (lib)
+Completed    base-orphans-0.9.4 (lib)
+Starting     call-stack-0.4.0 (lib)
+Installing   attoparsec-0.14.4 (lib:attoparsec-internal)
+Building     call-stack-0.4.0 (lib)
+Completed    attoparsec-0.14.4 (lib:attoparsec-internal)
+Starting     character-ps-0.1 (lib)
+Installing   call-stack-0.4.0 (lib)
+Building     character-ps-0.1 (lib)
+Completed    call-stack-0.4.0 (lib)
+Starting     colour-2.3.7 (lib)
+Building     colour-2.3.7 (lib)
+Installing   character-ps-0.1 (lib)
+Completed    character-ps-0.1 (lib)
+Starting     dlist-1.0 (lib)
+Building     dlist-1.0 (lib)
+Installing   dlist-1.0 (lib)
+Completed    dlist-1.0 (lib)
+Starting     ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Installing   colour-2.3.7 (lib)
+Completed    colour-2.3.7 (lib)
+Starting     hashable-1.5.1.0 (lib)
+Building     hashable-1.5.1.0 (lib)
+Building     ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Installing   ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Completed    ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Starting     haskell-lexer-1.2.1 (lib)
+Building     haskell-lexer-1.2.1 (lib)
+Installing   hashable-1.5.1.0 (lib)
+Completed    hashable-1.5.1.0 (lib)
+Starting     hspec-discover-2.11.18 (lib)
+Building     hspec-discover-2.11.18 (lib)
+Installing   hspec-discover-2.11.18 (lib)
+Completed    hspec-discover-2.11.18 (lib)
+Starting     indexed-traversable-0.1.5 (lib)
+Building     indexed-traversable-0.1.5 (lib)
+Installing   indexed-traversable-0.1.5 (lib)
+Completed    indexed-traversable-0.1.5 (lib)
+Starting     integer-logarithms-1.0.5 (lib)
+Building     integer-logarithms-1.0.5 (lib)
+Installing   integer-logarithms-1.0.5 (lib)
+Completed    integer-logarithms-1.0.5 (lib)
+Starting     libyaml-clib-0.2.5 (lib)
+Building     libyaml-clib-0.2.5 (lib)
+Installing   haskell-lexer-1.2.1 (lib)
+Completed    haskell-lexer-1.2.1 (lib)
+Starting     prettyprinter-1.7.2 (lib)
+Building     prettyprinter-1.7.2 (lib)
+Installing   libyaml-clib-0.2.5 (lib)
+Completed    libyaml-clib-0.2.5 (lib)
+Starting     primitive-0.9.1.0 (lib)
+Building     primitive-0.9.1.0 (lib)
+Installing   prettyprinter-1.7.2 (lib)
+Completed    prettyprinter-1.7.2 (lib)
+Starting     split-0.2.5.1 (lib)
+Building     split-0.2.5.1 (lib)
+Installing   split-0.2.5.1 (lib)
+Completed    split-0.2.5.1 (lib)
+Starting     splitmix-0.1.3.2 (lib)
+Building     splitmix-0.1.3.2 (lib)
+Installing   primitive-0.9.1.0 (lib)
+Installing   splitmix-0.1.3.2 (lib)
+Completed    primitive-0.9.1.0 (lib)
+Starting     syb-0.7.4 (lib)
+Completed    splitmix-0.1.3.2 (lib)
+Starting     tagged-0.8.11 (lib)
+Building     syb-0.7.4 (lib)
+Building     tagged-0.8.11 (lib)
+Installing   tagged-0.8.11 (lib)
+Installing   syb-0.7.4 (lib)
+Completed    tagged-0.8.11 (lib)
+Starting     th-abstraction-0.7.2.0 (lib)
+Completed    syb-0.7.4 (lib)
+Starting     th-compat-0.1.7 (lib)
+Building     th-abstraction-0.7.2.0 (lib)
+Building     th-compat-0.1.7 (lib)
+Installing   th-compat-0.1.7 (lib)
+Completed    th-compat-0.1.7 (lib)
+Starting     transformers-compat-0.8 (lib)
+Building     transformers-compat-0.8 (lib)
+Installing   transformers-compat-0.8 (lib)
+Completed    transformers-compat-0.8 (lib)
+Starting     unliftio-core-0.2.1.0 (lib)
+Building     unliftio-core-0.2.1.0 (lib)
+Installing   th-abstraction-0.7.2.0 (lib)
+Completed    th-abstraction-0.7.2.0 (lib)
+Starting     vector-stream-0.1.0.1 (lib)
+Installing   unliftio-core-0.2.1.0 (lib)
+Completed    unliftio-core-0.2.1.0 (lib)
+Starting     contravariant-1.5.6 (lib)
+Building     vector-stream-0.1.0.1 (lib)
+Building     contravariant-1.5.6 (lib)
+Installing   contravariant-1.5.6 (lib)
+Completed    contravariant-1.5.6 (lib)
+Starting     HUnit-1.6.2.0 (lib)
+Building     HUnit-1.6.2.0 (lib)
+Installing   vector-stream-0.1.0.1 (lib)
+Completed    vector-stream-0.1.0.1 (lib)
+Starting     ansi-terminal-types-1.1.3 (lib)
+Building     ansi-terminal-types-1.1.3 (lib)
+Installing   HUnit-1.6.2.0 (lib)
+Completed    HUnit-1.6.2.0 (lib)
+Starting     unordered-containers-0.2.21 (lib)
+Building     unordered-containers-0.2.21 (lib)
+Installing   ansi-terminal-types-1.1.3 (lib)
+Completed    ansi-terminal-types-1.1.3 (lib)
+Starting     time-compat-1.9.9 (lib)
+Building     time-compat-1.9.9 (lib)
+Installing   time-compat-1.9.9 (lib)
+Completed    time-compat-1.9.9 (lib)
+Starting     these-1.2.1 (lib)
+Building     these-1.2.1 (lib)
+Installing   these-1.2.1 (lib)
+Completed    these-1.2.1 (lib)
+Starting     text-short-0.1.6.1 (lib)
+Building     text-short-0.1.6.1 (lib)
+Installing   text-short-0.1.6.1 (lib)
+Completed    text-short-0.1.6.1 (lib)
+Starting     data-fix-0.3.4 (lib)
+Building     data-fix-0.3.4 (lib)
+Installing   data-fix-0.3.4 (lib)
+Completed    data-fix-0.3.4 (lib)
+Starting     hspec-discover-2.11.18 (exe:hspec-discover)
+Building     hspec-discover-2.11.18 (exe:hspec-discover)
+Installing   hspec-discover-2.11.18 (exe:hspec-discover)
+Completed    hspec-discover-2.11.18 (exe:hspec-discover)
+Starting     scientific-0.3.10.0 (lib)
+Building     scientific-0.3.10.0 (lib)
+Installing   unordered-containers-0.2.21 (lib)
+Completed    unordered-containers-0.2.21 (lib)
+Starting     integer-conversion-0.1.1 (lib)
+Building     integer-conversion-0.1.1 (lib)
+Installing   integer-conversion-0.1.1 (lib)
+Completed    integer-conversion-0.1.1 (lib)
+Starting     random-1.3.1 (lib)
+Building     random-1.3.1 (lib)
+Installing   scientific-0.3.10.0 (lib)
+Completed    scientific-0.3.10.0 (lib)
+Starting     distributive-0.6.3 (lib)
+Building     distributive-0.6.3 (lib)
+Installing   distributive-0.6.3 (lib)
+Completed    distributive-0.6.3 (lib)
+Starting     ghc-exactprint-1.12.1.0 (lib)
+Building     ghc-exactprint-1.12.1.0 (lib)
+Installing   random-1.3.1 (lib)
+Completed    random-1.3.1 (lib)
+Starting     network-uri-2.6.4.2 (lib)
+Building     network-uri-2.6.4.2 (lib)
+Installing   network-uri-2.6.4.2 (lib)
+Completed    network-uri-2.6.4.2 (lib)
+Starting     resourcet-1.3.0 (lib)
+Building     resourcet-1.3.0 (lib)
+Installing   resourcet-1.3.0 (lib)
+Completed    resourcet-1.3.0 (lib)
+Starting     vector-0.13.2.0 (lib)
+Installing   ghc-exactprint-1.12.1.0 (lib)
+Completed    ghc-exactprint-1.12.1.0 (lib)
+Starting     hspec-expectations-0.8.4 (lib)
+Building     vector-0.13.2.0 (lib)
+Building     hspec-expectations-0.8.4 (lib)
+Installing   hspec-expectations-0.8.4 (lib)
+Completed    hspec-expectations-0.8.4 (lib)
+Starting     ansi-terminal-1.1.5 (lib)
+Building     ansi-terminal-1.1.5 (lib)
+Installing   ansi-terminal-1.1.5 (lib)
+Completed    ansi-terminal-1.1.5 (lib)
+Starting     strict-0.5.1 (lib)
+Building     strict-0.5.1 (lib)
+Installing   strict-0.5.1 (lib)
+Completed    strict-0.5.1 (lib)
+Starting     text-iso8601-0.2.0.0 (lib)
+Building     text-iso8601-0.2.0.0 (lib)
+Installing   text-iso8601-0.2.0.0 (lib)
+Completed    text-iso8601-0.2.0.0 (lib)
+Starting     attoparsec-0.14.4 (lib)
+Building     attoparsec-0.14.4 (lib)
+Installing   attoparsec-0.14.4 (lib)
+Completed    attoparsec-0.14.4 (lib)
+Starting     comonad-5.0.10 (lib)
+Building     comonad-5.0.10 (lib)
+Installing   comonad-5.0.10 (lib)
+Completed    comonad-5.0.10 (lib)
+Starting     uuid-types-1.0.6.1 (lib)
+Building     uuid-types-1.0.6.1 (lib)
+Installing   uuid-types-1.0.6.1 (lib)
+Completed    uuid-types-1.0.6.1 (lib)
+Starting     temporary-1.3 (lib)
+Building     temporary-1.3 (lib)
+Installing   temporary-1.3 (lib)
+Completed    temporary-1.3 (lib)
+Starting     QuickCheck-2.19.0.0 (lib)
+Building     QuickCheck-2.19.0.0 (lib)
+Installing   QuickCheck-2.19.0.0 (lib)
+Completed    QuickCheck-2.19.0.0 (lib)
+Starting     prettyprinter-ansi-terminal-1.1.4 (lib)
+Building     prettyprinter-ansi-terminal-1.1.4 (lib)
+Installing   prettyprinter-ansi-terminal-1.1.4 (lib)
+Completed    prettyprinter-ansi-terminal-1.1.4 (lib)
+Starting     bifunctors-5.6.3 (lib)
+Building     bifunctors-5.6.3 (lib)
+Installing   bifunctors-5.6.3 (lib)
+Completed    bifunctors-5.6.3 (lib)
+Starting     hint-0.9.0.9 (lib)
+Building     hint-0.9.0.9 (lib)
+Installing   hint-0.9.0.9 (lib)
+Completed    hint-0.9.0.9 (lib)
+Starting     quickcheck-io-0.2.0 (lib)
+Building     quickcheck-io-0.2.0 (lib)
+Installing   quickcheck-io-0.2.0 (lib)
+Completed    quickcheck-io-0.2.0 (lib)
+Starting     optparse-applicative-0.19.0.0 (lib)
+Building     optparse-applicative-0.19.0.0 (lib)
+Installing   vector-0.13.2.0 (lib)
+Completed    vector-0.13.2.0 (lib)
+Starting     semigroupoids-6.0.2 (lib)
+Building     semigroupoids-6.0.2 (lib)
+Installing   optparse-applicative-0.19.0.0 (lib)
+Completed    optparse-applicative-0.19.0.0 (lib)
+Configuring library for mutaskell-0.8.58...
+Preprocessing library for mutaskell-0.8.58...
+Building library for mutaskell-0.8.58...
+[ 1 of 15] Compiling Test.Mutaskell.Config ( src/Test/Mutaskell/Config.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Config.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Config.dyn_o )
+[ 2 of 15] Compiling Test.Mutaskell.MuOp ( src/Test/Mutaskell/MuOp.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/MuOp.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/MuOp.dyn_o )
+[ 3 of 15] Compiling Test.Mutaskell.TestAdapter.AssertCheck ( src/Test/Mutaskell/TestAdapter/AssertCheck.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter/AssertCheck.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter/AssertCheck.dyn_o )
+[ 4 of 15] Compiling Test.Mutaskell.Tix ( src/Test/Mutaskell/Tix.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Tix.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Tix.dyn_o )
+[ 5 of 15] Compiling Test.Mutaskell.TestAdapter ( src/Test/Mutaskell/TestAdapter.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter.dyn_o )
+[ 6 of 15] Compiling Test.Mutaskell.TestAdapter.AssertCheckAdapter ( src/Test/Mutaskell/TestAdapter/AssertCheckAdapter.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter/AssertCheckAdapter.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/TestAdapter/AssertCheckAdapter.dyn_o )
+[ 7 of 15] Compiling Test.Mutaskell.Utils.Common ( src/Test/Mutaskell/Utils/Common.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Common.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Common.dyn_o )
+Installing   semigroupoids-6.0.2 (lib)
+[ 8 of 15] Compiling Test.Mutaskell.Utils.Helpers ( src/Test/Mutaskell/Utils/Helpers.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Helpers.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Helpers.dyn_o )
+[ 9 of 15] Compiling Test.Mutaskell.Utils.Print ( src/Test/Mutaskell/Utils/Print.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Print.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Print.dyn_o )
+Completed    semigroupoids-6.0.2 (lib)
+Starting     hspec-core-2.11.18 (lib)
+[10 of 15] Compiling Test.Mutaskell.AnalysisSummary ( src/Test/Mutaskell/AnalysisSummary.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/AnalysisSummary.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/AnalysisSummary.dyn_o )
+[11 of 15] Compiling Test.Mutaskell.Interpreter ( src/Test/Mutaskell/Interpreter.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Interpreter.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Interpreter.dyn_o )
+Building     hspec-core-2.11.18 (lib)
+[12 of 15] Compiling Test.Mutaskell.Interpreter.ReusedSession ( src/Test/Mutaskell/Interpreter/ReusedSession.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Interpreter/ReusedSession.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Interpreter/ReusedSession.dyn_o )
+[13 of 15] Compiling Test.Mutaskell.Utils.Syb ( src/Test/Mutaskell/Utils/Syb.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Syb.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Utils/Syb.dyn_o )
+[14 of 15] Compiling Test.Mutaskell.Mutation ( src/Test/Mutaskell/Mutation.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Mutation.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell/Mutation.dyn_o )
+[15 of 15] Compiling Test.Mutaskell   ( src/Test/Mutaskell.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/build/Test/Mutaskell.dyn_o )
+Starting     indexed-traversable-instances-0.1.2.1 (lib)
+Building     indexed-traversable-instances-0.1.2.1 (lib)
+Installing   indexed-traversable-instances-0.1.2.1 (lib)
+Completed    indexed-traversable-instances-0.1.2.1 (lib)
+Starting     bitvec-1.1.6.0 (lib)
+Building     bitvec-1.1.6.0 (lib)
+Installing   hspec-core-2.11.18 (lib)
+Completed    hspec-core-2.11.18 (lib)
+Configuring executable 'sample-test' for mutaskell-0.8.58...
+Preprocessing executable 'sample-test' for mutaskell-0.8.58...
+Building executable 'sample-test' for mutaskell-0.8.58...
+[1 of 2] Compiling Examples.AssertCheckTest ( Examples/AssertCheckTest.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/sample-test/build/sample-test/sample-test-tmp/Examples/AssertCheckTest.o )
+[2 of 2] Compiling Main             ( Examples/Main.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/sample-test/build/sample-test/sample-test-tmp/Main.o )
+[3 of 3] Linking dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/sample-test/build/sample-test/sample-test
+Starting     witherable-0.5 (lib)
+Building     witherable-0.5 (lib)
+Installing   witherable-0.5 (lib)
+Completed    witherable-0.5 (lib)
+Starting     semialign-1.4 (lib)
+Building     semialign-1.4 (lib)
+Installing   semialign-1.4 (lib)
+Completed    semialign-1.4 (lib)
+Starting     hspec-2.11.18 (lib)
+Building     hspec-2.11.18 (lib)
+Installing   hspec-2.11.18 (lib)
+Completed    hspec-2.11.18 (lib)
+Starting     aeson-2.3.2.0 (lib)
+Building     aeson-2.3.2.0 (lib)
+Installing   bitvec-1.1.6.0 (lib)
+Completed    bitvec-1.1.6.0 (lib)
+Starting     vector-algorithms-0.9.1.0 (lib)
+Building     vector-algorithms-0.9.1.0 (lib)
+Installing   vector-algorithms-0.9.1.0 (lib)
+Completed    vector-algorithms-0.9.1.0 (lib)
+Starting     mono-traversable-1.0.21.0 (lib)
+Building     mono-traversable-1.0.21.0 (lib)
+Installing   aeson-2.3.2.0 (lib)
+Completed    aeson-2.3.2.0 (lib)
+Installing   mono-traversable-1.0.21.0 (lib)
+Completed    mono-traversable-1.0.21.0 (lib)
+Starting     conduit-1.3.6.1 (lib)
+Building     conduit-1.3.6.1 (lib)
+Installing   conduit-1.3.6.1 (lib)
+Completed    conduit-1.3.6.1 (lib)
+Starting     libyaml-0.1.4 (lib)
+Building     libyaml-0.1.4 (lib)
+Installing   libyaml-0.1.4 (lib)
+Completed    libyaml-0.1.4 (lib)
+Starting     yaml-0.11.11.2 (lib)
+Building     yaml-0.11.11.2 (lib)
+Installing   yaml-0.11.11.2 (lib)
+Completed    yaml-0.11.11.2 (lib)
+Configuring executable 'mutaskell' for mutaskell-0.8.58...
+Configuring test suite 'spec' for mutaskell-0.8.58...
+Preprocessing executable 'mutaskell' for mutaskell-0.8.58...
+Building executable 'mutaskell' for mutaskell-0.8.58...
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+[1 of 8] Compiling App.Opts         ( app/App/Opts.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Opts.o )
+[ 1 of 25] Compiling App.Opts         ( app/App/Opts.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Opts.o )
+[2 of 8] Compiling App.Filter       ( app/App/Filter.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Filter.o )
+[ 2 of 25] Compiling App.Filter       ( app/App/Filter.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Filter.o )
+[3 of 8] Compiling App.Exit         ( app/App/Exit.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Exit.o )
+[4 of 8] Compiling App.Orchestrator ( app/App/Orchestrator.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Orchestrator.o )
+[ 3 of 25] Compiling App.Exit         ( app/App/Exit.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Exit.o )
+[ 4 of 25] Compiling App.Orchestrator ( app/App/Orchestrator.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Orchestrator.o )
+[5 of 8] Compiling App.Output       ( app/App/Output.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Output.o )
+[ 5 of 25] Compiling App.Output       ( app/App/Output.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Output.o )
+[6 of 8] Compiling App.Project      ( app/App/Project.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Project.o )
+[ 6 of 25] Compiling App.Project      ( app/App/Project.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Project.o )
+[7 of 8] Compiling App.Worker       ( app/App/Worker.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/App/Worker.o )
+[ 7 of 25] Compiling App.Worker       ( app/App/Worker.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/App/Worker.o )
+[8 of 8] Compiling Main             ( app/Main.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell-tmp/Main.o )
+[ 8 of 25] Compiling Here             ( test/Here.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Here.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Here.dyn_o )
+[ 9 of 25] Compiling Test.Mutaskell.AnalysisSummarySpec ( test/Test/Mutaskell/AnalysisSummarySpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/AnalysisSummarySpec.o )
+[10 of 25] Compiling Test.Mutaskell.ConfigSpec ( test/Test/Mutaskell/ConfigSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/ConfigSpec.o )
+[11 of 25] Compiling Test.Mutaskell.IntegrationSpec ( test/Test/Mutaskell/IntegrationSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/IntegrationSpec.o )
+[9 of 9] Linking dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/x/mutaskell/build/mutaskell/mutaskell
+[12 of 25] Compiling Test.Mutaskell.MutationSpec.Helpers ( test/Test/Mutaskell/MutationSpec/Helpers.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/MutationSpec/Helpers.o, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/MutationSpec/Helpers.dyn_o )
+[13 of 25] Compiling Test.Mutaskell.MutationSpec ( test/Test/Mutaskell/MutationSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/MutationSpec.o )
+[14 of 25] Compiling Test.Mutaskell.MuVarCoverageSpec ( test/Test/Mutaskell/MuVarCoverageSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/MuVarCoverageSpec.o )
+[15 of 25] Compiling Test.Mutaskell.FilterSpec ( test/Test/Mutaskell/FilterSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/FilterSpec.o )
+[16 of 25] Compiling Test.Mutaskell.OutputSpec ( test/Test/Mutaskell/OutputSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/OutputSpec.o )
+[17 of 25] Compiling Test.Mutaskell.ReusedSessionSpec ( test/Test/Mutaskell/ReusedSessionSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/ReusedSessionSpec.o )
+[18 of 25] Compiling Test.Mutaskell.TixSpec ( test/Test/Mutaskell/TixSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/TixSpec.o )
+[19 of 25] Compiling Test.Mutaskell.Utils.CommonSpec ( test/Test/Mutaskell/Utils/CommonSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/Utils/CommonSpec.o )
+[20 of 25] Compiling Test.Mutaskell.Utils.PrintSpec ( test/Test/Mutaskell/Utils/PrintSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/Utils/PrintSpec.o )
+[21 of 25] Compiling Test.Mutaskell.Utils.SybSpec ( test/Test/Mutaskell/Utils/SybSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/Utils/SybSpec.o )
+[22 of 25] Compiling Test.Mutaskell.WorkerSpec ( test/Test/Mutaskell/WorkerSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/WorkerSpec.o )
+[23 of 25] Compiling Test.Mutaskell.ProjectSpec ( test/Test/Mutaskell/ProjectSpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/ProjectSpec.o )
+[24 of 25] Compiling Test.Mutaskell.CLISpec ( test/Test/Mutaskell/CLISpec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Test/Mutaskell/CLISpec.o )
+[25 of 25] Compiling Main             ( test/Spec.hs, dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec-tmp/Main.o )
+[26 of 26] Linking dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/build/spec/spec
+EXIT build: 0
+
+===== freeze_unchanged =====
+cabal.project.freeze: OK
+EXIT freeze_unchanged: 0
+
+===== tests =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - mutaskell-0.8.58 (test:spec) (ephemeral targets)
+Preprocessing test suite 'spec' for mutaskell-0.8.58...
+Building test suite 'spec' for mutaskell-0.8.58...
+Running 1 test suites...
+Test suite spec: RUNNING...
+
+Test.Mutaskell.AnalysisSummary
+  Semigroup and Monoid instances
+    satisfies left identity [✔]
+    satisfies right identity [✔]
+    combines counts correctly [✔]
+    preserves uncovered status (-1) when both are uncovered [✔]
+  summary metrics
+    calculates summaryTotal as the number of evaluated mutants [✔]
+    calculates summaryNoErrors as evaluated mutants minus errors [✔]
+    calculates summaryMsi correctly [✔]
+    calculates summaryMsi against evaluated sampled mutants even when covered mutant count is larger [✔]
+    returns 0 MSI when all mutants resulted in errors [✔]
+    calculates summaryCoveredMsi when coverage is present [✔]
+    returns Nothing for summaryCoveredMsi when coverage is not present (-1) [✔]
+    returns Just 0 for summaryCoveredMsi when coverage is present but covers zero mutants [✔]
+    includes Covered code MSI: 0% when coverage is present but covers zero mutants [✔]
+  Show instance
+    produces formatted output containing MSI, Total mutants, and percentages [✔]
+    includes Covered code MSI when coverage is present [✔]
+    formats a zero-mutant summary with (0%) percentages [✔]
+  applyExitPolicy
+    evaluates --min-msi against evaluated mutant MSI and passes when MSI meets threshold [✔]
+Covered-MSI 50% is below threshold 80%
+    evaluates --min-covered-msi against covered code MSI and exits with failure when below threshold [✔]
+    passes --min-covered-msi when covered code MSI meets threshold [✔]
+Covered-MSI 0% is below threshold 70%
+    fails --min-covered-msi when coverage is present but covers zero mutants [✔]
+Covered-MSI unavailable; --min-covered-msi requires coverage data: pass --tix FILE (or --coverage with a .tix file in the current directory)
+    rejects --min-covered-msi with an error when coverage data is absent (-1) [✔]
+Test.Mutaskell.CLI
+  parseOptsFrom
+    rejects --enable and --disable used together [✔]
+    accepts --enable alone [✔]
+    accepts --disable alone [✔]
+    rejects --disable and --enable in any order [✔]
+    rejects --min-covered-msi without --tix or --coverage, naming both flags [✔]
+    accepts --min-covered-msi with --tix [✔]
+    accepts --min-covered-msi with --coverage [✔]
+    returns Left for unknown flags [✔]
+    returns Left when no file argument is given [✔]
+    --dry-run sets optDryRun [✔]
+    --noop sets optNoop [✔]
+    --fail-on-escaped sets optFailOnEscape [✔]
+    --quiet sets optQuiet [✔]
+    --verbose sets optVerbose [✔]
+    --no-diffs sets optNoDiffs [✔]
+    --workers sets optWorkers [✔]
+    --min-msi sets optMinMsi [✔]
+    --timeout sets optTimeout [✔]
+    --logger-json sets optLoggerJson [✔]
+    --tix sets optTix [✔]
+    --exec sets optExec [✔]
+    --build-cmd sets optBuildCmd [✔]
+    --test-cmd sets optTestCmd [✔]
+    --max-mutants sets optMaxMutants [✔]
+    --time-budget sets optTimeBudget [✔]
+    --jobs sets optJobs [✔]
+    --run-mutant-workload sets optRunMutantWorkload [✔]
+    defaults: optRunMutantWorkload is Nothing [✔]
+    defaults: optJobs is 1, optExec is False, optMaxMutants is Nothing [✔]
+    --jobs with non-integer returns Left [✔]
+    --max-mutants with non-integer returns Left [✔]
+    --min-msi with non-integer returns Left [✔]
+    --timeout with non-integer returns Left [✔]
+    --workers with non-integer returns Left [✔]
+    config file min_msi is applied as default [✔]
+    CLI --min-msi overrides config file value [✔]
+    config file quiet: true is applied [✔]
+    config file workers is applied [✔]
+    config YAML inline list for disable_mutators is parsed [✔]
+    config YAML block list for disable_mutators is parsed [✔]
+    config unknown key is rejected with error [✔]
+  --run-mutant-id
+    applies --fail-on-escaped to an escaping selected mutant [✔]
+    applies --min-msi to a selected mutant [✔]
+    reports an unknown selected mutant as a CLI error [✔]
+  missing source file
+    plain run exits 2 with a readable error, not an uncaught IOException [✔]
+    --dry-run exits 2 with a readable error, not an uncaught IOException [✔]
+  Char boundary literals
+    --dry-run handles boxed and unboxed boundary Char literals [✔]
+  --update-baseline
+    keeps known baseline IDs when the same file is also the --baseline input [✔]
+  extractConfigArg
+    extracts config file with space syntax [✔]
+    extracts config file with equals syntax [✔]
+    extracts config file with equals syntax among other arguments [✔]
+    extracts config file with space syntax among other arguments [✔]
+    returns Nothing when no --config flag is given [✔]
+    returns Nothing for empty args [✔]
+    returns Nothing when --config has no following argument [✔]
+    extracts empty string when --config= [✔]
+  --config=FILE syntax
+    enforces configuration quality gates when passed as --config=FILE [✔]
+    reports config parse error when passed as --config=FILE [✔]
+  loadConfig
+    returns Left when explicit config file does not exist [✔]
+    returns Right id when default config does not exist [✔]
+  missing config file
+    fails with exit 2 and prints error to stderr with space syntax [✔]
+    fails with exit 2 and prints error to stderr with equals syntax [✔]
+    succeeds with defaults when no --config is passed and default config does not exist [✔]
+  project mode git diff options
+    dry-run scopes to git-diff-base files in project mode [✔]
+    dry-run on clean working tree discovers 0 files [✔]
+  git diff base failure
+    exits 2 in single-file mode when the base ref does not resolve [✔]
+    exits 2 in single-file mode with --git-diff-lines when the base ref does not resolve [✔]
+    exits 2 in project mode when the base ref does not resolve [✔]
+  baseline and noop log file cleanup
+    --timeout-coefficient does not leave .mucheck-baseline-timing.log in working directory [✔]
+    --noop does not leave .mucheck-noop.log in working directory [✔]
+Test.Mutaskell.Config
+  showMuVar / parseMuVar
+    round-trips MutatePatternMatch [✔]
+    round-trips MutateValues [✔]
+    round-trips MutateFunctions [✔]
+    round-trips MutateNegateIfElse [✔]
+    round-trips MutateNegateGuards [✔]
+    round-trips MutateOther remove-not (special case) [✔]
+    round-trips MutateOther remove-negation (special case) [✔]
+    round-trips MutateOther general case [✔]
+    round-trips MutateOther empty string [✔]
+    returns Nothing for unrecognised name [✔]
+  matchesMuVarPat
+    exact match works [✔]
+    exact non-match returns False [✔]
+    trailing wildcard matches MutateOther variants [✔]
+    trailing wildcard does not match non-other variants [✔]
+Test.Mutaskell.Filter
+  applyAnnotations
+    returns the same ordered mutants when there are no annotations [✔]
+    suppresses every mutator on the next line when the name list is empty [✔]
+    suppresses only the named mutator on the next line [✔]
+    matches prefix wildcards in inline annotations [✔]
+    treats a wildcard annotation as suppressing every mutator [✔]
+    matches comma-separated exact and wildcard patterns from comments [✔]
+    treats overlapping annotations on the same line as a union, including suppress-all [✔]
+    leaves mutants whose start line is out of range [✔]
+    keeps survivor order [✔]
+    parses inline comments and applies them to the following line [✔]
+  applyBaseline
+    returns the same ordered mutants when no file is given [✔]
+    warns and returns every mutant when the file cannot be read [✔]
+    drops mutants whose hash is listed, including duplicate IDs, and keeps order [✔]
+    returns every mutant when the file is empty [✔]
+  applyBlacklist
+    returns the same ordered mutants when no file is given [✔]
+    warns and returns every mutant when the file cannot be read [✔]
+    drops mutants whose hash is listed, including duplicate IDs, and keeps order [✔]
+  applyDiffLines
+    returns the same ordered mutants when the base ref is unset [✔]
+    returns the same ordered mutants when line filtering is off [✔]
+    keeps mutants whose start line is in the changed-line set [✔]
+    exits 2 and names the ref when the git command fails [✔]
+  checkGitDiff
+    selects a file that appears verbatim in the diff [✔]
+    does not select an unchanged file whose name is a bare string suffix of a changed path [✔]
+    does not select an unchanged file whose name string-ends with a changed path's name [✔]
+    selects a file whose bare name is a path-component suffix of a changed path [✔]
+    selects a file named by its full path when it appears verbatim in the diff [✔]
+    exits 2 and names the ref when the base ref does not resolve [✔]
+    selects every file when no base ref is given [✔]
+  applyIgnoreLines
+    returns the same ordered mutants when the pattern list is empty [✔]
+    drops mutants whose source line contains an ordinary pattern [✔]
+    treats an empty pattern as a match on every line, including out-of-range lines [✔]
+    treats an out-of-range start line as empty text [✔]
+    keeps survivor order [✔]
+  applyRunMutantId
+    returns the same ordered mutants when no ID is given [✔]
+    keeps only the mutant whose hash matches [✔]
+    returns no mutants when the ID is unknown [✔]
+    computes the ID from the current source, not a stale identity [✔]
+  hash
+    differs for distinct sources used in these fixtures [✔]
+  filter chain
+    preserves order through empty stages [✔]
+    applies populated stages in pipeline order and keeps survivors ordered [✔]
+  operatorSamplingEligible
+    is True for a plain run with no filters and no coverage [✔]
+    is False when coverage is requested, with or without a tix file [✔]
+    is False when a mutator pattern filter is configured [✔]
+    is False when an optional filter file is configured, even if it is empty [✔]
+    is False for a selected mutant id [✔]
+    is False for ignore lines and diff lines [✔]
+    is False when the source carries inline suppression [✔]
+  prepareOperatorFilter
+    filters operators by --disable and --enable names [✔]
+    applies mutator-specific annotations to operators by source line [✔]
+    restricts operators to changed lines [✔]
+    exits 2 when changed lines are requested for a base ref that does not resolve [✔]
+    ignores operators whose source line matches an ignore pattern [✔]
+Test.Mutaskell.Integration
+  integration
+    evaluates AssertCheckTest.hs and kills at least one mutant [✔]
+    samples operators before rendering when the tix holds no coverage [✔]
+    keeps the full candidate count on the coverage path [✔]
+Test.Mutaskell.Mutation
+  selectLitOps
+    returns integer literal muops for a module with a numeric literal [✔]
+    handles Char minBound literal without crashing [✔]
+    handles Char maxBound literal without crashing [✔]
+    handles non-boundary Char literal with predecessor and successor [✔]
+    handles HsCharPrim minBound and maxBound literals without crashing [✔]
+  selectBLitOps
+    returns boolean literal muops for a module with boolean literals [✔]
+  selectIfElseBoolNegOps
+    returns if-else muops for a module with an if expression [✔]
+    emits a complete, branch-swapped if expression [✔]
+  selectGuardedBoolNegOps
+    returns guarded-boolean muops for a module with a guarded definition [✔]
+    parenthesises the negated guard expression [✔]
+  selectFlipMaybeOps
+    returns muops for a module with Just/Nothing [✔]
+    parenthesises Just undefined when replacing Nothing in an application [✔]
+    parenthesises Just undefined when replacing Nothing in an operator argument [✔]
+    still flips Just x to Nothing [✔]
+  selectRemoveNotOps
+    returns remove-not muops [✔]
+  selectRemoveNegationOps
+    returns remove-negation muops [✔]
+  selectNegateLiteralOps
+    returns muops for a module with a positive numeric literal [✔]
+    parenthesises negate when replacing a literal in a function application [✔]
+    parenthesises negate when replacing a literal in a constructor application [✔]
+    parenthesises negate when replacing a fractional literal [✔]
+  selectErrorGuardOps
+    replaces handle handler action with action, not the handler [✔]
+    replaces catch action handler with action [✔]
+    replaces try action with return (Right action) [✔]
+  selectFnMatches
+    returns function-match muops for a multi-clause function [✔]
+    removes one clause at a time, keeping the remaining clauses [✔]
+  selectCaseAltRemoveOps
+    removes one alternative at a time, keeping the others [✔]
+  selectRemoveLetBindingOps
+    removes one let binding at a time, keeping the body [✔]
+    removes one let binding at a time in do-blocks without fusing let keyword and variable [✔]
+  selectRemoveWhereBindingOps
+    removes one where binding at a time, keeping the body [✔]
+  selectExplicitListOps
+    returns muops for a non-empty explicit list literal [✔]
+    removes one element at a time, keeping other declarations intact [✔]
+  selectBindToSequenceOps
+    returns muops for a do-block with a named bind [✔]
+    renders _ <- action without dropping <- or fusing into _action [✔]
+    renders multiple binds correctly across functions with _ <- when mutated [✔]
+    renders both binds as _ <- when each is mutated in a single do block [✔]
+  selectPatternConstructorFlipOps
+    returns muops for a function with a Just pattern [✔]
+    returns muops for a function with Left/Right patterns [✔]
+    renders (Just _) when flipping Nothing in a function head [✔]
+    renders (Just _) when flipping Nothing in a multi-clause function [✔]
+    renders (Just _) when flipping Nothing in a case expression [✔]
+    renders (Just _) without duplicate parens when flipping parenthesised (Nothing) [✔]
+    renders (Nothing) when flipping (Just x) in a function head [✔]
+    renders (Right e) when flipping (Left e) in a function head [✔]
+  selectAppendStripOps
+    returns muops for a ++ expression [✔]
+  selectFlipArgsOps
+    returns muops for a known flippable binary function call [✔]
+  selectSeqStripOps
+    returns muops for a seq application [✔]
+  selectTupleSwapOps
+    returns muops for a pair expression [✔]
+    renders the swapped pair as valid source [✔]
+  fresh replacement before a comment
+    keeps the comment outside a negate-literal mutant [✔]
+    keeps the comment outside a tuple-swap mutant [✔]
+    keeps the comment outside an operator substitution [✔]
+    renders every mutant as parseable source with the comment in place [✔]
+    keeps the layout column when a removal drops the first statement [✔]
+    keeps the layout column when a removal drops the first alternative [✔]
+    keeps a comment between clauses on its own line [✔]
+  selectOrderingLitOps
+    returns muops for a GT literal [✔]
+  default neighbour-swap groups
+    preserves backquotes when substituting an infix identifier [✔]
+    swaps idiomatic neighbour functions via the default config [✔]
+  adjacentSwaps
+    produces n-1 adjacent-pair swaps, not the n! permutations [✔]
+    is empty for a singleton (nothing to reorder) [✔]
+  removeOneElem
+    enumerates each single deletion in place, keeping the original order [✔]
+    keeps one variant per position for a two-element list [✔]
+    is empty for an empty or singleton list (nothing to remove) [✔]
+    keeps positional behaviour for repeated values [✔]
+  selector metadata
+    excludes annotated test declarations from generated source [✔]
+    excludes naming-convention test declarations when there are no annotations [✔]
+    applies a multi-name signature to every declared function [✔]
+    keeps the first signature for a repeated function name [✔]
+    rejects an identity operation before sampling but keeps a real change [✔]
+  genSampledMutants
+    returns a non-empty, rendered mutant set for a module with mutables [✔]
+    samples and renders only operators accepted by the predicate [✔]
+    never exceeds the configured maxNumMutants cap [✔]
+    returns nothing for a zero or negative cap [✔]
+    keeps materialization bounded by the cap as the module grows [✔]
+    may underfill the cap when selected operators collapse to duplicates [✔]
+  dedupRenderedSource
+    keeps the first value for each rendered source [✔]
+    retains every distinct source when hash keys collide [✔]
+    drops nothing for distinct hash keys [✔]
+  nubOpSites
+    keeps the first candidate for each mutator and span [✔]
+    matches the equivalent pairwise dedup on a mixed fixture [✔]
+  needsCabalMacros
+    returns True for source containing MIN_VERSION_* [✔]
+    returns False for source with no MIN_VERSION_* guards [✔]
+    returns False for plain source [✔]
+  getASTFromFile
+    returns a clean Left for a CPP file using MIN_VERSION_* when no dist-newstyle exists [✔]
+    returns a clean Left for a path that does not exist [✔]
+  discoverCabalMacros
+    scans the build tree once for repeated CPP parses in one project [✔]
+Test.Mutaskell.MuVarCoverage
+  MuVar coverage
+    pattern-match produces at least one mutant [✔]
+    literal-values produces at least one mutant [✔]
+    functions produces at least one mutant [✔]
+    negate-if-else produces at least one mutant [✔]
+    negate-guards produces at least one mutant [✔]
+    remove-not produces at least one mutant [✔]
+    remove-negation produces at least one mutant [✔]
+    case-alt-remove produces at least one mutant [✔]
+    case-default-remove produces at least one mutant [✔]
+    remove-stmt produces at least one mutant [✔]
+    remove-let-binding produces at least one mutant [✔]
+    remove-where-binding produces at least one mutant [✔]
+    remove-self-assign produces at least one mutant [✔]
+    negate-literal produces at least one mutant [✔]
+    string-literal produces at least one mutant [✔]
+    bool-operand produces at least one mutant [✔]
+    flip-maybe produces at least one mutant [✔]
+    flip-either produces at least one mutant [✔]
+    remove-forkIO produces at least one mutant [✔]
+    bracket-degenerate produces at least one mutant [✔]
+    error-guard produces at least one mutant [✔]
+    replace-mutable-arg produces at least one mutant [✔]
+    zero-return produces at least one mutant [✔]
+    list-literal produces at least one mutant [✔]
+    bind-to-sequence produces at least one mutant [✔]
+    pattern-constructor produces at least one mutant [✔]
+    append-strip produces at least one mutant [✔]
+    flip-args produces at least one mutant [✔]
+    seq-strip produces at least one mutant [✔]
+    tuple-swap produces at leastFILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+ one mutant [✔]
+    ordering-literal produces at least one mutant [✔]
+Test.Mutaskell.Output
+  JSON loggers
+    encodes agentic JSON Unicode and context newlines exactly once [✔]
+    encodes GitLab JSON Unicode in paths and descriptions [✔]
+  groupConsec
+    groups ordered positions without changing their order [✔]
+  report output parent directories
+    writes logger and baseline files when nested parent directories are missing [✔]
+  writeUpdateBaseline
+    adds new escaped mutant IDs after the existing IDs without duplicates [✔]
+    keeps the existing IDs when no mutant escapes [✔]
+  writeJsonLogger
+    emits covered_code_msi 0.0 when coverage is present but covers zero mutants [✔]
+    emits covered_code_msi null when coverage is absent [✔]
+  prepared report diffs
+    feeds the same prepared diff to agentic JSON and HTML reports [✔]
+    keeps the prepared diff path available to pure HTML rendering [✔]
+  unifiedDiff
+    returns empty string when inputs are identical [✔]
+    produces standard hunk headers with + addition range [✔]
+    produces valid hunk headers for added lines [✔]
+    reports an inserted empty line into an empty source [✔]
+    reports a deleted empty line from a one-line source [✔]
+    produces valid hunk headers for removed lines [✔]
+    reports an inserted empty line at the end [✔]
+    reports a deleted empty line at the end [✔]
+    keeps adjacent changes in one contextual hunk [✔]
+    produces multiple hunks for separated changes [✔]
+  parseDiffChangedLines
+    roundtrips with unifiedDiff for modified lines [✔]
+    roundtrips with unifiedDiff for added lines [✔]
+    roundtrips an inserted empty line at the end [✔]
+    roundtrips with unifiedDiff for removed lines [✔]
+    roundtrips with unifiedDiff across multiple hunks [✔]
+    parses git diff --unified=0 style without count [✔]
+    parses git diff --unified=0 style with count [✔]
+    returns empty list for pure deletion in git diff [✔]
+    falls back to header range when diff has no body lines [✔]
+Test.Mutaskell.Project
+  runProject (serial)
+    finds first changed lines and terminates when sources have no line diff [✔]
+Project mode on /tmp/mutaskell-proj-eb7cb688319396e0
+  root:  /tmp/mutaskell-proj-eb7cb688319396e0
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    evaluates every pending file and reports kill and escape counts [✔]
+    does not apply the per-mutant timeout to the baseline test command [✔]
+    passes test arguments to the project test command [✔]
+    passes test arguments through the project worker command [✘]
+    passes test arguments to the orchestrator test command [✔]
+Project mode on /tmp/mutaskell-proj-19dc3e8720fce52c
+  root:  /tmp/mutaskell-proj-19dc3e8720fce52c
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    reads project coverage once across multiple source files [✔]
+Project mode on /tmp/mutaskell-proj-8723b4a5ab5c932a
+  root:  /tmp/mutaskell-proj-8723b4a5ab5c932a
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    clears progress on a completed run [✔]
+Project mode on /tmp/mutaskell-proj-66138c68566cf53f
+  root:  /tmp/mutaskell-proj-66138c68566cf53f
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+Project mode on /tmp/mutaskell-proj-66138c68566cf53f
+  root:  /tmp/mutaskell-proj-66138c68566cf53f
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 12%
+Total mutants: 33 (basis for %)
+	Covered: not provided
+	Sampled: 33
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 29/33
+	Killed: 4/33 (12%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    produces identical mutant counts and gate evaluations on a second run in an unchanged tree [✔]
+Project mode on /tmp/mutaskell-proj-792f34882fffd39e
+  root:  /tmp/mutaskell-proj-792f34882fffd39e
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+  budget: at most 1 mutant(s) total
+
+Discovered 3 source file(s); 0 already done, 3 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+Project mode on /tmp/mutaskell-proj-792f34882fffd39e
+  root:  /tmp/mutaskell-proj-792f34882fffd39e
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 3 source file(s); 1 already done, 2 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 22 (basis for %)
+	Covered: not provided
+	Sampled: 22
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 22/22
+	Killed: 0/22 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    preserves progress on an interrupted run and skips completed files on resume [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  functions         Alive
+Budget exhausted; stopping with a partial result.
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+FILE M3.hs: 11 mutant(s)
+[1/11] M3.hs  literal-values    Alive
+[2/11] M3.hs  literal-values    Alive
+[3/11] M3.hs  literal-values    Alive
+[4/11] M3.hs  functions         Alive
+[5/11] M3.hs  functions         Alive
+[6/11] M3.hs  functions         Alive
+[7/11] M3.hs  other:negate-literal  Alive
+[8/11] M3.hs  other:negate-literal  Alive
+[9/11] M3.hs  other:zero-return  Alive
+[10/11] M3.hs  other:zero-return  Alive
+[11/11] M3.hs  other:zero-return  Alive
+    prints nothing to do without emitting a summary when all discovered files are already done [✔]
+Project mode on /tmp/mutaskell-proj-3b71ecf8d9e89572
+  root:  /tmp/mutaskell-proj-3b71ecf8d9e89572
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 2 source file(s); 0 already done, 2 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 18%
+Total mutants: 22 (basis for %)
+	Covered: not provided
+	Sampled: 22
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 18/22
+	Killed: 4/22 (18%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+18 mutant(s) survived; exiting with failure
+    reports surviving mutants and fails under --fail-on-escaped [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+FILE M2.hs: 11 mutant(s)
+[1/11] M2.hs  literal-values    Alive
+[2/11] M2.hs  literal-values    Alive
+[3/11] M2.hs  literal-values    Alive
+[4/11] M2.hs  functions         Alive
+[5/11] M2.hs  functions         Alive
+[6/11] M2.hs  functions         Alive
+[7/11] M2.hs  other:negate-literal  Alive
+[8/11] M2.hs  other:negate-literal  Alive
+[9/11] M2.hs  other:zero-return  Alive
+[10/11] M2.hs  other:zero-return  Alive
+[11/11] M2.hs  other:zero-return  Alive
+    mutates only files under a scope subdirectory while running commands from project root [✔]
+Project mode on /tmp/mutaskell-proj-083d37e154ae8bbb
+  root:  /tmp/mutaskell-proj-083d37e154ae8bbb
+  build: true
+  test:  grep -q 'x + 1' M1.hs
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 36%
+Total mutants: 11 (basis for %)
+	Covered: not provided
+	Sampled: 11
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 7/11
+	Killed: 4/11 (36%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    mutates only files changed relative to --git-diff-base [✔]
+FILE M1.hs: 11 mutant(s)
+[1/11] M1.hs  literal-values    Killed
+[2/11] M1.hs  literal-values    Alive
+[3/11] M1.hs  literal-values    Alive
+[4/11] M1.hs  functions         Killed
+[5/11] M1.hs  functions         Alive
+[6/11] M1.hs  functions         Alive
+[7/11] M1.hs  other:negate-literal  Killed
+[8/11] M1.hs  other:negate-literal  Alive
+[9/11] M1.hs  other:zero-return  Killed
+[10/11] M1.hs  other:zero-return  Alive
+[11/11] M1.hs  other:zero-return  Alive
+    only counts mutants for files modified relative to --git-diff-base in dry-run [✔]
+    discovers 0 files and exits cleanly on clean working tree relative to --git-diff-base [✔]
+Project mode on /tmp/mutaskell-proj-9f310b56549f1c72
+  root:  /tmp/mutaskell-proj-9f310b56549f1c72
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 4 (basis for %)
+	Covered: not provided
+	Sampled: 4
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 4/4
+	Killed: 0/4 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    finds mutants on changed lines in both project dry-run and evaluation [✔]
+FILE M1.hs: 4 mutant(s)
+[1/4] M1.hs  literal-values    Alive
+[2/4] M1.hs  functions         Alive
+[3/4] M1.hs  other:negate-literal  Alive
+[4/4] M1.hs  other:zero-return  Alive
+    suppresses mutants on lines preceded by disable-next-line in dry-run [✔]
+    suppresses only the named mutator for disable-next-line literal-values in dry-run [✔]
+    suppresses every mutator for disable-next-line * in dry-run [✔]
+    suppresses mutants on lines matching ignore_source_lines in dry-run [✔]
+Project mode on /tmp/mutaskell-proj-0548dcb0ef592f15
+  root:  /tmp/mutaskell-proj-0548dcb0ef592f15
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 0 (basis for %)
+	Covered: not provided
+	Sampled: 0
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 0/0
+	Killed: 0/0 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    does not evaluate mutants suppressed by disable-next-line [✔]
+Project mode on /tmp/mutaskell-proj-2ad88b799cdd4e11
+  root:  /tmp/mutaskell-proj-2ad88b799cdd4e11
+  build: true
+  test:  true
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 0 (basis for %)
+	Covered: not provided
+	Sampled: 0
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 0/0
+	Killed: 0/0 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+    does not evaluate mutants on lines matching ignore_source_lines [✔]
+    fails with an explicit error when no project root marker exists above the scope [✔]
+    discoverSourcesWithStats
+      discovers each buildable source file once across overlapping roots [✔]
+      prunes roots contained in another root and walks each directory once [✔]
+      finds sources outside the declared source dirs via the package dir [✔]
+      does not discover sources inside hidden directories [✔]
+      excludes nested exclude_dirs paths as path prefixes [✔]
+      excludes single-name exclude_dirs at any depth, with or without a trailing slash [✔]
+      discovers only files within the scope directory [✔]
+    findProjectRoot
+      finds root containing cabal.project [✔]
+      finds root containing *.cabal [✔]
+      finds root containing stack.yaml [✔]
+      returns Nothing when no marker exists [✔]
+    restrictToShard
+      keeps the shard's files in discovery order, ignoring shard order [✔]
+    distribute
+      keeps every file exactly once, round-robin, in file order [✔]
+      yields n empty buckets for an empty list [✔]
+      yields no buckets for a non-positive worker count [✔]
+    filterDiff
+      returns all files when optGitDiffBase is Nothing [✔]
+      returns only modified files when optGitDiffBase is set [✔]
+Test.Mutaskell.ReusedSession
+  ReusedSession
+    run-scoped package-environment cache
+      returns the environment file of the current directory when present [✔]
+    empty test list
+      starts no session under either policy [✔]
+    survivor
+      runs every test in order under every policy [✔]
+    early kill
+      stops at the first failure under every policy [✔]
+    late kill
+      runs both tests and stops at the second failure [✔]
+      leaves the same test log behind under both prototype policies [✔]
+    invalid mutant
+      is skipped under every policy [✔]
+    extra test arguments
+      are visible to every test under every policy [✔]
+    top-level mutable state in the module under test
+      is re-evaluated per interpreted expression, so every policy agrees [✔]
+    mutable state in an imported module
+      is retained across tests by the reused session [✔]
+    interpreter-owned state across mutants
+      does not leak from one mutant's session into the next [✔]
+    process-external state
+      behaves the same under every policy (never reset) [✔]
+      persists across mutants under both policies [✔]
+    timeout
+      abandons the test and tears the session down under both policies [✔]
+      leaves the process able to run the next mutant after a timeout [✔]
+    uncaught runtime exception (custom adapter)
+      propagates out of the production evaluator and the fresh policy [✔]
+      is classified as an error by the reused session [✔]
+Test.Mutaskell.Tix
+  Test.Mutaskell.Tix
+    removeRedundantSpans
+      returns empty list unchanged [✔]
+      returns a single span unchanged [✔]
+      removes a span that is inside a larger span [✔]
+      keeps both spans when neither contains the other [✔]
+      preserves survivor order and duplicate spans [✔]
+      keeps overlapping and boundary-touching spans [✔]
+      agrees with pairwise containment on mixed span shapes [✔]
+    removeUncovered
+      returns all mutants when uncovered span list is empty [✔]
+      removes a mutant whose span falls inside an uncovered span [✔]
+      keeps a mutant whose span is outside all uncovered spans [✔]
+      removes all mutants when they all fall inside uncovered spans [✔]
+    parsed coverage index
+      answers containment queries with HPC's inclusive boundaries [✔]
+      answers an unmatched module query from a parsed tix snapshot [✔]
+    unreadable tix files
+      reports a missing tix file by path [✔]
+      reports a malformed tix file by path and as a parse failure [✔]
+      treats an empty tix path as no coverage requested [✔]
+      does not gate an ambiguous unqualified module name [✔]
+Test.Mutaskell.Utils.Common
+  replaceFst
+    if given empty list dont do any thing [✔]
+    if given a list with out value dont do any thing [✔]
+    if given a list with value replaceFst [✔]
+  choose
+    if given empty return empty [✔]
+    if given zero return e.empty [✔]
+    if given list return subset with given size [✔]
+  remElt
+    must remove element at given index [✔]
+  sample
+    must sample a given size subset [✔]
+    returns empty list when n is negative [✔]
+    returns empty list when n is negative and list is empty [✔]
+    returns empty list when n is zero [✔]
+    returns the input in order when n equals the input length [✔]
+    returns the input in order when n exceeds the input length [✔]
+    returns empty input unchanged when n exceeds length [✔]
+    samples positions without replacement [✔]
+    keeps equal values that come from distinct positions [✔]
+    is reproducible for the same seed and input [✔]
+    selects each position with similar frequency [✔]
+  sampleF
+    must sample a given fraction subset [✔]
+    returns empty list when fraction is negative [✔]
+    returns empty list when fraction is zero [✔]
+    rounds the quota from the fraction times the length [✔]
+    returns the input in order when the fraction is one [✔]
+    returns the input in order when the fraction exceeds one [✔]
+  coupling
+    must sample a given fraction subset [✔]
+  strip
+    strips leading and trailing whitespace [✔]
+    returns empty string for whitespace-only input [✔]
+  spread
+    distributes the first element across the list [✔]
+Test.Mutaskell.Utils.Print
+  ./.
+    shows percent values correctly [✔]
+    shows (0%) when denominator is zero [✔]
+  showAS
+    joins strings with newlines [✔]
+  showA
+    joins values with newlines [✔]
+Test.Mutaskell.Utils.Syb
+  once
+    applies at the first matching site [✔]
+    applies at exactly one site when multiple match [✔]
+    returns Nothing when no match exists [✔]
+    returns all single-site applications in the list monad [✔]
+Test.Mutaskell.Worker
+  worker workload transport
+    mutantWorkload
+      fills the workload from the base config and the selected mutant [✔]
+    encodeWorkload / decodeWorkload
+      round-trips a workload [✔]
+      round-trips non-ASCII mutant source without corrupting it [✔]
+      round-trips a workload without timeout or keep-dir [✔]
+      rejects malformed JSON with a classified error [✔]
+      rejects an unsupported transport version with a classified error [✔]
+      rejects an unknown mutator name with a classified error [✔]
+      rejects a span that is not four coordinates [✔]
+    decodeWorkloadFile
+      reads an encoded workload back from disk [✔]
+      classifies a missing workload file as an error [✔]
+    evalWorkload
+      classifies a killed mutant [✔]
+      classifies a surviving mutant as alive [✔]
+      classifies a non-compilable mutant as skipped [✔]
+      honours the transported per-mutant timeout [✔]
+      evaluates the transported mutant without reading the target source [✔]
+    runWorkloadMode
+      writes the classified result to the worker output file [✔]
+      preserves non-ASCII mutant source through the file round trip [✔]
+      writes a classified error for a missing workload file [✔]
+      cleans up the mutant file when no keep-dir is set [✔]
+      keeps the mutant file under the keep-dir [✔]
+    worker subprocess
+      links the mutaskell executable against the threaded runtime [✔]
+      dispatches a workload through the CLI to a fresh child process [✔]
+      preserves non-ASCII mutant source on the way to a child process [✔]
+      evaluates the workload without regenerating from the target source [✔]
+      workers 1, 2 and 4 agree on outcomes for the same workload [✔]
+
+Failures:
+
+  test/Test/Mutaskell/ProjectSpec.hs:291:24: 
+  1) Test.Mutaskell.Project, runProject (serial), passes test arguments through the project worker command
+       expected: ExitSuccess
+        but got: ExitFailure 1
+
+  To rerun use: --match "/Test.Mutaskell.Project/runProject (serial)/passes test arguments through the project worker command/" --seed 237386467
+
+Randomized with seed 237386467
+
+Finished in 1062.9419 seconds
+442 examples, 1 failure
+Test suite spec: FAIL
+Test suite logged to:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/t/spec/test/mutaskell-0.8.58-spec.log
+0 of 1 test suites (0 of 1 test cases) passed.
+Error: [Cabal-7125]
+Tests failed for test:spec from mutaskell-0.8.58.
+
+EXIT tests: 1
+
+===== dry_run =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+  Mutator                     Count
+------------------------------------
+  literal-values              23
+  other:negate-literal        22
+  other:list-literal          7
+  functions                   6
+  remove-negation             4
+  other:append-strip          2
+  other:zero-return           2
+  pattern-match               1
+  other:remove-where-binding  1
+------------------------------------
+  Total                       68
+(upper bound; identical mutations are deduplicated before evaluation)
+EXIT dry_run: 0
+
+===== smoke =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Progress: [0/68] killed=0 alive=0 error=0 skip=0   Progress: [35/68] killed=31 alive=3 error=0 skip=1   Progress: [68/68] killed=63 alive=4 error=0 skip=1   
+>>> Mutant y6108438676258797660 [ALIVE] pattern-match
+@@ -16,9 +16,9 @@
+ 
+ qsort :: [Int] -> [Int]
+-qsort [] = []
++qsort (x : xs) = qsort l ++ [x] ++ qsort r
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++  where
+-  where
++    l = filter (< x) xs
+-    l = filter (< x) xs
++    r = filter (>= x) xs
+-    r = filter (>= x) xs
++qsort [] = []
+ 
+ uncoveredDummy :: Int -> Int
+
+>>> Mutant x169280643625385640 [ALIVE] literal-values
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 1 + a
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y2002418033722122827 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [2, 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6622175483592035136 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 3, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4210118552672537947 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 4, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4258714635830935352 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 5] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1636742406143003941 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [2, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3477593746133967417 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 3, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3337420986842723490 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 4, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y2958281241704178483 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 5]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y369068682846504198 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [5, 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y417842627135172602 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 4, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y1306511818196845678 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 3, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4636296368982019833 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 2]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3068266974588962770 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [5, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4759043379175102892 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 4, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4356519541440295930 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 3, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y7941355242148037111 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 2]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6948223663251521927 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-2, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x2659567070064092717 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -3, 3] == [-2, -1, 3]
+
+>>> Mutant y8825506130051724672 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 4] == [-2, -1, 3]
+
+>>> Mutant y8831598792213825590 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-3, -1, 3]
+
+>>> Mutant y9082918505992786403 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -2, 3]
+
+>>> Mutant y1112550130886347873 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 4]
+
+>>> Mutant y5584119170431189164 [KILLED] functions
+@@ -19,5 +19,5 @@
+ qsort (x : xs) = qsort l ++ [x] ++ qsort r
+   where
+-    l = filter (< x) xs
++    l = filter (> x) xs
+     r = filter (>= x) xs
+ 
+
+>>> Mutant x4360078816692371188 [KILLED] functions
+@@ -20,5 +20,5 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++    r = filter (< x) xs
+ 
+ uncoveredDummy :: Int -> Int
+
+>>> Mutant x665768533933299504 [ALIVE] functions
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 0 - a
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y6708422042447866673 [KILLED] functions
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] < [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1017423943057104444 [KILLED] functions
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) < qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y3983743082188352926 [KILLED] functions
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] < [-2, -1, 3]
+
+>>> Mutant y5627587730158546929 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x6421160804009205649 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, 2, 3] == [-2, -1, 3]
+
+>>> Mutant x1200164433213463886 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [2, -1, 3]
+
+>>> Mutant x4180294554331733806 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, 1, 3]
+
+>>> Mutant x4590664339790937565 [SKIPPED] other:remove-where-binding
+@@ -20,22 +20,21 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++
+-
++uncoveredDummy :: Int -> Int
+-uncoveredDummy :: Int -> Int
++uncoveredDummy a = 0 + a
+-uncoveredDummy a = 0 + a
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortEmpty = assertCheck $ null (qsort [])
+-test_sortEmpty = assertCheck $ null (qsort [])
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++
+-
++-- Discovered by naming convention (prop_ prefix — acts as a property test).
+--- Discovered by naming convention (prop_ prefix — acts as a property test).
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++
+-
++-- Discovered by explicit annotation (legacy path; still fully supported).
+--- Discovered by explicit annotation (legacy path; still fully supported).
++{-# ANN sortSame "Test" #-}
+-{-# ANN sortSame "Test" #-}
++sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
+-sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant y8920509017145990860 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [(negate 1), 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y5813064536158662906 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, (negate 2), 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4978244929934288019 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, (negate 3), 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1094868147416173916 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, (negate 4)] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6493671500693022365 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [(negate 1), 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x8767464618744389692 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, (negate 2), 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7507644231316889408 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, (negate 3), 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7812984235059505999 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, (negate 4)]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y8118351521566268530 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [(negate 4), 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6956850096151482186 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, (negate 3), 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x2316518303674542967 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, (negate 2), 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5138136463275233349 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, (negate 1)]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y6798158158467803398 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [(negate 4), 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x1621635586042878519 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, (negate 3), 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y8937300781907662201 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, (negate 2), 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3171130643077479318 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, (negate 1)]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x7996259120884065664 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-(negate 1), -2, 3] == [-2, -1, 3]
+
+>>> Mutant y5292780607157423632 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -(negate 2), 3] == [-2, -1, 3]
+
+>>> Mutant y2506827416745461743 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, (negate 3)] == [-2, -1, 3]
+
+>>> Mutant y3818496631518751094 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-(negate 2), -1, 3]
+
+>>> Mutant x7781873024310056782 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -(negate 1), 3]
+
+>>> Mutant y902485448928970489 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, (negate 3)]
+
+>>> Mutant y1402827862730675510 [KILLED] other:zero-return
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = []
+   where
+     l = filter (< x) xs
+
+>>> Mutant x3080590130699250735 [ALIVE] other:zero-return
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 0
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y1744845362152829032 [KILLED] other:list-literal
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [] ++ qsort r
+   where
+     l = filter (< x) xs
+
+>>> Mutant y545353768217250159 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1212311999231544469 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == []
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4146763194471227301 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort []) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y9082705051888119810 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort []
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5197295644370005694 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [] == [-2, -1, 3]
+
+>>> Mutant y7258106311557320349 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == []
+
+>>> Mutant x3676945270282857624 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [x]
+   where
+     l = filter (< x) xs
+
+>>> Mutant x5122741440012221635 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ qsort r
+   where
+     l = filter (< x) xs
+
+Mutation score (MSI): 92%
+Total mutants: 68 (basis for %)
+	Covered: not provided
+	Sampled: 68
+	Skipped (non-compilable): 1
+	Errors: 0  (0%)
+	Alive: 4/68
+	Killed: 63/68 (92%)
+
+  Mutator                       Killed   Alive  Errors  Skipped
+--------------------------------------------------------------------
+  functions                          5       1       0       0
+  literal-values                    22       1       0       0
+  other:append-strip                 2       0       0       0
+  other:list-literal                 7       0       0       0
+  other:negate-literal              22       0       0       0
+  other:remove-where-binding         0       0       0       1
+  other:zero-return                  1       1       0       0
+  pattern-match                      0       1       0       0
+  remove-negation                    4       0       0       0
+--------------------------------------------------------------------
+EXIT smoke: 0
+
+===== baseline_create =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+ProgreProgress: [4/68] killed=2 alive=2 error=0 skip=0   Progress: [11/68] killed=9 alive=2 error=0 skip=0   Progress: [12/68] killed=10 alive=2 error=0 skip=0   Progress: [51/68] killed=47 alive=3 error=0 skip=1   Progress: [57/68] killed=53 alive=3 error=0 skip=1   Progress: [68/68] killed=63 alive=4 error=0 skip=1   
+>>> Mutant y6108438676258797660 [ALIVE] pattern-match
+@@ -16,9 +16,9 @@
+ 
+ qsort :: [Int] -> [Int]
+-qsort [] = []
++qsort (x : xs) = qsort l ++ [x] ++ qsort r
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++  where
+-  where
++    l = filter (< x) xs
+-    l = filter (< x) xs
++    r = filter (>= x) xs
+-    r = filter (>= x) xs
++qsort [] = []
+ 
+ uncoveredDummy :: Int -> Int
+
+>>> Mutant x169280643625385640 [ALIVE] literal-values
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 1 + a
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y2002418033722122827 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [2, 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6622175483592035136 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 3, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4210118552672537947 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 4, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4258714635830935352 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 5] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1636742406143003941 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [2, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3477593746133967417 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 3, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3337420986842723490 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 4, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y2958281241704178483 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 5]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y369068682846504198 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [5, 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y417842627135172602 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 4, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y1306511818196845678 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 3, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4636296368982019833 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 2]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3068266974588962770 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [5, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4759043379175102892 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 4, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4356519541440295930 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 3, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y7941355242148037111 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 2]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6948223663251521927 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-2, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x2659567070064092717 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -3, 3] == [-2, -1, 3]
+
+>>> Mutant y8825506130051724672 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 4] == [-2, -1, 3]
+
+>>> Mutant y8831598792213825590 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-3, -1, 3]
+
+>>> Mutant y9082918505992786403 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -2, 3]
+
+>>> Mutant y1112550130886347873 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 4]
+
+>>> Mutant y5584119170431189164 [KILLED] functions
+@@ -19,5 +19,5 @@
+ qsort (x : xs) = qsort l ++ [x] ++ qsort r
+   where
+-    l = filter (< x) xs
++    l = filter (> x) xs
+     r = filter (>= x) xs
+ 
+
+>>> Mutant x4360078816692371188 [KILLED] functions
+@@ -20,5 +20,5 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++    r = filter (< x) xs
+ 
+ uncoveredDummy :: Int -> Int
+
+>>> Mutant x665768533933299504 [ALIVE] functions
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 0 - a
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y6708422042447866673 [KILLED] functions
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] < [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1017423943057104444 [KILLED] functions
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) < qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y3983743082188352926 [KILLED] functions
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] < [-2, -1, 3]
+
+>>> Mutant y5627587730158546929 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x6421160804009205649 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, 2, 3] == [-2, -1, 3]
+
+>>> Mutant x1200164433213463886 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [2, -1, 3]
+
+>>> Mutant x4180294554331733806 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, 1, 3]
+
+>>> Mutant x4590664339790937565 [SKIPPED] other:remove-where-binding
+@@ -20,22 +20,21 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++
+-
++uncoveredDummy :: Int -> Int
+-uncoveredDummy :: Int -> Int
++uncoveredDummy a = 0 + a
+-uncoveredDummy a = 0 + a
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortEmpty = assertCheck $ null (qsort [])
+-test_sortEmpty = assertCheck $ null (qsort [])
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++
+-
++-- Discovered by naming convention (prop_ prefix — acts as a property test).
+--- Discovered by naming convention (prop_ prefix — acts as a property test).
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++
+-
++-- Discovered by explicit annotation (legacy path; still fully supported).
+--- Discovered by explicit annotation (legacy path; still fully supported).
++{-# ANN sortSame "Test" #-}
+-{-# ANN sortSame "Test" #-}
++sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
+-sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant y8920509017145990860 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [(negate 1), 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y5813064536158662906 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, (negate 2), 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4978244929934288019 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, (negate 3), 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1094868147416173916 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, (negate 4)] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6493671500693022365 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [(negate 1), 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x8767464618744389692 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, (negate 2), 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7507644231316889408 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, (negate 3), 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7812984235059505999 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, (negate 4)]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y8118351521566268530 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [(negate 4), 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6956850096151482186 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, (negate 3), 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x2316518303674542967 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, (negate 2), 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5138136463275233349 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, (negate 1)]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y6798158158467803398 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [(negate 4), 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x1621635586042878519 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, (negate 3), 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y8937300781907662201 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, (negate 2), 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3171130643077479318 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, (negate 1)]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x7996259120884065664 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-(negate 1), -2, 3] == [-2, -1, 3]
+
+>>> Mutant y5292780607157423632 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -(negate 2), 3] == [-2, -1, 3]
+
+>>> Mutant y2506827416745461743 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, (negate 3)] == [-2, -1, 3]
+
+>>> Mutant y3818496631518751094 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-(negate 2), -1, 3]
+
+>>> Mutant x7781873024310056782 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -(negate 1), 3]
+
+>>> Mutant y902485448928970489 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, (negate 3)]
+
+>>> Mutant y1402827862730675510 [KILLED] other:zero-return
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = []
+   where
+     l = filter (< x) xs
+
+>>> Mutant x3080590130699250735 [ALIVE] other:zero-return
+@@ -23,5 +23,5 @@
+ 
+ uncoveredDummy :: Int -> Int
+-uncoveredDummy a = 0 + a
++uncoveredDummy a = 0
+ 
+ -- Discovered by naming convention (test_ prefix).
+
+>>> Mutant y1744845362152829032 [KILLED] other:list-literal
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [] ++ qsort r
+   where
+     l = filter (< x) xs
+
+>>> Mutant y545353768217250159 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1212311999231544469 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == []
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4146763194471227301 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort []) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y9082705051888119810 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort []
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5197295644370005694 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [] == [-2, -1, 3]
+
+>>> Mutant y7258106311557320349 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == []
+
+>>> Mutant x3676945270282857624 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [x]
+   where
+     l = filter (< x) xs
+
+>>> Mutant x5122741440012221635 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ qsort r
+   where
+     l = filter (< x) xs
+
+Mutation score (MSI): 92%
+Total mutants: 68 (basis for %)
+	Covered: not provided
+	Sampled: 68
+	Skipped (non-compilable): 1
+	Errors: 0  (0%)
+	Alive: 4/68
+	Killed: 63/68 (92%)
+
+  Mutator                       Killed   Alive  Errors  Skipped
+--------------------------------------------------------------------
+  functions                          5       1       0       0
+  literal-values                    22       1       0       0
+  other:append-strip                 2       0       0       0
+  other:list-literal                 7       0       0       0
+  other:negate-literal              22       0       0       0
+  other:remove-where-binding         0       0       0       1
+  other:zero-return                  1       1       0       0
+  pattern-match                      0       1       0       0
+  remove-negation                    4       0       0       0
+--------------------------------------------------------------------
+EXIT baseline_create: 0
+
+===== baseline_update =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Progress: [0/64] killed=0 alive=0 error=0 skip=0   Progress: [8/64] killed=8 alive=0 error=0 skip=0   Progress: [38/64] killed=37 alive=0 error=0 skip=1   Progress: [61/64] killed=60 alive=0 error=0 skip=1   Progress: [64/64] killed=63 alive=0 error=0 skip=1   
+>>> Mutant y2002418033722122827 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [2, 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6622175483592035136 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 3, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4210118552672537947 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 4, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x4258714635830935352 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 5] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1636742406143003941 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [2, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3477593746133967417 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 3, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x3337420986842723490 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 4, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y2958281241704178483 [KILLED] literal-values
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 5]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y369068682846504198 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [5, 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y417842627135172602 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 4, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y1306511818196845678 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 3, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4636296368982019833 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 2]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3068266974588962770 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [5, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4759043379175102892 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 4, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x4356519541440295930 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 3, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y7941355242148037111 [KILLED] literal-values
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 2]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6948223663251521927 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-2, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x2659567070064092717 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -3, 3] == [-2, -1, 3]
+
+>>> Mutant y8825506130051724672 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 4] == [-2, -1, 3]
+
+>>> Mutant y8831598792213825590 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-3, -1, 3]
+
+>>> Mutant y9082918505992786403 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -2, 3]
+
+>>> Mutant y1112550130886347873 [KILLED] literal-values
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 4]
+
+>>> Mutant y5584119170431189164 [KILLED] functions
+@@ -19,5 +19,5 @@
+ qsort (x : xs) = qsort l ++ [x] ++ qsort r
+   where
+-    l = filter (< x) xs
++    l = filter (> x) xs
+     r = filter (>= x) xs
+ 
+
+>>> Mutant x4360078816692371188 [KILLED] functions
+@@ -20,5 +20,5 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++    r = filter (< x) xs
+ 
+ uncoveredDummy :: Int -> Int
+
+>>> Mutant y6708422042447866673 [KILLED] functions
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] < [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1017423943057104444 [KILLED] functions
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) < qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y3983743082188352926 [KILLED] functions
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] < [-2, -1, 3]
+
+>>> Mutant y5627587730158546929 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant x6421160804009205649 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, 2, 3] == [-2, -1, 3]
+
+>>> Mutant x1200164433213463886 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [2, -1, 3]
+
+>>> Mutant x4180294554331733806 [KILLED] remove-negation
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, 1, 3]
+
+>>> Mutant x4590664339790937565 [SKIPPED] other:remove-where-binding
+@@ -20,22 +20,21 @@
+   where
+     l = filter (< x) xs
+-    r = filter (>= x) xs
++
+-
++uncoveredDummy :: Int -> Int
+-uncoveredDummy :: Int -> Int
++uncoveredDummy a = 0 + a
+-uncoveredDummy a = 0 + a
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortEmpty = assertCheck $ null (qsort [])
+-test_sortEmpty = assertCheck $ null (qsort [])
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++
+-
++-- Discovered by naming convention (prop_ prefix — acts as a property test).
+--- Discovered by naming convention (prop_ prefix — acts as a property test).
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++
+-
++-- Discovered by explicit annotation (legacy path; still fully supported).
+--- Discovered by explicit annotation (legacy path; still fully supported).
++{-# ANN sortSame "Test" #-}
+-{-# ANN sortSame "Test" #-}
++sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
+-sortSame = assertCheck $ qsort [1, 1, 1, 1] == [1, 1, 1, 1]
++
+-
++-- Discovered by naming convention (test_ prefix).
+--- Discovered by naming convention (test_ prefix).
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
+
+>>> Mutant y8920509017145990860 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [(negate 1), 2, 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y5813064536158662906 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, (negate 2), 3, 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4978244929934288019 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, (negate 3), 4] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x1094868147416173916 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, (negate 4)] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y6493671500693022365 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [(negate 1), 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x8767464618744389692 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, (negate 2), 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7507644231316889408 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, (negate 3), 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant x7812984235059505999 [KILLED] other:negate-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, (negate 4)]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y8118351521566268530 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [(negate 4), 3, 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x6956850096151482186 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, (negate 3), 2, 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x2316518303674542967 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, (negate 2), 1]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5138136463275233349 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, (negate 1)]) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y6798158158467803398 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [(negate 4), 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x1621635586042878519 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, (negate 3), 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y8937300781907662201 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, (negate 2), 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x3171130643077479318 [KILLED] other:negate-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, (negate 1)]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant x7996259120884065664 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-(negate 1), -2, 3] == [-2, -1, 3]
+
+>>> Mutant y5292780607157423632 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -(negate 2), 3] == [-2, -1, 3]
+
+>>> Mutant y2506827416745461743 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, (negate 3)] == [-2, -1, 3]
+
+>>> Mutant y3818496631518751094 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-(negate 2), -1, 3]
+
+>>> Mutant x7781873024310056782 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -(negate 1), 3]
+
+>>> Mutant y902485448928970489 [KILLED] other:negate-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, (negate 3)]
+
+>>> Mutant y1402827862730675510 [KILLED] other:zero-return
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = []
+   where
+     l = filter (< x) xs
+
+>>> Mutant y1744845362152829032 [KILLED] other:list-literal
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [] ++ qsort r
+   where
+     l = filter (< x) xs
+
+>>> Mutant y545353768217250159 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [] == [1, 2, 3, 4]
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y1212311999231544469 [KILLED] other:list-literal
+@@ -29,5 +29,5 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == [1, 2, 3, 4]
++test_sortSorted = assertCheck $ qsort [1, 2, 3, 4] == []
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+
+>>> Mutant y4146763194471227301 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort []) == qsort [4, 3, 2, 1]
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y9082705051888119810 [KILLED] other:list-literal
+@@ -32,5 +32,5 @@
+ 
+ -- Discovered by naming convention (prop_ prefix — acts as a property test).
+-prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort [4, 3, 2, 1]
++prop_sortIsIdempotent = assertCheck $ qsort (qsort [4, 3, 2, 1]) == qsort []
+ 
+ -- Discovered by explicit annotation (legacy path; still fully supported).
+
+>>> Mutant y5197295644370005694 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [] == [-2, -1, 3]
+
+>>> Mutant y7258106311557320349 [KILLED] other:list-literal
+@@ -39,3 +39,3 @@
+ 
+ -- Discovered by naming convention (test_ prefix).
+-test_sortNeg = assertCheck $ qsort [-1, -2, 3] == [-2, -1, 3]
++test_sortNeg = assertCheck $ qsort [-1, -2, 3] == []
+
+>>> Mutant x3676945270282857624 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ [x]
+   where
+     l = filter (< x) xs
+
+>>> Mutant x5122741440012221635 [KILLED] other:append-strip
+@@ -17,5 +17,5 @@
+ qsort :: [Int] -> [Int]
+ qsort [] = []
+-qsort (x : xs) = qsort l ++ [x] ++ qsort r
++qsort (x : xs) = qsort l ++ qsort r
+   where
+     l = filter (< x) xs
+
+Mutation score (MSI): 98%
+Total mutants: 64 (basis for %)
+	Covered: not provided
+	Sampled: 64
+	Skipped (non-compilable): 1
+	Errors: 0  (0%)
+	Alive: 0/64
+	Killed: 63/64 (98%)
+
+  Mutator                       Killed   Alive  Errors  Skipped
+--------------------------------------------------------------------
+  functions                          5       0       0       0
+  literal-values                    22       0       0       0
+  other:append-strip                 2       0       0       0
+  other:list-literal                 7       0       0       0
+  other:negate-literal              22       0       0       0
+  other:remove-where-binding         0       0       0       1
+  other:zero-return                  1       0       0       0
+  remove-negation                    4       0       0       0
+--------------------------------------------------------------------
+EXIT baseline_update: 0
+
+===== baseline_compare =====
+EXIT baseline_compare: 0
+
+===== haddock =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Build profile: -w ghc-9.12.4 -O1
+In order, the following will be built (use -v for more details):
+ - ghc-paths-0.1.0.12 (lib:ghc-paths) (requires build)
+ - hashable-1.5.1.0 (lib) (requires build)
+ - splitmix-0.1.3.2 (lib) (requires build)
+ - syb-0.7.4 (lib) (requires build)
+ - random-1.3.1 (lib) (requires build)
+ - ghc-exactprint-1.12.1.0 (lib) (requires build)
+ - temporary-1.3 (lib) (requires build)
+ - hint-0.9.0.9 (lib) (requires build)
+ - mutaskell-0.8.58 (lib) (configuration changed)
+Starting     ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Starting     hashable-1.5.1.0 (lib)
+Building     hashable-1.5.1.0 (lib)
+Building     ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Haddock      ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Haddock      hashable-1.5.1.0 (lib)
+Installing   ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Completed    ghc-paths-0.1.0.12 (all, legacy fallback: build-type is Custom)
+Starting     splitmix-0.1.3.2 (lib)
+Installing   hashable-1.5.1.0 (lib)
+Completed    hashable-1.5.1.0 (lib)
+Starting     syb-0.7.4 (lib)
+Building     splitmix-0.1.3.2 (lib)
+Building     syb-0.7.4 (lib)
+Haddock      splitmix-0.1.3.2 (lib)
+Installing   splitmix-0.1.3.2 (lib)
+Completed    splitmix-0.1.3.2 (lib)
+Haddock      syb-0.7.4 (lib)
+Starting     random-1.3.1 (lib)
+Building     random-1.3.1 (lib)
+Installing   syb-0.7.4 (lib)
+Completed    syb-0.7.4 (lib)
+Starting     ghc-exactprint-1.12.1.0 (lib)
+Building     ghc-exactprint-1.12.1.0 (lib)
+Haddock      random-1.3.1 (lib)
+Installing   random-1.3.1 (lib)
+Completed    random-1.3.1 (lib)
+Starting     temporary-1.3 (lib)
+Building     temporary-1.3 (lib)
+Haddock      temporary-1.3 (lib)
+Installing   temporary-1.3 (lib)
+Completed    temporary-1.3 (lib)
+Starting     hint-0.9.0.9 (lib)
+Building     hint-0.9.0.9 (lib)
+Haddock      ghc-exactprint-1.12.1.0 (lib)
+Haddock      hint-0.9.0.9 (lib)
+Installing   ghc-exactprint-1.12.1.0 (lib)
+Completed    ghc-exactprint-1.12.1.0 (lib)
+Installing   hint-0.9.0.9 (lib)
+Completed    hint-0.9.0.9 (lib)
+Configuring library for mutaskell-0.8.58...
+Preprocessing library for mutaskell-0.8.58...
+Running Haddock on library for mutaskell-0.8.58...
+[ 1 of 15] Compiling Test.Mutaskell.Config ( src/Test/Mutaskell/Config.hs, nothing ) [Flags changed]
+[ 2 of 15] Compiling Test.Mutaskell.MuOp ( src/Test/Mutaskell/MuOp.hs, nothing ) [Flags changed]
+[ 3 of 15] Compiling Test.Mutaskell.TestAdapter.AssertCheck ( src/Test/Mutaskell/TestAdapter/AssertCheck.hs, nothing ) [Flags changed]
+[ 4 of 15] Compiling Test.Mutaskell.Tix ( src/Test/Mutaskell/Tix.hs, nothing ) [Flags changed]
+[ 5 of 15] Compiling Test.Mutaskell.TestAdapter ( src/Test/Mutaskell/TestAdapter.hs, nothing ) [Flags changed]
+[ 6 of 15] Compiling Test.Mutaskell.TestAdapter.AssertCheckAdapter ( src/Test/Mutaskell/TestAdapter/AssertCheckAdapter.hs, nothing ) [Flags changed]
+[ 7 of 15] Compiling Test.Mutaskell.Utils.Common ( src/Test/Mutaskell/Utils/Common.hs, nothing ) [Flags changed]
+[ 8 of 15] Compiling Test.Mutaskell.Utils.Helpers ( src/Test/Mutaskell/Utils/Helpers.hs, nothing ) [Flags changed]
+[ 9 of 15] Compiling Test.Mutaskell.Utils.Print ( src/Test/Mutaskell/Utils/Print.hs, nothing ) [Flags changed]
+[10 of 15] Compiling Test.Mutaskell.AnalysisSummary ( src/Test/Mutaskell/AnalysisSummary.hs, nothing ) [Flags changed]
+[11 of 15] Compiling Test.Mutaskell.Interpreter ( src/Test/Mutaskell/Interpreter.hs, nothing ) [Flags changed]
+[12 of 15] Compiling Test.Mutaskell.Interpreter.ReusedSession ( src/Test/Mutaskell/Interpreter/ReusedSession.hs, nothing ) [Flags changed]
+[13 of 15] Compiling Test.Mutaskell.Utils.Syb ( src/Test/Mutaskell/Utils/Syb.hs, nothing ) [Flags changed]
+[14 of 15] Compiling Test.Mutaskell.Mutation ( src/Test/Mutaskell/Mutation.hs, nothing ) [Flags changed]
+[15 of 15] Compiling Test.Mutaskell   ( src/Test/Mutaskell.hs, nothing ) [Flags changed]
+Haddock coverage:
+ 100% ( 30 / 30) in 'Test.Mutaskell.Config'
+Warning: 'exactPrint' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'GRHS' is ambiguous. It is defined
+    * in ‘Language.Haskell.Syntax.Expr’
+    * in ‘Language.Haskell.Syntax.Expr’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Language.Haskell.Syntax.Expr’
+Warning: 'GhcPs' is ambiguous. It is defined
+    * in ‘GHC.Hs.Extension’
+    * in ‘GHC.Hs.Extension’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘GHC.Hs.Extension’
+Warning: 'Match' is ambiguous. It is defined
+    * in ‘Language.Haskell.Syntax.Expr’
+    * in ‘Language.Haskell.Syntax.Expr’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Language.Haskell.Syntax.Expr’
+ 100% ( 18 / 18) in 'Test.Mutaskell.MuOp'
+ 100% (  4 /  4) in 'Test.Mutaskell.TestAdapter.AssertCheck'
+ 100% ( 30 / 30) in 'Test.Mutaskell.Tix'
+ 100% (  8 /  8) in 'Test.Mutaskell.TestAdapter'
+ 100% (  3 /  3) in 'Test.Mutaskell.TestAdapter.AssertCheckAdapter'
+ 100% ( 18 / 18) in 'Test.Mutaskell.Utils.Common'
+Warning: 'Outputable' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% (  3 /  3) in 'Test.Mutaskell.Utils.Helpers'
+ 100% (  9 /  9) in 'Test.Mutaskell.Utils.Print'
+ 100% (  9 /  9) in 'Test.Mutaskell.AnalysisSummary'
+Warning: 'MAnalysisSummary' is ambiguous. It is defined
+    * at src/Test/Mutaskell/AnalysisSummary.hs:11:25
+    * at src/Test/Mutaskell/AnalysisSummary.hs:11:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Test/Mutaskell/AnalysisSummary.hs:11:1
+ 100% ( 12 / 12) in 'Test.Mutaskell.Interpreter'
+Warning: 'ReusedStats' is ambiguous. It is defined
+    * at src/Test/Mutaskell/Interpreter/ReusedSession.hs:99:20
+    * at src/Test/Mutaskell/Interpreter/ReusedSession.hs:99:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Test/Mutaskell/Interpreter/ReusedSession.hs:99:1
+ 100% ( 12 / 12) in 'Test.Mutaskell.Interpreter.ReusedSession'
+Warning: 'ppr' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'mutate' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+ 100% (  3 /  3) in 'Test.Mutaskell.Utils.Syb'
+Warning: 'ParsedSource' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Located' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+Warning: 'Config' is ambiguous. It is defined
+    * at src/Test/Mutaskell/Config.hs:103:15
+    * at src/Test/Mutaskell/Config.hs:103:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Test/Mutaskell/Config.hs:103:1
+Warning: 'FnOp' is ambiguous. It is defined
+    * at src/Test/Mutaskell/Config.hs:17:13
+    * at src/Test/Mutaskell/Config.hs:17:1
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined at src/Test/Mutaskell/Config.hs:17:1
+Warning: 'GRHS' is ambiguous. It is defined
+    * in ‘Language.Haskell.Syntax.Expr’
+    * in ‘Language.Haskell.Syntax.Expr’
+    You may be able to disambiguate the identifier by qualifying it or
+    by specifying the type/value namespace explicitly.
+    Defaulting to the one defined in ‘Language.Haskell.Syntax.Expr’
+Warning: 'Outputable' is out of scope.
+    If you qualify the identifier, haddock can try to link it anyway.
+  99% (107 /108) in 'Test.Mutaskell.Mutation'
+  Missing documentation for:
+    macroScanCountRef (src/Test/Mutaskell/Mutation.hs:614)
+ 100% (  3 /  3) in 'Test.Mutaskell'
+Warning: Test.Mutaskell.MuOp: could not find link destinations for: 
+	- Test.Mutaskell.MuOp.A
+Warning: Test.Mutaskell.Utils.Syb: could not find link destinations for: 
+	- Test.Mutaskell.Utils.Syb.isSkippedDecl
+Documentation created:
+/work/./dist-newstyle/build/x86_64-linux/ghc-9.12.4/mutaskell-0.8.58/doc/html/mutaskell
+EXIT haddock: 0
+
+===== freeze_final =====
+cabal.project.freeze: OK
+EXIT freeze_final: 0

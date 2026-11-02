@@ -1,0 +1,67 @@
+
+===== jobs=1 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode on /work/.explore/args-1
+  root:  /work/.explore/args-1
+  build: true
+  test:  sh -c 'test "$#" -eq 4 && test "$1" = -- && test "$2" = "space value" && test "$3" = marker && test "$4" = "O'\''Brien"' _ -- 'space value' 'marker' 'O'\''Brien'
+  budget: at most 1 mutant(s) total
+  budget: stop after 1800s
+
+Discovered 1 source file(s); 0 already done, 1 pending.
+
+Baseline: building unmodified project...
+Baseline: running the test suite on unmodified project...
+Baseline OK.
+
+FILE M1.hs: 1 mutant(s)
+[1/1] M1.hs  other:zero-return  Alive
+
+==== Project mutation summary ====
+Mutation score (MSI): 0%
+Total mutants: 1 (basis for %)
+	Covered: not provided
+	Sampled: 1
+	Skipped (non-compilable): 0
+	Errors: 0  (0%)
+	Alive: 1/1
+	Killed: 0/1 (0%)
+Surviving mutants written to .mutaskell/survivors.txt (when any survived).
+EXIT jobs=1: 0
+
+===== jobs=2 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode (parallel: 1 job(s)) on /work/.explore/args-2
+  root:  /work/.explore/args-2
+Discovered 1 source file(s); sharding across workers.
+
+mutaskell: Uncaught exception ghc-internal:GHC.Internal.IO.Exception.IOException:
+
+rsync: callProcess: posix_spawnp: permission denied (Permission denied)
+
+While handling callProcess: posix_spawnp: permission denied (Permission denied)
+
+HasCallStack backtrace:
+  ioError, called at libraries/process/System/Process/Common.hs:240:16 in process-1.6.26.1-ba40:System.Process.Common
+
+EXIT jobs=2: 1
+
+===== jobs=2 =====
+Configuration is affected by the following files:
+- cabal.project.freeze
+Project mode (parallel: 1 job(s)) on /work/.explore/args-2
+  root:  /work/.explore/args-2
+Discovered 1 source file(s); sharding across workers.
+
+mutaskell: Uncaught exception ghc-internal:GHC.Internal.IO.Exception.IOException:
+
+rsync: callProcess: posix_spawnp: permission denied (Permission denied)
+
+While handling callProcess: posix_spawnp: permission denied (Permission denied)
+
+HasCallStack backtrace:
+  ioError, called at libraries/process/System/Process/Common.hs:240:16 in process-1.6.26.1-ba40:System.Process.Common
+
+EXIT jobs=2: 1

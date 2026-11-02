@@ -1,0 +1,16 @@
+The first container was launched from the isolated worktree after checking that
+its name and the image tag were not already in use:
+
+timeout 9000 docker run --rm --name pstack-mutaskell-explore-20261102 \
+  --cpus 2 --memory 7g --user "$(id -u):$(id -g)" \
+  --env HOME=/work/.explore/home --env CABAL_DIR=/work/.explore/cabal \
+  --env XDG_CACHE_HOME=/work/.explore/home/.cache \
+  --volume "$PWD:/work" --workdir /work --entrypoint /bin/bash \
+  haskell:9.12-slim-bookworm /work/.explore/container-pass.sh
+
+The replay containers used the same image, limits, environment and bind mount,
+with distinct pstack-mutaskell-{replay,args,rsync,fullretry}-20261102 names and
+replay.sh, replay-args.sh, with-rsync.sh or full-retry.sh as the script. No
+ports or named volumes were configured. The image tag was absent before the
+pull; an exit trap removed each run's container and pulled image afterward.
+Project workers used the container's private /tmp, removed with the container.
