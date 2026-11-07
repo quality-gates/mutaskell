@@ -190,6 +190,14 @@ The `--write-ghc-environment-files=always` flag is required so the `hint` interp
 
 Full documentation is available on the [mutaskell GitHub Pages site](https://quality-gates.github.io/mutaskell).
 
+## Library migration
+
+`Mutant`, its fields, and `toMutant` now come from
+`Test.Mutaskell.Mutant` instead of `Test.Mutaskell.TestAdapter`. Update imports
+when upgrading. Custom `TRun` instances no longer implement `summarize_`,
+`success_`, `failure_`, or `other_`. Implement `testSummary`, `isSuccess`,
+`isFailure`, and `isOther` on the result type's `Summarizable` instance instead.
+
 # Install required packages:
 
 ```

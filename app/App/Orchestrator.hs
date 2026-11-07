@@ -70,7 +70,7 @@ import App.Opts (Opts (..), appendTestArgs)
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
 import Test.Mutaskell.Config (Config (..), defaultConfig, showMuVar)
 import Test.Mutaskell.Mutation (genSampledMutants, getASTFromFile)
-import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Mutant (Mutant (..))
 
 -- | Outcome of evaluating a single mutant against the real toolchain.
 data Outcome = Killed | Alive | Skipped

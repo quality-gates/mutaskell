@@ -36,7 +36,7 @@ import App.Opts (Opts(..))
 import Test.Mutaskell.AnalysisSummary (MAnalysisSummary(..))
 import Test.Mutaskell.Config (MuVar(..), showMuVar)
 import Test.Mutaskell.Interpreter (MutantSummary(..))
-import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Mutant (Mutant(..))
 import Test.Mutaskell.Tix (spanStartLine)
 import Test.Mutaskell.Utils.Common (hash)
 

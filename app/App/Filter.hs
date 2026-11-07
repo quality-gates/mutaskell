@@ -40,7 +40,7 @@ import System.Process (readProcessWithExitCode)
 import App.Opts (Opts (..), splitOn)
 import Test.Mutaskell.Config (MuVar, showMuVar)
 import Test.Mutaskell.MuOp (MuOp, getSpan)
-import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Mutant (Mutant(..))
 import Test.Mutaskell.Tix (spanStartLine)
 import Test.Mutaskell.Utils.Common (hash)
 

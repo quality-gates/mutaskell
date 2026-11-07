@@ -66,6 +66,7 @@ import System.IO (IOMode (WriteMode), hClose, stderr, stdout, withFile)
 import System.Timeout (timeout)
 
 import Test.Mutaskell.Interpreter (findPkgEnvArgs, mutantPaths, parentDir)
+import Test.Mutaskell.Mutant
 import Test.Mutaskell.TestAdapter
 import Test.Mutaskell.Utils.Print (say)
 

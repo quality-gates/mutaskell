@@ -113,7 +113,7 @@ apply f (CachedBefore _ op) = apply f op
 -- Span extraction
 
 -- | Extract the source span of the /before/ node as a @(startLine, startCol,
--- endLine, endCol)@ tuple, used by 'Test.Mutaskell.TestAdapter.Mutant'.
+-- endLine, endCol)@ tuple, used by 'Test.Mutaskell.Mutant.Mutant'.
 getSpan :: MuOp -> (Int, Int, Int, Int)
 getSpan = apply go
   where

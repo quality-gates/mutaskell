@@ -5,7 +5,7 @@ import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Mutaskell.Config (MuVar(..))
 import Test.Mutaskell.Mutation (removeUncovered)
-import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Mutant (Mutant(..))
 import Test.Mutaskell.Tix
     ( getUnCoveredPatchesFromIndex
     , buildTixIndex

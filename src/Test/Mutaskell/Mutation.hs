@@ -47,7 +47,7 @@ import Language.Haskell.GHC.ExactPrint.Transform (setEntryDP, transferEntryDP)
 
 import Test.Mutaskell.Config
 import Test.Mutaskell.MuOp
-import Test.Mutaskell.TestAdapter
+import Test.Mutaskell.Mutant
 import Test.Mutaskell.Tix
 import Test.Mutaskell.Utils.Common
 import Test.Mutaskell.Utils.Syb

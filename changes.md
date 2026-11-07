@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.9.0]
+  * Changed: Move `Mutant` and `toMutant` to `Test.Mutaskell.Mutant`. Custom `TRun` instances must remove the summary proxies and use `Summarizable` directly (#101). This breaks existing imports and adapter instances.
+
 ## [0.8.58]
   * Fixed: `--git-diff-base REF` now stops with exit code 2 and `Error: git diff failed for base ref 'REF'` when `git diff` fails. Before, a missing, mistyped, or unfetched REF made mutaskell mutate every file and line and exit 0 (#130).
 

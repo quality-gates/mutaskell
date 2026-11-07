@@ -54,7 +54,8 @@ import Test.Mutaskell.Interpreter (MutantSummary(..), evalTest, evaluateMutants)
 import Test.Mutaskell.Mutation
     ( genMutants, genMutantsFromAST, genSampledMutants, getASTFromFile
     , getASTFromStr, getAllTests )
-import Test.Mutaskell.TestAdapter (InterpreterOutput(..), Mutant(..), Summarizable(..), TRun(..))
+import Test.Mutaskell.Mutant (Mutant(..))
+import Test.Mutaskell.TestAdapter (InterpreterOutput(..), Summarizable(..), TRun(..))
 import Test.Mutaskell.TestAdapter.AssertCheckAdapter
 
 

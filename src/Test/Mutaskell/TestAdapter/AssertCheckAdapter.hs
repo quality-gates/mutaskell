@@ -26,8 +26,3 @@ instance TRun AssertCheckRun AssertCheckSummary where
     genTest _m tstfn = "assertCheckResult " ++ tstfn
     getName (AssertCheckRun str) = str
     toRun s = AssertCheckRun s
-
-    summarize_ _m = testSummary :: Mutant -> TestStr -> InterpreterOutput AssertCheckSummary -> Summary
-    success_ _m = isSuccess :: AssertCheckSummary -> Bool
-    failure_ _m = isFailure :: AssertCheckSummary -> Bool
-    other_ _m = isOther :: AssertCheckSummary -> Bool

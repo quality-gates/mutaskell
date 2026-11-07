@@ -17,6 +17,7 @@ import Trace.Hpc.Util (toHpcPos)
 
 import qualified Test.Mutaskell.Interpreter.ReusedSession as RS
 import Test.Mutaskell.Config (MuVar (..))
+import Test.Mutaskell.Mutant (toMutant)
 import Test.Mutaskell.TestAdapter
 
 -- Same catch-free adapter the equivalence tests use: 'IO Bool' results with

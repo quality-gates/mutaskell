@@ -30,7 +30,7 @@ import Test.Mutaskell.Config (Config (..), MuVar (..), defaultConfig)
 import Test.Mutaskell.MuOp (MuOp, getSpan)
 import Test.Mutaskell.Mutation (selectFunctionOps, selectLiteralOps)
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
-import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Mutant (Mutant (..))
 import Test.Mutaskell.Tix (toSpan)
 import Test.Mutaskell.Utils.Common (hash)
 

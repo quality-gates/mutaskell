@@ -7,6 +7,7 @@ import Test.Mutaskell.AnalysisSummary
 import Test.Mutaskell.Config
 import Test.Mutaskell.Interpreter (MutantSummary (..), evaluateMutants)
 import Test.Mutaskell.Mutation
+import Test.Mutaskell.Mutant
 import Test.Mutaskell.Tix (getUnCoveredPatches)
 import Test.Mutaskell.TestAdapter
 import Test.Mutaskell.Utils.Common

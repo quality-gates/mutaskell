@@ -37,7 +37,7 @@ import App.Worker
     )
 import Test.Mutaskell.Config (MuVar(..))
 import Test.Mutaskell.Interpreter (MutantSummary(..), isSkippedSummary)
-import Test.Mutaskell.TestAdapter (Mutant(..))
+import Test.Mutaskell.Mutant (Mutant(..))
 import Test.Mutaskell.Tix (toSpan)
 import Test.Mutaskell.Utils.Common (hash)
 
