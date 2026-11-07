@@ -14,9 +14,8 @@ import Test.Mutaskell.Config (MuVar (..), defaultConfig, maxNumMutants)
 import Test.Mutaskell.MuOp (getSpan, mkMpMuOp)
 import Test.Mutaskell.Mutation
 import Test.Mutaskell.Tix (spanStartLine, toSpan)
-import Test.Mutaskell.TestAdapter (toMutant)
+import Test.Mutaskell.Mutant (Mutant (..), toMutant)
 import Test.Mutaskell.Utils.Common (apTh)
-import Test.Mutaskell.TestAdapter (Mutant (..))
 import Test.Mutaskell.Utils.Syb (once, relevantOps)
 import qualified Test.Mutaskell.MutationSpec.Helpers as H
 

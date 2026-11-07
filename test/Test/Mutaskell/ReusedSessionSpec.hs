@@ -53,8 +53,10 @@ import System.IO (hClose, stderr, stdout)
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 
-import Test.Mutaskell.Interpreter (MutantSummary (..), evalMutant, mutantPaths, summarizeResults)
+import Test.Mutaskell.AnalysisSummary (MAnalysisSummary (..))
+import Test.Mutaskell.Interpreter (MutantSummary (..), evalMutant, evaluateMutants, mutantPaths, summarizeResults)
 import Test.Mutaskell.Interpreter.ReusedSession
+import Test.Mutaskell.Mutant
 import Test.Mutaskell.TestAdapter
 import Test.Mutaskell.Config (MuVar (..))
 import Test.Mutaskell.TestAdapter.AssertCheck (AssertStatus (..))
@@ -252,10 +254,6 @@ instance TRun CustRun Bool where
     genTest _ t = t
     getName _ = "cust"
     toRun = const (CustRun "fixture")
-    summarize_ _ _ _ result = Summary (_ioLog result)
-    success_ _ = isSuccess
-    failure_ _ = isFailure
-    other_ _ = isOther
 
 -- --------------------------------------------------------------- plumbing
 
@@ -386,6 +384,23 @@ expectFreshParity adapter tests mutant prod (stats, fresh) = do
 
 spec :: Spec
 spec = describe "ReusedSession" $ do
+
+    it "uses the custom result instance for classification and logs" $ do
+        let mutant = mkMutant survivorSrc
+            results = [Io (Right True) "passed", Io (Right False) "failed"]
+        case summarizeResults (CustRun "fixture") ["first", "second"] (mutant, results) of
+            MSumKilled actual logs -> do
+                actual `shouldBe` mutant
+                [message | Summary message <- logs] `shouldBe` ["passed", "failed"]
+            _ -> expectationFailure "Expected the failed custom result to kill the mutant"
+
+    it "counts interpreted custom results using the result instance" $ do
+        let mutant result = mkMutant $ unlines
+                ["module MutCustom where", "check :: IO Bool", "check = pure " ++ show result]
+        (summary, _) <- evaluateMutants 1 Nothing Nothing [] Nothing (CustRun "fixture")
+            [mutant True, mutant False] ["check"]
+        _maAlive summary `shouldBe` 1
+        _maKilled summary `shouldBe` 1
 
     describe "run-scoped package-environment cache" $
         it "returns the environment file of the current directory when present" $ do

@@ -10,7 +10,7 @@ import Text.Printf (printf)
 import Test.Mutaskell.Config (Config (maxNumMutants), defaultConfig)
 import Test.Mutaskell.MuOp (Module_)
 import Test.Mutaskell.Mutation
-import Test.Mutaskell.TestAdapter (Mutant (_mutant), toMutant)
+import Test.Mutaskell.Mutant (Mutant (_mutant), toMutant)
 import Test.Mutaskell.Utils.Common (apTh)
 import Language.Haskell.GHC.ExactPrint (exactPrint)
 

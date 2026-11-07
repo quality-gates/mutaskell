@@ -10,7 +10,7 @@ import Text.Printf (printf)
 
 import Test.Mutaskell.Config (Config (maxNumMutants), defaultConfig)
 import Test.Mutaskell.Mutation (genSampledMutants, getASTFromStr, removeOneElem)
-import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Mutant (Mutant (..))
 import Test.Mutaskell.Utils.Common (choose)
 
 -- Do not let the consumer fuse with removeOneElem. Work must stay visible.

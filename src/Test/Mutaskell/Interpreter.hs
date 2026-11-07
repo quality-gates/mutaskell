@@ -34,6 +34,7 @@ import System.Timeout (timeout)
 
 import Test.Mutaskell.AnalysisSummary
 import Test.Mutaskell.TestAdapter
+import Test.Mutaskell.Mutant
 import Test.Mutaskell.Utils.Common
 import Test.Mutaskell.Utils.Print
 
@@ -140,13 +141,13 @@ parentDir p = case reverse (dropWhile (/= '/') (reverse p)) of
     dir -> init dir  -- drop trailing slash
 
 -- | The `summarizeResults` function evaluates the results of a test run
--- using the supplied `isSuccess` and `summarize_` functions from the adapters
+-- using the 'Summarizable' instance for the test result.
 summarizeResults :: (Summarizable s, TRun a s) =>
      a                                                            -- ^ The module to be evaluated
   -> [TestStr]                                                    -- ^ Tests we used to run analysis
   -> (Mutant, [InterpreterOutput s])                              -- ^ The mutant and its corresponding output of test runs.
   -> MutantSummary                                                -- ^ Returns a summary of the run for the mutant
-summarizeResults m tests (mutant, ioresults) =
+summarizeResults _ tests (mutant, ioresults) =
   case [e | Io (Left e) _ <- ioresults] of
     (I.WontCompile _ : _) -> MSumSkipped mutant logS
     (err:_)               -> MSumError mutant (showE err) logS
@@ -156,8 +157,7 @@ summarizeResults m tests (mutant, ioresults) =
   where isKilled (Io (Right x) _) = isFailure x
         isKilled _ = False
         logS :: [Summary]
-        logS = zipWith (summarize mutant) tests ioresults
-        summarize = summarize_ m
+        logS = zipWith (testSummary mutant) tests ioresults
 
 -- | Compute the paths a mutant is evaluated through.
 --
@@ -312,7 +312,7 @@ fullSummary :: (Show b, Summarizable b, TRun a b) =>
   -> [TestStr]                              -- ^ The list of tests we used
   -> [[InterpreterOutput b]]                -- ^ The test ouput (per mutant, (per test))
   -> MAnalysisSummary                       -- ^ Returns the full summary of the run
-fullSummary m _tests results = MAnalysisSummary {
+fullSummary _ _tests results = MAnalysisSummary {
   _maCoveredNumMutants = -1,
   _maNumMutants = length results,
   _maAlive = length alive,
@@ -330,6 +330,6 @@ fullSummary m _tests results = MAnalysisSummary {
         isWontCompile (I.WontCompile _) = True
         isWontCompile _                 = False
         -- A mutant is killed if any test failed
-        fails = filter (any (failure_ m)) completed
+        fails = filter (any isFailure) completed
         -- A mutant is alive if all tests succeeded
-        alive = filter (all (success_ m)) completed
+        alive = filter (all isSuccess) completed

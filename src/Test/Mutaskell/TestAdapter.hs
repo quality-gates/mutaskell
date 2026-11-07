@@ -5,19 +5,10 @@ module Test.Mutaskell.TestAdapter where
 
 import Data.Typeable
 import qualified Language.Haskell.Interpreter as I
-import Test.Mutaskell.Config
-import Test.Mutaskell.Tix
+import Test.Mutaskell.Mutant (Mutant)
 
 -- | Wrapper for interpreter output
 data (Summarizable a) => InterpreterOutput a = Io {_io :: Either I.InterpreterError a, _ioLog :: String}
-
--- | Holding mutant information
-data Mutant = Mutant {_mutant :: String, _mtype :: MuVar, _mspan :: Span}
-    deriving (Eq, Show, Read)
-
--- | Convert a tuple to a mutant
-toMutant :: (MuVar, Span, String) -> Mutant
-toMutant (m, s, str) = Mutant{_mutant = str, _mtype = m, _mspan = s}
 
 -- | Holding test information
 type TestStr = String
@@ -53,10 +44,3 @@ class TRun a s | a -> s where
 
     getName :: a -> String
     toRun :: String -> a
-
-    -- | Functions to be used to summarize
-    summarize_ :: (Summarizable s) => a -> Mutant -> TestStr -> InterpreterOutput s -> Summary
-
-    success_ :: (Summarizable s) => a -> s -> Bool
-    failure_ :: (Summarizable s) => a -> s -> Bool
-    other_ :: (Summarizable s) => a -> s -> Bool

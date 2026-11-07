@@ -99,7 +99,7 @@ import Test.Mutaskell.Tix
     , getUnCoveredPatchesFromIndex
     , parseTixIndex
     )
-import Test.Mutaskell.TestAdapter (Mutant (..))
+import Test.Mutaskell.Mutant (Mutant (..))
 
 -- | File recording fully-completed source files, for resume (AC 9).
 progressFile :: FilePath
